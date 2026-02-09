@@ -18,6 +18,7 @@ provider "dockhand" {
 - `dockhand_stack`
 - `dockhand_user`
 - `dockhand_settings_general`
+- `dockhand_registry`
 
 ## Schema
 

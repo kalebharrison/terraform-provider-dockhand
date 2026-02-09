@@ -60,6 +60,17 @@ type userResponse struct {
 	UpdatedAt   *string `json:"updatedAt"`
 }
 
+type registryResponse struct {
+	ID             int64   `json:"id"`
+	Name           string  `json:"name"`
+	URL            string  `json:"url"`
+	Username       *string `json:"username"`
+	IsDefault      bool    `json:"isDefault"`
+	CreatedAt      *string `json:"createdAt"`
+	UpdatedAt      *string `json:"updatedAt"`
+	HasCredentials bool    `json:"hasCredentials"`
+}
+
 type generalSettings struct {
 	ConfirmDestructive        bool     `json:"confirmDestructive"`
 	DarkTheme                 string   `json:"darkTheme"`
@@ -153,6 +164,46 @@ func (c *Client) UpdateGeneralSettings(ctx context.Context, payload generalSetti
 		return nil, status, err
 	}
 	return &out, status, nil
+}
+
+func (c *Client) ListRegistries(ctx context.Context) ([]registryResponse, int, error) {
+	var out []registryResponse
+	status, err := c.doJSONWithStatus(ctx, http.MethodGet, "/api/registries", nil, nil, &out)
+	if err != nil {
+		return nil, status, err
+	}
+	return out, status, nil
+}
+
+func (c *Client) GetRegistry(ctx context.Context, id string) (*registryResponse, int, error) {
+	var out registryResponse
+	status, err := c.doJSONWithStatus(ctx, http.MethodGet, "/api/registries/"+url.PathEscape(id), nil, nil, &out)
+	if err != nil {
+		return nil, status, err
+	}
+	return &out, status, nil
+}
+
+func (c *Client) CreateRegistry(ctx context.Context, payload map[string]any) (*registryResponse, int, error) {
+	var out registryResponse
+	status, err := c.doJSONWithStatus(ctx, http.MethodPost, "/api/registries", nil, payload, &out)
+	if err != nil {
+		return nil, status, err
+	}
+	return &out, status, nil
+}
+
+func (c *Client) UpdateRegistry(ctx context.Context, id string, payload map[string]any) (*registryResponse, int, error) {
+	var out registryResponse
+	status, err := c.doJSONWithStatus(ctx, http.MethodPut, "/api/registries/"+url.PathEscape(id), nil, payload, &out)
+	if err != nil {
+		return nil, status, err
+	}
+	return &out, status, nil
+}
+
+func (c *Client) DeleteRegistry(ctx context.Context, id string) (int, error) {
+	return c.doJSONWithStatus(ctx, http.MethodDelete, "/api/registries/"+url.PathEscape(id), nil, nil, nil)
 }
 
 func (c *Client) CreateStack(ctx context.Context, env string, payload stackPayload) error {

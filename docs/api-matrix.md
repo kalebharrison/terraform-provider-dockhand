@@ -36,6 +36,10 @@ Source: [Dockhand Manual API Reference](https://dockhand.pro/manual/#api-referen
 | `dockhand_user` | Import | `GET /api/users/{id}` | Import by ID. | implemented |
 | `dockhand_settings_general` | Read | `GET /api/settings/general` | Singleton settings document. | implemented |
 | `dockhand_settings_general` | Update | `POST /api/settings/general` | Writes merged settings payload. | implemented |
+| `dockhand_registry` | Create | `POST /api/registries` | Payload supports name/url/isDefault/username/password. | implemented |
+| `dockhand_registry` | Read | `GET /api/registries/{id}` | `404` removes from state. | implemented |
+| `dockhand_registry` | Update | `PUT /api/registries/{id}` | Omitting username/password preserves credentials. | implemented |
+| `dockhand_registry` | Delete | `DELETE /api/registries/{id}` | `404` treated as already deleted. | implemented |
 
 ## Data Sources
 

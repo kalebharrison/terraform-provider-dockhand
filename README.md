@@ -10,6 +10,7 @@ This initial scaffold includes:
 - Resource: `dockhand_stack`
 - Resource: `dockhand_user`
 - Resource: `dockhand_settings_general`
+- Resource: `dockhand_registry`
 - Data source: `dockhand_health`
 - HTTP client wiring against:
   - `POST /api/auth/login` (session-based auth)
