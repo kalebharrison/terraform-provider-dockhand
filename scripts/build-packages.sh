@@ -47,6 +47,10 @@ fi
 
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 out_dir="${out_dir:-${repo_root}/dist-local}"
+# Ensure out_dir is absolute since we zip from per-platform temp directories.
+if [[ "${out_dir}" != /* ]]; then
+  out_dir="${repo_root}/${out_dir}"
+fi
 tmp_dir="${out_dir}/.tmp"
 
 if ! command -v zip >/dev/null 2>&1; then
@@ -103,4 +107,3 @@ for p in "${platforms[@]}"; do
 done
 
 echo "Wrote packages to: ${out_dir}" >&2
-
