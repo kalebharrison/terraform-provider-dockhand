@@ -34,6 +34,8 @@ Source: [Dockhand Manual API Reference](https://dockhand.pro/manual/#api-referen
 | `dockhand_user` | Update | `PUT /api/users/{id}` | Supports email/displayName/isAdmin/isActive/password. | implemented |
 | `dockhand_user` | Delete | `DELETE /api/users/{id}` | `404` treated as already deleted. | implemented |
 | `dockhand_user` | Import | `GET /api/users/{id}` | Import by ID. | implemented |
+| `dockhand_settings_general` | Read | `GET /api/settings/general` | Singleton settings document. | implemented |
+| `dockhand_settings_general` | Update | `POST /api/settings/general` | Writes merged settings payload. | implemented |
 
 ## Data Sources
 

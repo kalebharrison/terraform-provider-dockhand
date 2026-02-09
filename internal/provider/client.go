@@ -60,6 +60,37 @@ type userResponse struct {
 	UpdatedAt   *string `json:"updatedAt"`
 }
 
+type generalSettings struct {
+	ConfirmDestructive        bool     `json:"confirmDestructive"`
+	DarkTheme                 string   `json:"darkTheme"`
+	DateFormat                string   `json:"dateFormat"`
+	DefaultGrypeArgs          string   `json:"defaultGrypeArgs"`
+	DefaultTimezone           string   `json:"defaultTimezone"`
+	DefaultTrivyArgs          string   `json:"defaultTrivyArgs"`
+	DownloadFormat            string   `json:"downloadFormat"`
+	EditorFont                string   `json:"editorFont"`
+	EventCleanupCron          string   `json:"eventCleanupCron"`
+	EventCleanupEnabled       bool     `json:"eventCleanupEnabled"`
+	EventCollectionMode       string   `json:"eventCollectionMode"`
+	EventPollInterval         int64    `json:"eventPollInterval"`
+	EventRetentionDays        int64    `json:"eventRetentionDays"`
+	ExternalStackPaths        []string `json:"externalStackPaths"`
+	Font                      string   `json:"font"`
+	FontSize                  string   `json:"fontSize"`
+	GridFontSize              string   `json:"gridFontSize"`
+	HighlightUpdates          bool     `json:"highlightUpdates"`
+	LightTheme                string   `json:"lightTheme"`
+	LogBufferSizeKb           int64    `json:"logBufferSizeKb"`
+	MetricsCollectionInterval int64    `json:"metricsCollectionInterval"`
+	PrimaryStackLocation      *string  `json:"primaryStackLocation"`
+	ScheduleCleanupCron       string   `json:"scheduleCleanupCron"`
+	ScheduleCleanupEnabled    bool     `json:"scheduleCleanupEnabled"`
+	ScheduleRetentionDays     int64    `json:"scheduleRetentionDays"`
+	ShowStoppedContainers     bool     `json:"showStoppedContainers"`
+	TerminalFont              string   `json:"terminalFont"`
+	TimeFormat                string   `json:"timeFormat"`
+}
+
 func NewClient(endpoint string, sessionCookie string, defaultEnv string, insecure bool) (*Client, error) {
 	if endpoint == "" {
 		return nil, fmt.Errorf("endpoint is required")
@@ -104,6 +135,24 @@ func NewClient(endpoint string, sessionCookie string, defaultEnv string, insecur
 		sessionCookie: sessionCookie,
 		defaultEnv:    defaultEnv,
 	}, nil
+}
+
+func (c *Client) GetGeneralSettings(ctx context.Context) (*generalSettings, int, error) {
+	var out generalSettings
+	status, err := c.doJSONWithStatus(ctx, http.MethodGet, "/api/settings/general", nil, nil, &out)
+	if err != nil {
+		return nil, status, err
+	}
+	return &out, status, nil
+}
+
+func (c *Client) UpdateGeneralSettings(ctx context.Context, payload generalSettings) (*generalSettings, int, error) {
+	var out generalSettings
+	status, err := c.doJSONWithStatus(ctx, http.MethodPost, "/api/settings/general", nil, payload, &out)
+	if err != nil {
+		return nil, status, err
+	}
+	return &out, status, nil
 }
 
 func (c *Client) CreateStack(ctx context.Context, env string, payload stackPayload) error {

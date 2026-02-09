@@ -9,6 +9,7 @@ This initial scaffold includes:
 - Provider config with `endpoint`, `username`/`password` (login-based), `default_env`, and `insecure`.
 - Resource: `dockhand_stack`
 - Resource: `dockhand_user`
+- Resource: `dockhand_settings_general`
 - Data source: `dockhand_health`
 - HTTP client wiring against:
   - `POST /api/auth/login` (session-based auth)

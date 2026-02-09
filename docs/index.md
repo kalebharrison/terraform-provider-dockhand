@@ -13,6 +13,12 @@ provider "dockhand" {
 }
 ```
 
+## Resources
+
+- `dockhand_stack`
+- `dockhand_user`
+- `dockhand_settings_general`
+
 ## Schema
 
 ### Optional
