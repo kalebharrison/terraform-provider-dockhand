@@ -1,0 +1,64 @@
+name: Release Artifacts
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Version (e.g. 0.1.0). If empty, derived from ref tag."
+        required: false
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    name: Build Zips And Publish Release
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          check-latest: true
+          cache: true
+
+      - name: Determine version
+        id: ver
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ -n "${{ inputs.version }}" ]]; then
+            v="${{ inputs.version }}"
+          else
+            # refs/tags/vX.Y.Z -> X.Y.Z
+            ref="${GITHUB_REF#refs/tags/}"
+            v="${ref#v}"
+          fi
+          if [[ -z "$v" ]]; then
+            echo "version is empty" >&2
+            exit 2
+          fi
+          echo "version=$v" >> "$GITHUB_OUTPUT"
+
+      - name: Build packages
+        run: |
+          ./scripts/build-packages.sh --version "${{ steps.ver.outputs.version }}" --out-dir dist-local
+
+      - name: Publish GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: ${{ github.ref_name }}
+          generate_release_notes: true
+          files: |
+            dist-local/terraform-provider-dockhand_${{ steps.ver.outputs.version }}_*.zip
+            dist-local/terraform-provider-dockhand_${{ steps.ver.outputs.version }}_SHA256SUMS

@@ -1,0 +1,438 @@
+package provider
+
+import (
+	"bytes"
+	"context"
+	"crypto/tls"
+	"encoding/json"
+	"errors"
+	"fmt"
+	"io"
+	"net"
+	"net/http"
+	"net/url"
+	"strconv"
+	"strings"
+	"time"
+)
+
+type Client struct {
+	baseURL       *url.URL
+	httpClient    *http.Client
+	sessionCookie string
+	defaultEnv    string
+}
+
+type stackPayload struct {
+	Name    string `json:"name"`
+	Compose string `json:"compose"`
+}
+
+type stackResponse struct {
+	Name    string `json:"name"`
+	Compose string `json:"compose"`
+}
+
+type healthResponse struct {
+	Status  string `json:"status"`
+	Version string `json:"version,omitempty"`
+}
+
+type userPayload struct {
+	Username    string  `json:"username"`
+	Password    *string `json:"password,omitempty"`
+	Email       *string `json:"email,omitempty"`
+	DisplayName *string `json:"displayName,omitempty"`
+	IsAdmin     bool    `json:"isAdmin"`
+	IsActive    bool    `json:"isActive"`
+}
+
+type userResponse struct {
+	ID          int64   `json:"id"`
+	Username    string  `json:"username"`
+	Email       *string `json:"email"`
+	DisplayName *string `json:"displayName"`
+	MFAEnabled  bool    `json:"mfaEnabled"`
+	IsAdmin     bool    `json:"isAdmin"`
+	IsActive    bool    `json:"isActive"`
+	LastLogin   *string `json:"lastLogin"`
+	CreatedAt   *string `json:"createdAt"`
+	UpdatedAt   *string `json:"updatedAt"`
+}
+
+func NewClient(endpoint string, sessionCookie string, defaultEnv string, insecure bool) (*Client, error) {
+	if endpoint == "" {
+		return nil, fmt.Errorf("endpoint is required")
+	}
+	if sessionCookie == "" {
+		return nil, fmt.Errorf("session cookie is required")
+	}
+
+	if !strings.HasPrefix(endpoint, "http://") && !strings.HasPrefix(endpoint, "https://") {
+		endpoint = "https://" + endpoint
+	}
+
+	parsed, err := url.Parse(endpoint)
+	if err != nil {
+		return nil, err
+	}
+
+	transport := &http.Transport{
+		Proxy: http.ProxyFromEnvironment,
+		DialContext: (&net.Dialer{
+			Timeout:   10 * time.Second,
+			KeepAlive: 30 * time.Second,
+		}).DialContext,
+		TLSClientConfig: &tls.Config{
+			MinVersion:         tls.VersionTLS12,
+			InsecureSkipVerify: insecure,
+		},
+		ForceAttemptHTTP2:     true,
+		MaxIdleConns:          100,
+		MaxIdleConnsPerHost:   10,
+		IdleConnTimeout:       90 * time.Second,
+		TLSHandshakeTimeout:   10 * time.Second,
+		ExpectContinueTimeout: 1 * time.Second,
+	}
+
+	return &Client{
+		baseURL: parsed,
+		httpClient: &http.Client{
+			Timeout:   30 * time.Second,
+			Transport: transport,
+		},
+		sessionCookie: sessionCookie,
+		defaultEnv:    defaultEnv,
+	}, nil
+}
+
+func (c *Client) CreateStack(ctx context.Context, env string, payload stackPayload) error {
+	query := map[string]string{}
+	if resolvedEnv := c.resolveEnv(env); resolvedEnv != "" {
+		query["env"] = resolvedEnv
+	}
+	if _, err := c.doJSONWithStatus(ctx, http.MethodPost, "/api/stacks", query, payload, nil); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (c *Client) ListStacks(ctx context.Context, env string) ([]stackResponse, int, error) {
+	query := map[string]string{}
+	if resolvedEnv := c.resolveEnv(env); resolvedEnv != "" {
+		query["env"] = resolvedEnv
+	}
+
+	var raw json.RawMessage
+	status, err := c.doJSONWithStatus(ctx, http.MethodGet, "/api/stacks", query, nil, &raw)
+	if err != nil {
+		return nil, status, err
+	}
+
+	stacks, parseErr := parseStacks(raw)
+	if parseErr != nil {
+		return nil, status, parseErr
+	}
+
+	return stacks, status, nil
+}
+
+func (c *Client) GetStackByName(ctx context.Context, env string, name string) (*stackResponse, bool, error) {
+	stacks, _, err := c.ListStacks(ctx, env)
+	if err != nil {
+		return nil, false, err
+	}
+
+	for i := range stacks {
+		if stacks[i].Name == name {
+			return &stacks[i], true, nil
+		}
+	}
+
+	return nil, false, nil
+}
+
+func (c *Client) StartStack(ctx context.Context, env string, name string) error {
+	query := map[string]string{}
+	if resolvedEnv := c.resolveEnv(env); resolvedEnv != "" {
+		query["env"] = resolvedEnv
+	}
+	if _, err := c.doJSONWithStatus(ctx, http.MethodPost, "/api/stacks/"+url.PathEscape(name)+"/start", query, nil, nil); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (c *Client) StopStack(ctx context.Context, env string, name string) error {
+	query := map[string]string{}
+	if resolvedEnv := c.resolveEnv(env); resolvedEnv != "" {
+		query["env"] = resolvedEnv
+	}
+	if _, err := c.doJSONWithStatus(ctx, http.MethodPost, "/api/stacks/"+url.PathEscape(name)+"/stop", query, nil, nil); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (c *Client) DeleteStack(ctx context.Context, env string, name string) (int, error) {
+	query := map[string]string{
+		"force": "true",
+	}
+	if resolvedEnv := c.resolveEnv(env); resolvedEnv != "" {
+		query["env"] = resolvedEnv
+	}
+	return c.doJSONWithStatus(ctx, http.MethodDelete, "/api/stacks/"+url.PathEscape(name), query, nil, nil)
+}
+
+func (c *Client) Health(ctx context.Context, env string) (*healthResponse, error) {
+	// Dockhand docs do not expose a dedicated health endpoint.
+	// We treat a successful dashboard stats request as API health.
+	query := map[string]string{}
+	if resolvedEnv := c.resolveEnv(env); resolvedEnv != "" {
+		query["env"] = resolvedEnv
+	}
+
+	if _, err := c.doJSONWithStatus(ctx, http.MethodGet, "/api/dashboard/stats", query, nil, nil); err != nil {
+		return nil, err
+	}
+
+	return &healthResponse{Status: "ok"}, nil
+}
+
+func (c *Client) CreateUser(ctx context.Context, payload userPayload) (*userResponse, error) {
+	var out userResponse
+	if _, err := c.doJSONWithStatus(ctx, http.MethodPost, "/api/users", nil, payload, &out); err != nil {
+		return nil, err
+	}
+	return &out, nil
+}
+
+func (c *Client) GetUser(ctx context.Context, id string) (*userResponse, int, error) {
+	var out userResponse
+	status, err := c.doJSONWithStatus(ctx, http.MethodGet, "/api/users/"+url.PathEscape(id), nil, nil, &out)
+	if err != nil {
+		return nil, status, err
+	}
+	return &out, status, nil
+}
+
+func (c *Client) UpdateUser(ctx context.Context, id string, payload userPayload) (*userResponse, error) {
+	var out userResponse
+	if _, err := c.doJSONWithStatus(ctx, http.MethodPut, "/api/users/"+url.PathEscape(id), nil, payload, &out); err != nil {
+		return nil, err
+	}
+	return &out, nil
+}
+
+func (c *Client) DeleteUser(ctx context.Context, id string) (int, error) {
+	return c.doJSONWithStatus(ctx, http.MethodDelete, "/api/users/"+url.PathEscape(id), nil, nil, nil)
+}
+
+func (c *Client) doJSONWithStatus(ctx context.Context, method string, path string, query map[string]string, in any, out any) (int, error) {
+	var payloadBytes []byte
+	if in != nil {
+		data, err := json.Marshal(in)
+		if err != nil {
+			return 0, err
+		}
+		payloadBytes = data
+	}
+
+	// Build the URL once; the request itself may be retried.
+	ref := &url.URL{Path: path}
+	if len(query) > 0 {
+		values := url.Values{}
+		for k, v := range query {
+			if v != "" {
+				values.Set(k, v)
+			}
+		}
+		ref.RawQuery = values.Encode()
+	}
+	fullURL := c.baseURL.ResolveReference(ref).String()
+
+	var lastStatus int
+	var responseBody []byte
+
+	for attempt := 0; attempt < 3; attempt++ {
+		var body io.Reader
+		if payloadBytes != nil {
+			body = bytes.NewReader(payloadBytes)
+		}
+
+		req, err := http.NewRequestWithContext(ctx, method, fullURL, body)
+		if err != nil {
+			return 0, err
+		}
+
+		req.Header.Set("Accept", "application/json")
+		if payloadBytes != nil {
+			req.Header.Set("Content-Type", "application/json")
+		}
+		if c.sessionCookie != "" {
+			req.Header.Set("Cookie", c.sessionCookie)
+		}
+
+		res, err := c.httpClient.Do(req)
+		if err != nil {
+			if shouldRetry(method, 0, err) && attempt < 2 {
+				if sleepErr := sleepBackoff(ctx, attempt); sleepErr != nil {
+					return 0, err
+				}
+				continue
+			}
+			return 0, err
+		}
+
+		lastStatus = res.StatusCode
+
+		// On errors, keep the body very small to avoid huge allocations in diagnostics.
+		limit := int64(10 << 20) // 10 MiB
+		if res.StatusCode < 200 || res.StatusCode > 299 {
+			limit = 64 << 10 // 64 KiB
+		}
+
+		responseBody, err = io.ReadAll(io.LimitReader(res.Body, limit))
+		res.Body.Close()
+		if err != nil {
+			if shouldRetry(method, lastStatus, err) && attempt < 2 {
+				if sleepErr := sleepBackoff(ctx, attempt); sleepErr != nil {
+					return lastStatus, err
+				}
+				continue
+			}
+			return lastStatus, err
+		}
+
+		if shouldRetry(method, lastStatus, nil) && attempt < 2 {
+			if sleepErr := sleepBackoff(ctx, attempt); sleepErr != nil {
+				break
+			}
+			continue
+		}
+
+		break
+	}
+
+	if lastStatus < 200 || lastStatus > 299 {
+		if len(responseBody) == 0 {
+			return lastStatus, fmt.Errorf("dockhand api returned status %d", lastStatus)
+		}
+		return lastStatus, fmt.Errorf("dockhand api returned status %d: %s", lastStatus, strings.TrimSpace(string(responseBody)))
+	}
+
+	if out != nil && len(responseBody) > 0 {
+		if err := json.Unmarshal(responseBody, out); err != nil {
+			return lastStatus, err
+		}
+	}
+
+	return lastStatus, nil
+}
+
+func (c *Client) resolveEnv(value string) string {
+	if value != "" {
+		return value
+	}
+	return c.defaultEnv
+}
+
+func parseStacks(raw json.RawMessage) ([]stackResponse, error) {
+	var asArray []map[string]any
+	if err := json.Unmarshal(raw, &asArray); err == nil {
+		return mapsToStacks(asArray), nil
+	}
+
+	var asObject map[string]json.RawMessage
+	if err := json.Unmarshal(raw, &asObject); err != nil {
+		return nil, err
+	}
+
+	if stacksRaw, ok := asObject["stacks"]; ok {
+		if err := json.Unmarshal(stacksRaw, &asArray); err != nil {
+			return nil, err
+		}
+		return mapsToStacks(asArray), nil
+	}
+
+	return nil, fmt.Errorf("unexpected stack list response shape")
+}
+
+func shouldRetry(method string, status int, err error) bool {
+	switch method {
+	case http.MethodGet, http.MethodDelete:
+	default:
+		return false
+	}
+
+	if err != nil {
+		// Don't retry if the context is already cancelled.
+		if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
+			return false
+		}
+		var ne net.Error
+		if errors.As(err, &ne) && ne.Timeout() {
+			return true
+		}
+		// Retry other transient network errors (e.g. connection reset).
+		return true
+	}
+
+	switch status {
+	case 429, 502, 503, 504:
+		return true
+	default:
+		return false
+	}
+}
+
+func sleepBackoff(ctx context.Context, attempt int) error {
+	delay := 200 * time.Millisecond
+	if attempt == 1 {
+		delay = 500 * time.Millisecond
+	}
+	t := time.NewTimer(delay)
+	defer t.Stop()
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	case <-t.C:
+		return nil
+	}
+}
+
+func mapsToStacks(input []map[string]any) []stackResponse {
+	output := make([]stackResponse, 0, len(input))
+
+	for _, item := range input {
+		name := firstString(item, "name", "stack", "stack_name")
+		compose := firstString(item, "compose", "manifest")
+		if name == "" {
+			continue
+		}
+		output = append(output, stackResponse{
+			Name:    name,
+			Compose: compose,
+		})
+	}
+
+	return output
+}
+
+func firstString(item map[string]any, keys ...string) string {
+	for _, key := range keys {
+		value, ok := item[key]
+		if !ok || value == nil {
+			continue
+		}
+
+		switch v := value.(type) {
+		case string:
+			return v
+		case float64:
+			return strconv.FormatFloat(v, 'f', -1, 64)
+		}
+	}
+
+	return ""
+}

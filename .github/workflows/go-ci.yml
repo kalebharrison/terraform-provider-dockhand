@@ -1,0 +1,50 @@
+name: Go CI
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: Lint, Test, Build
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          check-latest: true
+          cache: true
+
+      - name: Check gofmt
+        run: |
+          unformatted="$(gofmt -l .)"
+          if [ -n "$unformatted" ]; then
+            echo "The following files are not gofmt formatted:"
+            echo "$unformatted"
+            exit 1
+          fi
+
+      - name: Verify go.mod/go.sum are tidy
+        run: |
+          go mod tidy
+          if [ -n "$(git status --porcelain go.mod go.sum)" ]; then
+            echo "go.mod/go.sum are out of date. Run 'go mod tidy'."
+            git --no-pager diff -- go.mod go.sum
+            exit 1
+          fi
+
+      - name: Go test
+        run: go test ./...
+
+      - name: Go build
+        run: go build ./...

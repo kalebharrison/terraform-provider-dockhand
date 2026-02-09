@@ -1,0 +1,88 @@
+# AGENTS.md
+
+## Purpose
+
+Repository guidance for coding agents working on `terraform-provider-dockhand`.
+
+## Project Context
+
+- This repo builds a Terraform provider for Dockhand using the Terraform Plugin Framework.
+- Current implemented surface:
+  - Provider: `dockhand`
+  - Resource: `dockhand_stack`
+  - Resource: `dockhand_user`
+  - Data source: `dockhand_health`
+
+## Working Rules
+
+- Keep changes focused and incremental.
+- Prefer updating existing files over introducing new abstractions too early.
+- Preserve backward compatibility for provider schema where practical.
+- Do not commit secrets, tokens, or local override files.
+
+## Code Standards
+
+- Language: Go (module in `go.mod`).
+- Keep code `gofmt` clean.
+- Favor explicit error handling and actionable diagnostic messages.
+- Keep provider/resource/data source schema docs aligned with behavior.
+
+## Validation Commands
+
+Run from repo root:
+
+```bash
+go mod tidy
+go test ./...
+go build ./...
+```
+
+If tests require Dockhand access, clearly separate them as acceptance tests.
+
+## Terraform Provider Notes
+
+- Provider address is `registry.terraform.io/kalebharrison/dockhand` (see `main.go`). For private local development, use a Terraform CLI `dev_overrides` block and run Terraform via `scripts/tf-dev.sh` (skipping `terraform init`).
+- Local dev workflow doc: `docs/LOCAL_DEV.md`.
+- Provider config supports:
+  - `endpoint`
+  - `username`
+  - `password` (sensitive)
+  - `mfa_token` (optional sensitive)
+  - `auth_provider` (optional, default `local`)
+  - `default_env`
+  - `insecure`
+- Environment variable fallbacks:
+  - `DOCKHAND_ENDPOINT`
+  - `DOCKHAND_USERNAME`
+  - `DOCKHAND_PASSWORD`
+  - `DOCKHAND_MFA_TOKEN`
+  - `DOCKHAND_AUTH_PROVIDER`
+  - `DOCKHAND_DEFAULT_ENV`
+
+## API Integration Notes
+
+- Current client assumes:
+  - `POST /api/auth/login`
+  - `GET /api/auth/session`
+  - `GET /api/stacks`
+  - `POST /api/stacks`
+  - `POST /api/stacks/{name}/start`
+  - `POST /api/stacks/{name}/stop`
+  - `DELETE /api/stacks/{name}?force=true`
+  - `GET /api/dashboard/stats`
+- Verify response payload shapes against live Dockhand responses before release.
+
+## CI Expectations
+
+- GitHub Actions workflow: `.github/workflows/go-ci.yml`
+- CI should pass:
+  - format checks
+  - `go mod tidy` consistency
+  - tests
+  - build
+
+## Suggested Next Milestones
+
+1. Add acceptance tests using `terraform-plugin-testing`.
+2. Add release automation (private registry or public Terraform Registry artifacts).
+3. Expand resource/data source coverage once API contracts are finalized.

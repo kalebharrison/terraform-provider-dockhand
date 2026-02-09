@@ -1,0 +1,27 @@
+.DS_Store
+
+# Go build/test artifacts
+bin/
+dist/
+dist-local/
+.cache/
+mirror/
+*.test
+*.out
+coverage.out
+
+# Terraform local state/cache
+terraform.tfstate
+terraform.tfstate.backup
+.terraform/
+.terraform.lock.hcl
+
+# Local Terraform CLI config used for provider dev overrides
+terraform.rc
+.terraformrc
+.terraformrc.dockhand-dev
+.terraformrc.*
+
+# IDE/editor
+.idea/
+.vscode/
