@@ -25,3 +25,9 @@ terraform.rc
 # IDE/editor
 .idea/
 .vscode/
+
+# Codex local environment config (machine-specific)
+.codex/
+
+# Local Terraform test/mirror workspace (repo-local, untracked)
+terraform/
