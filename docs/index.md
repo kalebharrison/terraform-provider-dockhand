@@ -22,6 +22,7 @@ provider "dockhand" {
 - `dockhand_git_credential`
 - `dockhand_git_repository`
 - `dockhand_config_set`
+- `dockhand_notification`
 
 ## Schema
 

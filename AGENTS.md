@@ -11,6 +11,7 @@ Repository guidance for coding agents working on `terraform-provider-dockhand`.
   - Provider: `dockhand`
   - Resource: `dockhand_stack`
   - Resource: `dockhand_user`
+  - Resource: `dockhand_notification`
   - Data source: `dockhand_health`
 
 ## Working Rules

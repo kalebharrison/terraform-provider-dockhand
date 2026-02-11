@@ -52,6 +52,10 @@ Source: [Dockhand Manual API Reference](https://dockhand.pro/manual/#api-referen
 | `dockhand_config_set` | Read | `GET /api/config-sets/{id}` | `404` removes from state. | implemented |
 | `dockhand_config_set` | Update | `PUT /api/config-sets/{id}` | Updates config set settings. | partial |
 | `dockhand_config_set` | Delete | `DELETE /api/config-sets/{id}` | `404` treated as already deleted. | implemented |
+| `dockhand_notification` | Create | `POST /api/notifications` | Known types observed: `apprise`, `smtp`. | partial |
+| `dockhand_notification` | Read | `GET /api/notifications/{id}` | `404` removes from state. | implemented |
+| `dockhand_notification` | Update | `PUT /api/notifications/{id}` | Updates config and event types. | partial |
+| `dockhand_notification` | Delete | `DELETE /api/notifications/{id}` | `404` treated as already deleted. | implemented |
 
 ## Data Sources
 

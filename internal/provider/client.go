@@ -167,6 +167,25 @@ type configSetResponse struct {
 	UpdatedAt     *string           `json:"updatedAt"`
 }
 
+type notificationPayload struct {
+	Type       string         `json:"type"`
+	Name       string         `json:"name"`
+	Enabled    *bool          `json:"enabled,omitempty"`
+	EventTypes []string       `json:"eventTypes,omitempty"`
+	Config     map[string]any `json:"config"`
+}
+
+type notificationResponse struct {
+	ID         int64          `json:"id"`
+	Type       string         `json:"type"`
+	Name       string         `json:"name"`
+	Enabled    bool           `json:"enabled"`
+	Config     map[string]any `json:"config"`
+	EventTypes []string       `json:"eventTypes"`
+	CreatedAt  *string        `json:"createdAt"`
+	UpdatedAt  *string        `json:"updatedAt"`
+}
+
 type generalSettings struct {
 	ConfirmDestructive        bool     `json:"confirmDestructive"`
 	DarkTheme                 string   `json:"darkTheme"`
@@ -420,6 +439,46 @@ func (c *Client) UpdateConfigSet(ctx context.Context, id string, payload configS
 
 func (c *Client) DeleteConfigSet(ctx context.Context, id string) (int, error) {
 	return c.doJSONWithStatus(ctx, http.MethodDelete, "/api/config-sets/"+url.PathEscape(id), nil, nil, nil)
+}
+
+func (c *Client) ListNotifications(ctx context.Context) ([]notificationResponse, int, error) {
+	var out []notificationResponse
+	status, err := c.doJSONWithStatus(ctx, http.MethodGet, "/api/notifications", nil, nil, &out)
+	if err != nil {
+		return nil, status, err
+	}
+	return out, status, nil
+}
+
+func (c *Client) GetNotification(ctx context.Context, id string) (*notificationResponse, int, error) {
+	var out notificationResponse
+	status, err := c.doJSONWithStatus(ctx, http.MethodGet, "/api/notifications/"+url.PathEscape(id), nil, nil, &out)
+	if err != nil {
+		return nil, status, err
+	}
+	return &out, status, nil
+}
+
+func (c *Client) CreateNotification(ctx context.Context, payload notificationPayload) (*notificationResponse, int, error) {
+	var out notificationResponse
+	status, err := c.doJSONWithStatus(ctx, http.MethodPost, "/api/notifications", nil, payload, &out)
+	if err != nil {
+		return nil, status, err
+	}
+	return &out, status, nil
+}
+
+func (c *Client) UpdateNotification(ctx context.Context, id string, payload notificationPayload) (*notificationResponse, int, error) {
+	var out notificationResponse
+	status, err := c.doJSONWithStatus(ctx, http.MethodPut, "/api/notifications/"+url.PathEscape(id), nil, payload, &out)
+	if err != nil {
+		return nil, status, err
+	}
+	return &out, status, nil
+}
+
+func (c *Client) DeleteNotification(ctx context.Context, id string) (int, error) {
+	return c.doJSONWithStatus(ctx, http.MethodDelete, "/api/notifications/"+url.PathEscape(id), nil, nil, nil)
 }
 
 func (c *Client) CreateStack(ctx context.Context, env string, payload stackPayload) error {

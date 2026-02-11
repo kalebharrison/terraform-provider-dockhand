@@ -182,6 +182,7 @@ func (p *dockhandProvider) Resources(_ context.Context) []func() resource.Resour
 		NewGitCredentialResource,
 		NewGitRepositoryResource,
 		NewConfigSetResource,
+		NewNotificationResource,
 	}
 }
 
