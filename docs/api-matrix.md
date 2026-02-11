@@ -40,6 +40,14 @@ Source: [Dockhand Manual API Reference](https://dockhand.pro/manual/#api-referen
 | `dockhand_registry` | Read | `GET /api/registries/{id}` | `404` removes from state. | implemented |
 | `dockhand_registry` | Update | `PUT /api/registries/{id}` | Omitting username/password preserves credentials. | implemented |
 | `dockhand_registry` | Delete | `DELETE /api/registries/{id}` | `404` treated as already deleted. | implemented |
+| `dockhand_git_credential` | Create | `POST /api/git/credentials` | Observed payload supports name/authType/username/password. | partial |
+| `dockhand_git_credential` | Read | `GET /api/git/credentials/{id}` | `404` removes from state. | implemented |
+| `dockhand_git_credential` | Update | `PUT /api/git/credentials/{id}` | Password is write-only. | partial |
+| `dockhand_git_credential` | Delete | `DELETE /api/git/credentials/{id}` | `404` treated as already deleted. | implemented |
+| `dockhand_git_repository` | Create | `POST /api/git/repositories` | Observed payload supports name/url/branch/composePath/credentialId/etc. | partial |
+| `dockhand_git_repository` | Read | `GET /api/git/repositories/{id}` | `404` removes from state. | implemented |
+| `dockhand_git_repository` | Update | `PUT /api/git/repositories/{id}` | Updates repo integration settings. | partial |
+| `dockhand_git_repository` | Delete | `DELETE /api/git/repositories/{id}` | `404` treated as already deleted. | implemented |
 
 ## Data Sources
 

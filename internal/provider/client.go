@@ -71,6 +71,59 @@ type registryResponse struct {
 	HasCredentials bool    `json:"hasCredentials"`
 }
 
+type gitCredentialPayload struct {
+	Name     string  `json:"name"`
+	AuthType string  `json:"authType"`
+	Username *string `json:"username,omitempty"`
+	Password *string `json:"password,omitempty"`
+	SSHKey   *string `json:"sshKey,omitempty"`
+}
+
+type gitCredentialResponse struct {
+	ID          int64   `json:"id"`
+	Name        string  `json:"name"`
+	AuthType    string  `json:"authType"`
+	Username    *string `json:"username"`
+	HasPassword bool    `json:"hasPassword"`
+	HasSSHKey   bool    `json:"hasSshKey"`
+	CreatedAt   *string `json:"createdAt"`
+	UpdatedAt   *string `json:"updatedAt"`
+}
+
+type gitRepositoryPayload struct {
+	Name               string  `json:"name"`
+	URL                string  `json:"url"`
+	Branch             *string `json:"branch,omitempty"`
+	ComposePath        *string `json:"composePath,omitempty"`
+	CredentialID       *int64  `json:"credentialId,omitempty"`
+	EnvironmentID      *int64  `json:"environmentId,omitempty"`
+	AutoUpdate         *bool   `json:"autoUpdate,omitempty"`
+	AutoUpdateSchedule *string `json:"autoUpdateSchedule,omitempty"`
+	AutoUpdateCron     *string `json:"autoUpdateCron,omitempty"`
+	WebhookEnabled     *bool   `json:"webhookEnabled,omitempty"`
+}
+
+type gitRepositoryResponse struct {
+	ID                 int64   `json:"id"`
+	Name               string  `json:"name"`
+	URL                string  `json:"url"`
+	Branch             *string `json:"branch"`
+	ComposePath        *string `json:"composePath"`
+	CredentialID       *int64  `json:"credentialId"`
+	EnvironmentID      *int64  `json:"environmentId"`
+	AutoUpdate         bool    `json:"autoUpdate"`
+	AutoUpdateSchedule *string `json:"autoUpdateSchedule"`
+	AutoUpdateCron     *string `json:"autoUpdateCron"`
+	WebhookEnabled     bool    `json:"webhookEnabled"`
+	WebhookSecret      *string `json:"webhookSecret"`
+	LastSync           *string `json:"lastSync"`
+	LastCommit         *string `json:"lastCommit"`
+	SyncStatus         *string `json:"syncStatus"`
+	SyncError          *string `json:"syncError"`
+	CreatedAt          *string `json:"createdAt"`
+	UpdatedAt          *string `json:"updatedAt"`
+}
+
 type generalSettings struct {
 	ConfirmDestructive        bool     `json:"confirmDestructive"`
 	DarkTheme                 string   `json:"darkTheme"`
@@ -204,6 +257,86 @@ func (c *Client) UpdateRegistry(ctx context.Context, id string, payload map[stri
 
 func (c *Client) DeleteRegistry(ctx context.Context, id string) (int, error) {
 	return c.doJSONWithStatus(ctx, http.MethodDelete, "/api/registries/"+url.PathEscape(id), nil, nil, nil)
+}
+
+func (c *Client) ListGitCredentials(ctx context.Context) ([]gitCredentialResponse, int, error) {
+	var out []gitCredentialResponse
+	status, err := c.doJSONWithStatus(ctx, http.MethodGet, "/api/git/credentials", nil, nil, &out)
+	if err != nil {
+		return nil, status, err
+	}
+	return out, status, nil
+}
+
+func (c *Client) GetGitCredential(ctx context.Context, id string) (*gitCredentialResponse, int, error) {
+	var out gitCredentialResponse
+	status, err := c.doJSONWithStatus(ctx, http.MethodGet, "/api/git/credentials/"+url.PathEscape(id), nil, nil, &out)
+	if err != nil {
+		return nil, status, err
+	}
+	return &out, status, nil
+}
+
+func (c *Client) CreateGitCredential(ctx context.Context, payload gitCredentialPayload) (*gitCredentialResponse, int, error) {
+	var out gitCredentialResponse
+	status, err := c.doJSONWithStatus(ctx, http.MethodPost, "/api/git/credentials", nil, payload, &out)
+	if err != nil {
+		return nil, status, err
+	}
+	return &out, status, nil
+}
+
+func (c *Client) UpdateGitCredential(ctx context.Context, id string, payload gitCredentialPayload) (*gitCredentialResponse, int, error) {
+	var out gitCredentialResponse
+	status, err := c.doJSONWithStatus(ctx, http.MethodPut, "/api/git/credentials/"+url.PathEscape(id), nil, payload, &out)
+	if err != nil {
+		return nil, status, err
+	}
+	return &out, status, nil
+}
+
+func (c *Client) DeleteGitCredential(ctx context.Context, id string) (int, error) {
+	return c.doJSONWithStatus(ctx, http.MethodDelete, "/api/git/credentials/"+url.PathEscape(id), nil, nil, nil)
+}
+
+func (c *Client) ListGitRepositories(ctx context.Context) ([]gitRepositoryResponse, int, error) {
+	var out []gitRepositoryResponse
+	status, err := c.doJSONWithStatus(ctx, http.MethodGet, "/api/git/repositories", nil, nil, &out)
+	if err != nil {
+		return nil, status, err
+	}
+	return out, status, nil
+}
+
+func (c *Client) GetGitRepository(ctx context.Context, id string) (*gitRepositoryResponse, int, error) {
+	var out gitRepositoryResponse
+	status, err := c.doJSONWithStatus(ctx, http.MethodGet, "/api/git/repositories/"+url.PathEscape(id), nil, nil, &out)
+	if err != nil {
+		return nil, status, err
+	}
+	return &out, status, nil
+}
+
+func (c *Client) CreateGitRepository(ctx context.Context, payload gitRepositoryPayload) (*gitRepositoryResponse, int, error) {
+	var out gitRepositoryResponse
+	status, err := c.doJSONWithStatus(ctx, http.MethodPost, "/api/git/repositories", nil, payload, &out)
+	if err != nil {
+		return nil, status, err
+	}
+	return &out, status, nil
+}
+
+func (c *Client) UpdateGitRepository(ctx context.Context, id string, payload gitRepositoryPayload) (*gitRepositoryResponse, int, error) {
+	var out gitRepositoryResponse
+	status, err := c.doJSONWithStatus(ctx, http.MethodPut, "/api/git/repositories/"+url.PathEscape(id), nil, payload, &out)
+	if err != nil {
+		return nil, status, err
+	}
+	return &out, status, nil
+}
+
+func (c *Client) DeleteGitRepository(ctx context.Context, id string) (int, error) {
+	return c.doJSONWithStatus(ctx, http.MethodDelete, "/api/git/repositories/"+url.PathEscape(id), nil, nil, nil)
 }
 
 func (c *Client) CreateStack(ctx context.Context, env string, payload stackPayload) error {

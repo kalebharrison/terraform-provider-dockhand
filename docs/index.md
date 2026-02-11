@@ -19,6 +19,8 @@ provider "dockhand" {
 - `dockhand_user`
 - `dockhand_settings_general`
 - `dockhand_registry`
+- `dockhand_git_credential`
+- `dockhand_git_repository`
 
 ## Schema
 
