@@ -124,6 +124,49 @@ type gitRepositoryResponse struct {
 	UpdatedAt          *string `json:"updatedAt"`
 }
 
+type configSetKV struct {
+	Key   string `json:"key"`
+	Value string `json:"value"`
+}
+
+type configSetPort struct {
+	ContainerPort int64  `json:"containerPort"`
+	HostPort      int64  `json:"hostPort"`
+	Protocol      string `json:"protocol"`
+}
+
+type configSetVolume struct {
+	Source   string `json:"source"`
+	Target   string `json:"target"`
+	Type     string `json:"type"`
+	ReadOnly bool   `json:"readOnly"`
+}
+
+type configSetPayload struct {
+	Name          string            `json:"name"`
+	Description   *string           `json:"description,omitempty"`
+	EnvVars       []configSetKV     `json:"envVars,omitempty"`
+	Labels        []configSetKV     `json:"labels,omitempty"`
+	Ports         []configSetPort   `json:"ports,omitempty"`
+	Volumes       []configSetVolume `json:"volumes,omitempty"`
+	NetworkMode   *string           `json:"networkMode,omitempty"`
+	RestartPolicy *string           `json:"restartPolicy,omitempty"`
+}
+
+type configSetResponse struct {
+	ID            int64             `json:"id"`
+	Name          string            `json:"name"`
+	Description   *string           `json:"description"`
+	EnvVars       []configSetKV     `json:"envVars"`
+	Labels        []configSetKV     `json:"labels"`
+	Ports         []configSetPort   `json:"ports"`
+	Volumes       []configSetVolume `json:"volumes"`
+	NetworkMode   string            `json:"networkMode"`
+	RestartPolicy string            `json:"restartPolicy"`
+	CreatedAt     *string           `json:"createdAt"`
+	UpdatedAt     *string           `json:"updatedAt"`
+}
+
 type generalSettings struct {
 	ConfirmDestructive        bool     `json:"confirmDestructive"`
 	DarkTheme                 string   `json:"darkTheme"`
@@ -337,6 +380,46 @@ func (c *Client) UpdateGitRepository(ctx context.Context, id string, payload git
 
 func (c *Client) DeleteGitRepository(ctx context.Context, id string) (int, error) {
 	return c.doJSONWithStatus(ctx, http.MethodDelete, "/api/git/repositories/"+url.PathEscape(id), nil, nil, nil)
+}
+
+func (c *Client) ListConfigSets(ctx context.Context) ([]configSetResponse, int, error) {
+	var out []configSetResponse
+	status, err := c.doJSONWithStatus(ctx, http.MethodGet, "/api/config-sets", nil, nil, &out)
+	if err != nil {
+		return nil, status, err
+	}
+	return out, status, nil
+}
+
+func (c *Client) GetConfigSet(ctx context.Context, id string) (*configSetResponse, int, error) {
+	var out configSetResponse
+	status, err := c.doJSONWithStatus(ctx, http.MethodGet, "/api/config-sets/"+url.PathEscape(id), nil, nil, &out)
+	if err != nil {
+		return nil, status, err
+	}
+	return &out, status, nil
+}
+
+func (c *Client) CreateConfigSet(ctx context.Context, payload configSetPayload) (*configSetResponse, int, error) {
+	var out configSetResponse
+	status, err := c.doJSONWithStatus(ctx, http.MethodPost, "/api/config-sets", nil, payload, &out)
+	if err != nil {
+		return nil, status, err
+	}
+	return &out, status, nil
+}
+
+func (c *Client) UpdateConfigSet(ctx context.Context, id string, payload configSetPayload) (*configSetResponse, int, error) {
+	var out configSetResponse
+	status, err := c.doJSONWithStatus(ctx, http.MethodPut, "/api/config-sets/"+url.PathEscape(id), nil, payload, &out)
+	if err != nil {
+		return nil, status, err
+	}
+	return &out, status, nil
+}
+
+func (c *Client) DeleteConfigSet(ctx context.Context, id string) (int, error) {
+	return c.doJSONWithStatus(ctx, http.MethodDelete, "/api/config-sets/"+url.PathEscape(id), nil, nil, nil)
 }
 
 func (c *Client) CreateStack(ctx context.Context, env string, payload stackPayload) error {

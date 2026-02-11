@@ -48,6 +48,10 @@ Source: [Dockhand Manual API Reference](https://dockhand.pro/manual/#api-referen
 | `dockhand_git_repository` | Read | `GET /api/git/repositories/{id}` | `404` removes from state. | implemented |
 | `dockhand_git_repository` | Update | `PUT /api/git/repositories/{id}` | Updates repo integration settings. | partial |
 | `dockhand_git_repository` | Delete | `DELETE /api/git/repositories/{id}` | `404` treated as already deleted. | implemented |
+| `dockhand_config_set` | Create | `POST /api/config-sets` | Supports name/description/envVars/labels/ports/volumes/networkMode/restartPolicy. | partial |
+| `dockhand_config_set` | Read | `GET /api/config-sets/{id}` | `404` removes from state. | implemented |
+| `dockhand_config_set` | Update | `PUT /api/config-sets/{id}` | Updates config set settings. | partial |
+| `dockhand_config_set` | Delete | `DELETE /api/config-sets/{id}` | `404` treated as already deleted. | implemented |
 
 ## Data Sources
 

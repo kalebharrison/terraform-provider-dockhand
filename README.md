@@ -13,6 +13,7 @@ This initial scaffold includes:
 - Resource: `dockhand_registry`
 - Resource: `dockhand_git_credential`
 - Resource: `dockhand_git_repository`
+- Resource: `dockhand_config_set`
 - Data source: `dockhand_health`
 - HTTP client wiring against:
   - `POST /api/auth/login` (session-based auth)
