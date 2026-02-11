@@ -39,6 +39,17 @@ go build ./...
 
 If tests require Dockhand access, clearly separate them as acceptance tests.
 
+## Release-First Workflow (Local Testing)
+
+When making provider changes, prefer testing the exact same artifact that users will consume:
+
+- Create a Git tag `vX.Y.Z` and push it.
+- Wait for the `Release Artifacts` workflow to publish a GitHub Release and zip assets.
+- Download the release zip(s) into the repo-local filesystem mirror at `./terraform/dockhand/mirror`.
+- Run Terraform from `./terraform/dockhand/test` using `TF_CLI_CONFIG_FILE=../terraformrc.dockhand`.
+
+Avoid testing by building local zips for release validation.
+
 ## Terraform Provider Notes
 
 - Provider address is `registry.terraform.io/kalebharrison/dockhand` (see `main.go`). For private local development, use a Terraform CLI `dev_overrides` block and run Terraform via `scripts/tf-dev.sh` (skipping `terraform init`).
