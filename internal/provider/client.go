@@ -1104,6 +1104,7 @@ func (c *Client) DeleteContainer(ctx context.Context, env string, id string) (in
 	if resolvedEnv := c.resolveEnv(env); resolvedEnv != "" {
 		query["env"] = resolvedEnv
 	}
+	query["force"] = "true"
 	return c.doJSONWithStatus(ctx, http.MethodDelete, "/api/containers/"+url.PathEscape(id), query, nil, nil)
 }
 
