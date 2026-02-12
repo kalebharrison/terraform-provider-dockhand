@@ -179,6 +179,7 @@ func (p *dockhandProvider) Resources(_ context.Context) []func() resource.Resour
 		NewUserResource,
 		NewGeneralSettingsResource,
 		NewAuthSettingsResource,
+		NewLicenseResource,
 		NewRegistryResource,
 		NewGitCredentialResource,
 		NewGitRepositoryResource,

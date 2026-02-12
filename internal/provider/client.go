@@ -252,6 +252,17 @@ type authProvidersResponse struct {
 	Providers       []authProviderItem `json:"providers"`
 }
 
+type licensePayload struct {
+	Name string `json:"name"`
+	Key  string `json:"key"`
+}
+
+type licenseResponse struct {
+	Valid    bool    `json:"valid"`
+	Active   bool    `json:"active"`
+	Hostname *string `json:"hostname"`
+}
+
 type generalSettings struct {
 	ConfirmDestructive        bool     `json:"confirmDestructive"`
 	DarkTheme                 string   `json:"darkTheme"`
@@ -612,6 +623,28 @@ func (c *Client) GetAuthProviders(ctx context.Context) (*authProvidersResponse, 
 		return nil, status, err
 	}
 	return &out, status, nil
+}
+
+func (c *Client) GetLicense(ctx context.Context) (*licenseResponse, int, error) {
+	var out licenseResponse
+	status, err := c.doJSONWithStatus(ctx, http.MethodGet, "/api/license", nil, nil, &out)
+	if err != nil {
+		return nil, status, err
+	}
+	return &out, status, nil
+}
+
+func (c *Client) SetLicense(ctx context.Context, payload licensePayload) (*licenseResponse, int, error) {
+	var out licenseResponse
+	status, err := c.doJSONWithStatus(ctx, http.MethodPost, "/api/license", nil, payload, &out)
+	if err != nil {
+		return nil, status, err
+	}
+	return &out, status, nil
+}
+
+func (c *Client) DeleteLicense(ctx context.Context) (int, error) {
+	return c.doJSONWithStatus(ctx, http.MethodDelete, "/api/license", nil, nil, nil)
 }
 
 func (c *Client) CreateStack(ctx context.Context, env string, payload stackPayload) error {

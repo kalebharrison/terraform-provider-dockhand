@@ -14,6 +14,7 @@ Repository guidance for coding agents working on `terraform-provider-dockhand`.
   - Resource: `dockhand_notification`
   - Resource: `dockhand_settings_general`
   - Resource: `dockhand_auth_settings`
+  - Resource: `dockhand_license`
   - Resource: `dockhand_registry`
   - Resource: `dockhand_git_credential`
   - Resource: `dockhand_git_repository`

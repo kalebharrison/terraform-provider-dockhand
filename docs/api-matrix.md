@@ -37,7 +37,10 @@ Source: [Dockhand Manual API Reference](https://dockhand.pro/manual/#api-referen
 | `dockhand_settings_general` | Read | `GET /api/settings/general` | Singleton settings document. | implemented |
 | `dockhand_settings_general` | Update | `POST /api/settings/general` | Writes merged settings payload. | implemented |
 | `dockhand_auth_settings` | Read | `GET /api/auth/settings` | Singleton authentication settings document. | implemented |
-| `dockhand_auth_settings` | Update | `PUT /api/auth/settings` | Writes merged auth settings payload. | implemented |
+| `dockhand_auth_settings` | Update | `PUT /api/auth/settings` | Writes merged auth settings payload (local/free scope). | implemented |
+| `dockhand_license` | Read | `GET /api/license` | Singleton license status document. | implemented |
+| `dockhand_license` | Update/Apply | `POST /api/license` | Sets/updates license with name + key. | partial |
+| `dockhand_license` | Delete | `DELETE /api/license` | Revokes current license. | partial |
 | `dockhand_registry` | Create | `POST /api/registries` | Payload supports name/url/isDefault/username/password. | implemented |
 | `dockhand_registry` | Read | `GET /api/registries/{id}` | `404` removes from state. | implemented |
 | `dockhand_registry` | Update | `PUT /api/registries/{id}` | Omitting username/password preserves credentials. | implemented |
@@ -68,19 +71,21 @@ Source: [Dockhand Manual API Reference](https://dockhand.pro/manual/#api-referen
 | Terraform Data Source | API Endpoint | Notes | Status |
 | --- | --- | --- | --- |
 | `dockhand_health` | `GET /api/dashboard/stats?env={env_id}` | Successful request is treated as API health (`status = ok`). | partial |
-| `dockhand_auth_providers` | `GET /api/auth/providers` | Exposes configured auth providers and default provider. | implemented |
+| `dockhand_auth_providers` | `GET /api/auth/providers` | Exposes configured auth providers and default provider (local/free providers in current scope). | implemented |
 
 ## Additional Endpoints Not Yet Mapped
 
 | API Endpoint Group | Candidate Terraform Surface | Status |
 | --- | --- | --- |
 | `/api/environments` | additional environment data sources | partial |
+| `/api/schedules` | schedules resource/data source | planned |
 | `/api/images` | image inventory data source | planned |
 | `/api/containers` | container status data source | planned |
 | `/api/volumes` | volume inventory data source | planned |
 | `/api/networks` | network inventory data source | planned |
 | `/api/configs` | config management resource/data source | planned |
 | `/api/backups` | backup resource/data source | planned |
+| license-tier auth endpoints (LDAP/AD/roles) | auth enterprise resources/data sources | planned |
 
 ## Open Contract Questions
 

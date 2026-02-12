@@ -19,3 +19,7 @@ data "dockhand_auth_providers" "this" {}
   - `name` (String)
   - `type` (String)
 
+## Notes
+
+- On free/local setups this typically returns `local` and any free providers (such as SSO/OIDC if enabled).
+- LDAP/AD and role-management provider surfaces are currently treated as license-tier features and are not modeled as Terraform resources in this provider.
