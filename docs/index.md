@@ -26,6 +26,10 @@ provider "dockhand" {
 - `dockhand_config_set`
 - `dockhand_notification`
 - `dockhand_environment`
+- `dockhand_network`
+- `dockhand_volume`
+- `dockhand_image`
+- `dockhand_schedule`
 
 ## Data Sources
 

@@ -14,6 +14,10 @@ This initial scaffold includes:
 - Resource: `dockhand_git_credential`
 - Resource: `dockhand_git_repository`
 - Resource: `dockhand_config_set`
+- Resource: `dockhand_network`
+- Resource: `dockhand_volume`
+- Resource: `dockhand_image`
+- Resource: `dockhand_schedule`
 - Data source: `dockhand_health`
 - HTTP client wiring against:
   - `POST /api/auth/login` (session-based auth)
@@ -24,6 +28,12 @@ This initial scaffold includes:
   - `POST /api/stacks/{name}/stop`
   - `DELETE /api/stacks/{name}?force=true`
   - `GET /api/dashboard/stats` (health signal)
+  - `GET/POST/DELETE /api/networks`
+  - `GET/POST/DELETE /api/volumes`
+  - `GET/POST/DELETE /api/images`
+  - `GET /api/schedules`
+  - `POST /api/schedules/system/{id}/toggle`
+  - `POST /api/schedules/{type}/{id}/toggle`
 
 If your Dockhand API differs, update `internal/provider/client.go`.
 

@@ -226,6 +226,67 @@ type environmentResponse struct {
 	Labels                []string `json:"labels"`
 }
 
+type networkPayload struct {
+	Name       string            `json:"name"`
+	Driver     string            `json:"driver"`
+	Internal   bool              `json:"internal"`
+	Attachable bool              `json:"attachable"`
+	Options    map[string]string `json:"options,omitempty"`
+}
+
+type networkResponse struct {
+	ID         int64   `json:"id"`
+	Name       string  `json:"name"`
+	Driver     string  `json:"driver"`
+	Internal   bool    `json:"internal"`
+	Attachable bool    `json:"attachable"`
+	Scope      *string `json:"scope"`
+	CreatedAt  *string `json:"createdAt"`
+}
+
+type networkInspectResponse struct {
+	ID         int64             `json:"id"`
+	Name       string            `json:"name"`
+	Driver     string            `json:"driver"`
+	Internal   bool              `json:"internal"`
+	Attachable bool              `json:"attachable"`
+	Scope      *string           `json:"scope"`
+	CreatedAt  *string           `json:"createdAt"`
+	Options    map[string]string `json:"options"`
+	Labels     map[string]string `json:"labels"`
+}
+
+type volumePayload struct {
+	Name       string            `json:"name"`
+	Driver     string            `json:"driver"`
+	DriverOpts map[string]string `json:"driverOpts,omitempty"`
+	Labels     map[string]string `json:"labels,omitempty"`
+}
+
+type volumeResponse struct {
+	Name       string             `json:"name"`
+	Driver     string             `json:"driver"`
+	Mountpoint *string            `json:"mountpoint"`
+	Scope      *string            `json:"scope"`
+	CreatedAt  *string            `json:"createdAt"`
+	Labels     map[string]string  `json:"labels"`
+	Options    map[string]any     `json:"options"`
+	Status     map[string]any     `json:"status"`
+	UsageData  map[string]float64 `json:"usageData"`
+}
+
+type imagePullPayload struct {
+	Image         string `json:"image"`
+	ScanAfterPull bool   `json:"scanAfterPull"`
+}
+
+type imageResponse struct {
+	ID      string   `json:"id"`
+	Tags    []string `json:"tags"`
+	Size    int64    `json:"size"`
+	Created int64    `json:"created"`
+}
+
 type authSettingsResponse struct {
 	ID              int64   `json:"id"`
 	AuthEnabled     bool    `json:"authEnabled"`
@@ -623,6 +684,155 @@ func (c *Client) UpdateEnvironment(ctx context.Context, id string, payload envir
 
 func (c *Client) DeleteEnvironment(ctx context.Context, id string) (int, error) {
 	return c.doJSONWithStatus(ctx, http.MethodDelete, "/api/environments/"+url.PathEscape(id), nil, nil, nil)
+}
+
+func (c *Client) ListNetworks(ctx context.Context, env string) ([]networkResponse, int, error) {
+	query := map[string]string{}
+	if resolvedEnv := c.resolveEnv(env); resolvedEnv != "" {
+		query["env"] = resolvedEnv
+	}
+
+	var out []networkResponse
+	status, err := c.doJSONWithStatus(ctx, http.MethodGet, "/api/networks", query, nil, &out)
+	if err != nil {
+		return nil, status, err
+	}
+	return out, status, nil
+}
+
+func (c *Client) GetNetworkInspect(ctx context.Context, env string, id string) (*networkInspectResponse, int, error) {
+	query := map[string]string{}
+	if resolvedEnv := c.resolveEnv(env); resolvedEnv != "" {
+		query["env"] = resolvedEnv
+	}
+
+	var out networkInspectResponse
+	status, err := c.doJSONWithStatus(ctx, http.MethodGet, "/api/networks/"+url.PathEscape(id)+"/inspect", query, nil, &out)
+	if err != nil {
+		return nil, status, err
+	}
+	return &out, status, nil
+}
+
+func (c *Client) CreateNetwork(ctx context.Context, env string, payload networkPayload) (*networkResponse, int, error) {
+	query := map[string]string{}
+	if resolvedEnv := c.resolveEnv(env); resolvedEnv != "" {
+		query["env"] = resolvedEnv
+	}
+
+	var out networkResponse
+	status, err := c.doJSONWithStatus(ctx, http.MethodPost, "/api/networks", query, payload, &out)
+	if err != nil {
+		return nil, status, err
+	}
+	return &out, status, nil
+}
+
+func (c *Client) DeleteNetwork(ctx context.Context, env string, id string) (int, error) {
+	query := map[string]string{}
+	if resolvedEnv := c.resolveEnv(env); resolvedEnv != "" {
+		query["env"] = resolvedEnv
+	}
+	return c.doJSONWithStatus(ctx, http.MethodDelete, "/api/networks/"+url.PathEscape(id), query, nil, nil)
+}
+
+func (c *Client) ListVolumes(ctx context.Context, env string) ([]volumeResponse, int, error) {
+	query := map[string]string{}
+	if resolvedEnv := c.resolveEnv(env); resolvedEnv != "" {
+		query["env"] = resolvedEnv
+	}
+
+	var out []volumeResponse
+	status, err := c.doJSONWithStatus(ctx, http.MethodGet, "/api/volumes", query, nil, &out)
+	if err != nil {
+		return nil, status, err
+	}
+	return out, status, nil
+}
+
+func (c *Client) GetVolumeInspect(ctx context.Context, env string, name string) (*volumeResponse, int, error) {
+	query := map[string]string{}
+	if resolvedEnv := c.resolveEnv(env); resolvedEnv != "" {
+		query["env"] = resolvedEnv
+	}
+
+	var out volumeResponse
+	status, err := c.doJSONWithStatus(ctx, http.MethodGet, "/api/volumes/"+url.PathEscape(name)+"/inspect", query, nil, &out)
+	if err != nil {
+		return nil, status, err
+	}
+	return &out, status, nil
+}
+
+func (c *Client) CreateVolume(ctx context.Context, env string, payload volumePayload) (*volumeResponse, int, error) {
+	query := map[string]string{}
+	if resolvedEnv := c.resolveEnv(env); resolvedEnv != "" {
+		query["env"] = resolvedEnv
+	}
+
+	var out volumeResponse
+	status, err := c.doJSONWithStatus(ctx, http.MethodPost, "/api/volumes", query, payload, &out)
+	if err != nil {
+		return nil, status, err
+	}
+	return &out, status, nil
+}
+
+func (c *Client) DeleteVolume(ctx context.Context, env string, name string) (int, error) {
+	query := map[string]string{
+		"force": "true",
+	}
+	if resolvedEnv := c.resolveEnv(env); resolvedEnv != "" {
+		query["env"] = resolvedEnv
+	}
+	return c.doJSONWithStatus(ctx, http.MethodDelete, "/api/volumes/"+url.PathEscape(name), query, nil, nil)
+}
+
+func (c *Client) ListImages(ctx context.Context, env string) ([]imageResponse, int, error) {
+	query := map[string]string{}
+	if resolvedEnv := c.resolveEnv(env); resolvedEnv != "" {
+		query["env"] = resolvedEnv
+	}
+
+	var out []imageResponse
+	status, err := c.doJSONWithStatus(ctx, http.MethodGet, "/api/images", query, nil, &out)
+	if err != nil {
+		return nil, status, err
+	}
+	return out, status, nil
+}
+
+func (c *Client) PullImage(ctx context.Context, env string, image string, scanAfterPull bool) (int, error) {
+	query := map[string]string{}
+	if resolvedEnv := c.resolveEnv(env); resolvedEnv != "" {
+		query["env"] = resolvedEnv
+	}
+	payload := imagePullPayload{
+		Image:         image,
+		ScanAfterPull: scanAfterPull,
+	}
+	return c.doJSONWithStatus(ctx, http.MethodPost, "/api/images/pull", query, payload, nil)
+}
+
+func (c *Client) DeleteImage(ctx context.Context, env string, id string) (int, error) {
+	query := map[string]string{}
+	if resolvedEnv := c.resolveEnv(env); resolvedEnv != "" {
+		query["env"] = resolvedEnv
+	}
+	return c.doJSONWithStatus(ctx, http.MethodDelete, "/api/images/"+url.PathEscape(id), query, nil, nil)
+}
+
+func (c *Client) ToggleSchedule(ctx context.Context, scheduleType string, id string, isSystem bool) (int, error) {
+	path := "/api/schedules/" + url.PathEscape(scheduleType) + "/" + url.PathEscape(id) + "/toggle"
+	if isSystem {
+		path = "/api/schedules/system/" + url.PathEscape(id) + "/toggle"
+	}
+	return c.doJSONWithStatus(ctx, http.MethodPost, path, nil, nil, nil)
+}
+
+func (c *Client) RunSchedule(ctx context.Context, scheduleType string, id string) (int, error) {
+	path := "/api/schedules/" + url.PathEscape(scheduleType) + "/" + url.PathEscape(id) + "/run"
+	return c.doJSONWithStatus(ctx, http.MethodPost, path, nil, nil, nil)
 }
 
 func (c *Client) GetAuthSettings(ctx context.Context) (*authSettingsResponse, int, error) {

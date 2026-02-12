@@ -65,6 +65,17 @@ Source: [Dockhand Manual API Reference](https://dockhand.pro/manual/#api-referen
 | `dockhand_environment` | Read | `GET /api/environments/{id}` | `404` removes from state. | implemented |
 | `dockhand_environment` | Update | `PUT /api/environments/{id}` | Updates environment settings. | partial |
 | `dockhand_environment` | Delete | `DELETE /api/environments/{id}` | `404` treated as already deleted. | implemented |
+| `dockhand_network` | Create | `POST /api/networks?env={env_id}` | Minimal create payload: name + driver (replace-only resource). | partial |
+| `dockhand_network` | Read | `GET /api/networks?env={env_id}` | Reads network list and matches by `id`. | partial |
+| `dockhand_network` | Delete | `DELETE /api/networks/{id}?env={env_id}` | `404` treated as already deleted. | partial |
+| `dockhand_volume` | Create | `POST /api/volumes?env={env_id}` | Minimal create payload: name + driver (replace-only resource). | partial |
+| `dockhand_volume` | Read | `GET /api/volumes/{name}/inspect?env={env_id}` | `404` removes from state. | partial |
+| `dockhand_volume` | Delete | `DELETE /api/volumes/{name}?force=true&env={env_id}` | `404` treated as already deleted. | partial |
+| `dockhand_image` | Create | `POST /api/images/pull?env={env_id}` | Pulls image by reference; then resolves image by tags from list. | partial |
+| `dockhand_image` | Read | `GET /api/images?env={env_id}` | Matches by `id`, then by tags if needed. | partial |
+| `dockhand_image` | Delete | `DELETE /api/images/{id}?env={env_id}` | `404` treated as already deleted. | partial |
+| `dockhand_schedule` | Read | `GET /api/schedules` | Resolves existing schedule by `type` + `schedule_id`. | partial |
+| `dockhand_schedule` | Update state | `POST /api/schedules/system/{id}/toggle` or `POST /api/schedules/{type}/{id}/toggle` | Manages pause/resume (`enabled`) for existing schedules. | partial |
 
 ## Data Sources
 
@@ -79,11 +90,11 @@ Source: [Dockhand Manual API Reference](https://dockhand.pro/manual/#api-referen
 | API Endpoint Group | Candidate Terraform Surface | Status |
 | --- | --- | --- |
 | `/api/environments` | additional environment data sources | partial |
-| `/api/schedules` | schedule management resource | planned |
-| `/api/images` | image inventory data source | planned |
+| `/api/schedules` | schedule details/advanced actions (`run`, executions history/settings) | partial |
+| `/api/images` | image actions (`scan`, `push`) | partial |
 | `/api/containers` | container status data source | planned |
-| `/api/volumes` | volume inventory data source | planned |
-| `/api/networks` | network inventory data source | planned |
+| `/api/volumes` | advanced volume operations (`clone`, `browse`, import/export) | partial |
+| `/api/networks` | advanced network operations (`connect`, inspect details as separate surface) | partial |
 | `/api/configs` | config management resource/data source | planned |
 | `/api/backups` | backup resource/data source | planned |
 | license-tier auth endpoints (LDAP/AD/roles) | auth enterprise resources/data sources | planned |

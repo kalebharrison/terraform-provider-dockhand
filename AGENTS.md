@@ -20,6 +20,10 @@ Repository guidance for coding agents working on `terraform-provider-dockhand`.
   - Resource: `dockhand_git_repository`
   - Resource: `dockhand_config_set`
   - Resource: `dockhand_environment`
+  - Resource: `dockhand_network`
+  - Resource: `dockhand_volume`
+  - Resource: `dockhand_image`
+  - Resource: `dockhand_schedule`
   - Data source: `dockhand_health`
   - Data source: `dockhand_auth_providers`
   - Data source: `dockhand_schedules`
@@ -92,6 +96,12 @@ Avoid testing by building local zips for release validation.
   - `POST /api/stacks/{name}/stop`
   - `DELETE /api/stacks/{name}?force=true`
   - `GET /api/dashboard/stats`
+  - `GET/POST/DELETE /api/networks`
+  - `GET/POST/DELETE /api/volumes`
+  - `GET/POST/DELETE /api/images`
+  - `GET /api/schedules`
+  - `POST /api/schedules/system/{id}/toggle`
+  - `POST /api/schedules/{type}/{id}/toggle`
 - Verify response payload shapes against live Dockhand responses before release.
 
 ## CI Expectations
