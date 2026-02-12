@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
@@ -105,12 +106,24 @@ func (r *stackActionResource) Create(ctx context.Context, req resource.CreateReq
 	var err error
 	switch action {
 	case "start":
-		_, err = r.client.StartStackWithStatus(ctx, env, name)
+		err = r.retryStackAction(ctx, func() error {
+			_, e := r.client.StartStackWithStatus(ctx, env, name)
+			return e
+		})
 	case "stop":
-		_, err = r.client.StopStackWithStatus(ctx, env, name)
+		err = r.retryStackAction(ctx, func() error {
+			_, e := r.client.StopStackWithStatus(ctx, env, name)
+			return e
+		})
 	case "restart":
-		if _, err = r.client.StopStackWithStatus(ctx, env, name); err == nil {
-			_, err = r.client.StartStackWithStatus(ctx, env, name)
+		if err = r.retryStackAction(ctx, func() error {
+			_, e := r.client.StopStackWithStatus(ctx, env, name)
+			return e
+		}); err == nil {
+			err = r.retryStackAction(ctx, func() error {
+				_, e := r.client.StartStackWithStatus(ctx, env, name)
+				return e
+			})
 		}
 	default:
 		resp.Diagnostics.AddError("Invalid action", "Supported actions: start, stop, restart.")
@@ -125,6 +138,29 @@ func (r *stackActionResource) Create(ctx context.Context, req resource.CreateReq
 	plan.ID = types.StringValue(fmt.Sprintf("%s:%s:%s:%s", env, name, action, trigger))
 	plan.Action = types.StringValue(action)
 	resp.Diagnostics.Append(resp.State.Set(ctx, &plan)...)
+}
+
+func (r *stackActionResource) retryStackAction(ctx context.Context, fn func() error) error {
+	var lastErr error
+	for i := 0; i < 3; i++ {
+		if err := fn(); err != nil {
+			lastErr = err
+			msg := strings.ToLower(err.Error())
+			if !strings.Contains(msg, "eof") && !strings.Contains(msg, "connection reset") && !strings.Contains(msg, "broken pipe") {
+				return err
+			}
+			if i < 2 {
+				select {
+				case <-ctx.Done():
+					return ctx.Err()
+				case <-time.After(300 * time.Millisecond):
+				}
+			}
+			continue
+		}
+		return nil
+	}
+	return lastErr
 }
 
 func (r *stackActionResource) Read(ctx context.Context, req resource.ReadRequest, resp *resource.ReadResponse) {
