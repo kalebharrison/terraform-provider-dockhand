@@ -30,6 +30,7 @@ provider "dockhand" {
 - `dockhand_network`
 - `dockhand_volume`
 - `dockhand_image`
+- `dockhand_image_scan_action`
 - `dockhand_container`
 - `dockhand_container_action`
 - `dockhand_schedule`
@@ -37,9 +38,11 @@ provider "dockhand" {
 ## Data Sources
 
 - `dockhand_health`
+- `dockhand_activity`
 - `dockhand_auth_providers`
 - `dockhand_schedules`
 - `dockhand_container_logs`
+- `dockhand_container_inspect`
 - `dockhand_stacks`
 
 ## Schema

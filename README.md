@@ -18,12 +18,15 @@ This initial scaffold includes:
 - Resource: `dockhand_network`
 - Resource: `dockhand_volume`
 - Resource: `dockhand_image`
+- Resource: `dockhand_image_scan_action`
 - Resource: `dockhand_container`
 - Resource: `dockhand_container_action`
 - Resource: `dockhand_schedule`
 - Data source: `dockhand_health`
+- Data source: `dockhand_activity`
 - Data source: `dockhand_stacks`
 - Data source: `dockhand_container_logs`
+- Data source: `dockhand_container_inspect`
 - HTTP client wiring against:
   - `POST /api/auth/login` (session-based auth)
   - `GET /api/auth/session` (session check)
@@ -37,10 +40,12 @@ This initial scaffold includes:
   - `GET/POST/DELETE /api/networks`
   - `GET/POST/DELETE /api/volumes`
   - `GET/POST/DELETE /api/images`
+  - `POST /api/images/scan`
   - `GET/POST/DELETE /api/containers`
   - `POST /api/containers/{id}/start`
   - `POST /api/containers/{id}/stop`
   - `POST /api/containers/{id}/restart`
+  - `GET /api/activity`
   - `GET /api/schedules`
   - `POST /api/schedules/system/{id}/toggle`
   - `POST /api/schedules/{type}/{id}/toggle`

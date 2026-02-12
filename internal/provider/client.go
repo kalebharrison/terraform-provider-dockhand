@@ -87,6 +87,28 @@ type containerLogsResponse struct {
 	Logs string `json:"logs"`
 }
 
+type activityEventResponse struct {
+	ID              int64             `json:"id"`
+	EnvironmentID   *int64            `json:"environmentId"`
+	ContainerID     *string           `json:"containerId"`
+	ContainerName   *string           `json:"containerName"`
+	Image           *string           `json:"image"`
+	Action          string            `json:"action"`
+	ActorAttributes map[string]string `json:"actorAttributes"`
+	Timestamp       *string           `json:"timestamp"`
+	Type            *string           `json:"type"`
+	Status          *string           `json:"status"`
+	Details         map[string]any    `json:"details"`
+}
+
+type activityResponse struct {
+	Events []activityEventResponse `json:"events"`
+}
+
+type imageScanPayload struct {
+	ImageName string `json:"imageName"`
+}
+
 type healthResponse struct {
 	Status  string `json:"status"`
 	Version string `json:"version,omitempty"`
@@ -1038,6 +1060,43 @@ func (c *Client) GetContainerLogs(ctx context.Context, env string, id string, ta
 		return nil, status, err
 	}
 	return &out, status, nil
+}
+
+func (c *Client) GetContainerInspect(ctx context.Context, env string, id string) (map[string]any, int, error) {
+	query := map[string]string{}
+	if resolvedEnv := c.resolveEnv(env); resolvedEnv != "" {
+		query["env"] = resolvedEnv
+	}
+
+	var out map[string]any
+	status, err := c.doJSONWithStatus(ctx, http.MethodGet, "/api/containers/"+url.PathEscape(id), query, nil, &out)
+	if err != nil {
+		return nil, status, err
+	}
+	return out, status, nil
+}
+
+func (c *Client) ScanImage(ctx context.Context, env string, imageName string) (string, int, error) {
+	query := map[string]string{}
+	if resolvedEnv := c.resolveEnv(env); resolvedEnv != "" {
+		query["env"] = resolvedEnv
+	}
+
+	status, err := c.doJSONWithStatus(ctx, http.MethodPost, "/api/images/scan", query, imageScanPayload{ImageName: imageName}, nil)
+	if err != nil {
+		return "", status, err
+	}
+	// Endpoint streams scan progress; if request succeeded we return a generic completion marker.
+	return "scan_requested", status, nil
+}
+
+func (c *Client) ListActivity(ctx context.Context) ([]activityEventResponse, int, error) {
+	var out activityResponse
+	status, err := c.doJSONWithStatus(ctx, http.MethodGet, "/api/activity", nil, nil, &out)
+	if err != nil {
+		return nil, status, err
+	}
+	return out.Events, status, nil
 }
 
 func (c *Client) DeleteContainer(ctx context.Context, env string, id string) (int, error) {

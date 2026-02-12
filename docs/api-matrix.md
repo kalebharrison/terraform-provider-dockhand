@@ -74,6 +74,7 @@ Source: [Dockhand Manual API Reference](https://dockhand.pro/manual/#api-referen
 | `dockhand_image` | Create | `POST /api/images/pull?env={env_id}` | Pulls image by reference; then resolves image by tags from list. | partial |
 | `dockhand_image` | Read | `GET /api/images?env={env_id}` | Matches by `id`, then by tags if needed. | partial |
 | `dockhand_image` | Delete | `DELETE /api/images/{id}?env={env_id}` | `404` treated as already deleted. | partial |
+| `dockhand_image_scan_action` | Execute scan | `POST /api/images/scan?env={env_id}` | One-shot image scan action; payload uses `imageName`. | implemented |
 | `dockhand_container` | Create | `POST /api/containers?env={env_id}` | Supports create payload for name/image plus selected runtime options. | partial |
 | `dockhand_container` | Read | `GET /api/containers?env={env_id}` | Reads full list and matches by container `id`. | partial |
 | `dockhand_container` | Update runtime | `POST /api/containers/{id}/start` or `POST /api/containers/{id}/stop` | `enabled` toggles runtime state. | implemented |
@@ -89,10 +90,12 @@ Source: [Dockhand Manual API Reference](https://dockhand.pro/manual/#api-referen
 | Terraform Data Source | API Endpoint | Notes | Status |
 | --- | --- | --- | --- |
 | `dockhand_health` | `GET /api/dashboard/stats?env={env_id}` | Successful request is treated as API health (`status = ok`). | partial |
+| `dockhand_activity` | `GET /api/activity` | Returns recent event stream/history for observability. | implemented |
 | `dockhand_auth_providers` | `GET /api/auth/providers` | Exposes configured auth providers and default provider (local/free providers in current scope). | implemented |
 | `dockhand_schedules` | `GET /api/schedules` | Exposes schedule inventory (system cleanup + generated schedules). | implemented |
 | `dockhand_stacks` | `GET /api/stacks?env={env_id}` | Exposes stack list with runtime status and container count. | implemented |
 | `dockhand_container_logs` | `GET /api/containers/{id}/logs?env={env_id}&tail={n}` | Reads container logs for debugging/verification workflows. | implemented |
+| `dockhand_container_inspect` | `GET /api/containers/{id}?env={env_id}` | Exposes full inspect payload as raw JSON for advanced automation. | implemented |
 
 ## Additional Endpoints Not Yet Mapped
 

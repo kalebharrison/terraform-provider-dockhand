@@ -189,6 +189,7 @@ func (p *dockhandProvider) Resources(_ context.Context) []func() resource.Resour
 		NewNetworkResource,
 		NewVolumeResource,
 		NewImageResource,
+		NewImageScanActionResource,
 		NewContainerResource,
 		NewContainerActionResource,
 		NewScheduleResource,
@@ -199,9 +200,11 @@ func (p *dockhandProvider) Resources(_ context.Context) []func() resource.Resour
 func (p *dockhandProvider) DataSources(_ context.Context) []func() datasource.DataSource {
 	return []func() datasource.DataSource{
 		NewHealthDataSource,
+		NewActivityDataSource,
 		NewAuthProvidersDataSource,
 		NewSchedulesDataSource,
 		NewContainerLogsDataSource,
+		NewContainerInspectDataSource,
 		NewStacksDataSource,
 	}
 }
