@@ -193,5 +193,6 @@ func (p *dockhandProvider) DataSources(_ context.Context) []func() datasource.Da
 	return []func() datasource.DataSource{
 		NewHealthDataSource,
 		NewAuthProvidersDataSource,
+		NewSchedulesDataSource,
 	}
 }

@@ -72,13 +72,14 @@ Source: [Dockhand Manual API Reference](https://dockhand.pro/manual/#api-referen
 | --- | --- | --- | --- |
 | `dockhand_health` | `GET /api/dashboard/stats?env={env_id}` | Successful request is treated as API health (`status = ok`). | partial |
 | `dockhand_auth_providers` | `GET /api/auth/providers` | Exposes configured auth providers and default provider (local/free providers in current scope). | implemented |
+| `dockhand_schedules` | `GET /api/schedules` | Exposes schedule inventory (system cleanup + generated schedules). | implemented |
 
 ## Additional Endpoints Not Yet Mapped
 
 | API Endpoint Group | Candidate Terraform Surface | Status |
 | --- | --- | --- |
 | `/api/environments` | additional environment data sources | partial |
-| `/api/schedules` | schedules resource/data source | planned |
+| `/api/schedules` | schedule management resource | planned |
 | `/api/images` | image inventory data source | planned |
 | `/api/containers` | container status data source | planned |
 | `/api/volumes` | volume inventory data source | planned |

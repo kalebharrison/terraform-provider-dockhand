@@ -31,6 +31,7 @@ provider "dockhand" {
 
 - `dockhand_health`
 - `dockhand_auth_providers`
+- `dockhand_schedules`
 
 ## Schema
 

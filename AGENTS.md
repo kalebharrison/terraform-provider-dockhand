@@ -22,6 +22,7 @@ Repository guidance for coding agents working on `terraform-provider-dockhand`.
   - Resource: `dockhand_environment`
   - Data source: `dockhand_health`
   - Data source: `dockhand_auth_providers`
+  - Data source: `dockhand_schedules`
 
 ## Working Rules
 

@@ -263,6 +263,33 @@ type licenseResponse struct {
 	Hostname *string `json:"hostname"`
 }
 
+type scheduleExecutionResponse struct {
+	ID          int64   `json:"id"`
+	Status      string  `json:"status"`
+	TriggeredAt *string `json:"triggeredAt"`
+	CompletedAt *string `json:"completedAt"`
+}
+
+type scheduleResponse struct {
+	ID              int64                      `json:"id"`
+	Type            string                     `json:"type"`
+	Name            string                     `json:"name"`
+	EntityName      *string                    `json:"entityName"`
+	Description     *string                    `json:"description"`
+	EnvironmentID   *int64                     `json:"environmentId"`
+	EnvironmentName *string                    `json:"environmentName"`
+	Enabled         bool                       `json:"enabled"`
+	ScheduleType    *string                    `json:"scheduleType"`
+	CronExpression  *string                    `json:"cronExpression"`
+	NextRun         *string                    `json:"nextRun"`
+	IsSystem        bool                       `json:"isSystem"`
+	LastExecution   *scheduleExecutionResponse `json:"lastExecution"`
+}
+
+type schedulesListResponse struct {
+	Schedules []scheduleResponse `json:"schedules"`
+}
+
 type generalSettings struct {
 	ConfirmDestructive        bool     `json:"confirmDestructive"`
 	DarkTheme                 string   `json:"darkTheme"`
@@ -645,6 +672,15 @@ func (c *Client) SetLicense(ctx context.Context, payload licensePayload) (*licen
 
 func (c *Client) DeleteLicense(ctx context.Context) (int, error) {
 	return c.doJSONWithStatus(ctx, http.MethodDelete, "/api/license", nil, nil, nil)
+}
+
+func (c *Client) GetSchedules(ctx context.Context) (*schedulesListResponse, int, error) {
+	var out schedulesListResponse
+	status, err := c.doJSONWithStatus(ctx, http.MethodGet, "/api/schedules", nil, nil, &out)
+	if err != nil {
+		return nil, status, err
+	}
+	return &out, status, nil
 }
 
 func (c *Client) CreateStack(ctx context.Context, env string, payload stackPayload) error {
