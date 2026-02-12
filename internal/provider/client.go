@@ -235,7 +235,7 @@ type networkPayload struct {
 }
 
 type networkResponse struct {
-	ID         int64   `json:"id"`
+	ID         string  `json:"id"`
 	Name       string  `json:"name"`
 	Driver     string  `json:"driver"`
 	Internal   bool    `json:"internal"`
@@ -245,7 +245,7 @@ type networkResponse struct {
 }
 
 type networkInspectResponse struct {
-	ID         int64             `json:"id"`
+	ID         string            `json:"id"`
 	Name       string            `json:"name"`
 	Driver     string            `json:"driver"`
 	Internal   bool              `json:"internal"`

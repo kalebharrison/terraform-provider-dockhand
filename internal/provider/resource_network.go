@@ -3,7 +3,6 @@ package provider
 import (
 	"context"
 	"fmt"
-	"strconv"
 	"strings"
 
 	"github.com/hashicorp/terraform-plugin-framework/path"
@@ -179,7 +178,7 @@ func (r *networkResource) Create(ctx context.Context, req resource.CreateRequest
 	}
 
 	state := networkModel{
-		ID:         types.StringValue(strconv.FormatInt(created.ID, 10)),
+		ID:         types.StringValue(created.ID),
 		Name:       types.StringValue(created.Name),
 		Driver:     types.StringValue(created.Driver),
 		Env:        plan.Env,
@@ -225,7 +224,7 @@ func (r *networkResource) Read(ctx context.Context, req resource.ReadRequest, re
 
 	var found *networkResponse
 	for i := range networks {
-		if strconv.FormatInt(networks[i].ID, 10) == state.ID.ValueString() {
+		if networks[i].ID == state.ID.ValueString() {
 			found = &networks[i]
 			break
 		}
@@ -241,7 +240,7 @@ func (r *networkResource) Read(ctx context.Context, req resource.ReadRequest, re
 		return
 	}
 
-	state.ID = types.StringValue(strconv.FormatInt(found.ID, 10))
+	state.ID = types.StringValue(found.ID)
 	state.Name = types.StringValue(found.Name)
 	state.Driver = types.StringValue(found.Driver)
 	state.Internal = types.BoolValue(found.Internal)
