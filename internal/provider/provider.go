@@ -190,7 +190,9 @@ func (p *dockhandProvider) Resources(_ context.Context) []func() resource.Resour
 		NewVolumeResource,
 		NewImageResource,
 		NewContainerResource,
+		NewContainerActionResource,
 		NewScheduleResource,
+		NewStackActionResource,
 	}
 }
 
@@ -199,5 +201,7 @@ func (p *dockhandProvider) DataSources(_ context.Context) []func() datasource.Da
 		NewHealthDataSource,
 		NewAuthProvidersDataSource,
 		NewSchedulesDataSource,
+		NewContainerLogsDataSource,
+		NewStacksDataSource,
 	}
 }

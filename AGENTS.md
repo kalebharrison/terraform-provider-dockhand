@@ -10,6 +10,7 @@ Repository guidance for coding agents working on `terraform-provider-dockhand`.
 - Current implemented surface:
   - Provider: `dockhand`
   - Resource: `dockhand_stack`
+  - Resource: `dockhand_stack_action`
   - Resource: `dockhand_user`
   - Resource: `dockhand_notification`
   - Resource: `dockhand_settings_general`
@@ -24,8 +25,11 @@ Repository guidance for coding agents working on `terraform-provider-dockhand`.
   - Resource: `dockhand_volume`
   - Resource: `dockhand_image`
   - Resource: `dockhand_container`
+  - Resource: `dockhand_container_action`
   - Resource: `dockhand_schedule`
   - Data source: `dockhand_health`
+  - Data source: `dockhand_stacks`
+  - Data source: `dockhand_container_logs`
   - Data source: `dockhand_auth_providers`
   - Data source: `dockhand_schedules`
 
@@ -104,6 +108,7 @@ Avoid testing by building local zips for release validation.
   - `POST /api/containers/{id}/start`
   - `POST /api/containers/{id}/stop`
   - `POST /api/containers/{id}/restart`
+  - `GET /api/containers/{id}/logs`
   - `GET /api/schedules`
   - `POST /api/schedules/system/{id}/toggle`
   - `POST /api/schedules/{type}/{id}/toggle`

@@ -16,6 +16,7 @@ provider "dockhand" {
 ## Resources
 
 - `dockhand_stack`
+- `dockhand_stack_action`
 - `dockhand_user`
 - `dockhand_settings_general`
 - `dockhand_auth_settings`
@@ -30,6 +31,7 @@ provider "dockhand" {
 - `dockhand_volume`
 - `dockhand_image`
 - `dockhand_container`
+- `dockhand_container_action`
 - `dockhand_schedule`
 
 ## Data Sources
@@ -37,6 +39,8 @@ provider "dockhand" {
 - `dockhand_health`
 - `dockhand_auth_providers`
 - `dockhand_schedules`
+- `dockhand_container_logs`
+- `dockhand_stacks`
 
 ## Schema
 

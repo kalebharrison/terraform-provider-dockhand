@@ -1084,25 +1084,29 @@ func (c *Client) GetStackByName(ctx context.Context, env string, name string) (*
 }
 
 func (c *Client) StartStack(ctx context.Context, env string, name string) error {
+	_, err := c.StartStackWithStatus(ctx, env, name)
+	return err
+}
+
+func (c *Client) StartStackWithStatus(ctx context.Context, env string, name string) (int, error) {
 	query := map[string]string{}
 	if resolvedEnv := c.resolveEnv(env); resolvedEnv != "" {
 		query["env"] = resolvedEnv
 	}
-	if _, err := c.doJSONWithStatus(ctx, http.MethodPost, "/api/stacks/"+url.PathEscape(name)+"/start", query, nil, nil); err != nil {
-		return err
-	}
-	return nil
+	return c.doJSONWithStatus(ctx, http.MethodPost, "/api/stacks/"+url.PathEscape(name)+"/start", query, nil, nil)
 }
 
 func (c *Client) StopStack(ctx context.Context, env string, name string) error {
+	_, err := c.StopStackWithStatus(ctx, env, name)
+	return err
+}
+
+func (c *Client) StopStackWithStatus(ctx context.Context, env string, name string) (int, error) {
 	query := map[string]string{}
 	if resolvedEnv := c.resolveEnv(env); resolvedEnv != "" {
 		query["env"] = resolvedEnv
 	}
-	if _, err := c.doJSONWithStatus(ctx, http.MethodPost, "/api/stacks/"+url.PathEscape(name)+"/stop", query, nil, nil); err != nil {
-		return err
-	}
-	return nil
+	return c.doJSONWithStatus(ctx, http.MethodPost, "/api/stacks/"+url.PathEscape(name)+"/stop", query, nil, nil)
 }
 
 func (c *Client) DeleteStack(ctx context.Context, env string, name string) (int, error) {

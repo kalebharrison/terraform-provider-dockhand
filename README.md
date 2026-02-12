@@ -8,6 +8,7 @@ This initial scaffold includes:
 
 - Provider config with `endpoint`, `username`/`password` (login-based), `default_env`, and `insecure`.
 - Resource: `dockhand_stack`
+- Resource: `dockhand_stack_action`
 - Resource: `dockhand_user`
 - Resource: `dockhand_settings_general`
 - Resource: `dockhand_registry`
@@ -18,8 +19,11 @@ This initial scaffold includes:
 - Resource: `dockhand_volume`
 - Resource: `dockhand_image`
 - Resource: `dockhand_container`
+- Resource: `dockhand_container_action`
 - Resource: `dockhand_schedule`
 - Data source: `dockhand_health`
+- Data source: `dockhand_stacks`
+- Data source: `dockhand_container_logs`
 - HTTP client wiring against:
   - `POST /api/auth/login` (session-based auth)
   - `GET /api/auth/session` (session check)
@@ -28,6 +32,7 @@ This initial scaffold includes:
   - `POST /api/stacks/{name}/start`
   - `POST /api/stacks/{name}/stop`
   - `DELETE /api/stacks/{name}?force=true`
+  - `GET /api/containers/{id}/logs`
   - `GET /api/dashboard/stats` (health signal)
   - `GET/POST/DELETE /api/networks`
   - `GET/POST/DELETE /api/volumes`

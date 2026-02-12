@@ -79,6 +79,8 @@ Source: [Dockhand Manual API Reference](https://dockhand.pro/manual/#api-referen
 | `dockhand_container` | Update runtime | `POST /api/containers/{id}/start` or `POST /api/containers/{id}/stop` | `enabled` toggles runtime state. | implemented |
 | `dockhand_container` | Delete | `DELETE /api/containers/{id}?env={env_id}` | `404` treated as already deleted. | implemented |
 | `dockhand_container` | Import | `GET /api/containers?env={env_id}` | Import formats: `<id>` or `<env>:<id>`. | implemented |
+| `dockhand_container_action` | Execute action | `POST /api/containers/{id}/start`, `POST /api/containers/{id}/stop`, `POST /api/containers/{id}/restart` | One-shot runtime action resource with replace-by-trigger behavior. | implemented |
+| `dockhand_stack_action` | Execute action | `POST /api/stacks/{name}/start`, `POST /api/stacks/{name}/stop` | One-shot runtime action resource; `restart` runs stop then start. | implemented |
 | `dockhand_schedule` | Read | `GET /api/schedules` | Resolves existing schedule by `type` + `schedule_id`. | partial |
 | `dockhand_schedule` | Update state | `POST /api/schedules/system/{id}/toggle` or `POST /api/schedules/{type}/{id}/toggle` | Manages pause/resume (`enabled`) for existing schedules. | partial |
 
@@ -89,6 +91,8 @@ Source: [Dockhand Manual API Reference](https://dockhand.pro/manual/#api-referen
 | `dockhand_health` | `GET /api/dashboard/stats?env={env_id}` | Successful request is treated as API health (`status = ok`). | partial |
 | `dockhand_auth_providers` | `GET /api/auth/providers` | Exposes configured auth providers and default provider (local/free providers in current scope). | implemented |
 | `dockhand_schedules` | `GET /api/schedules` | Exposes schedule inventory (system cleanup + generated schedules). | implemented |
+| `dockhand_stacks` | `GET /api/stacks?env={env_id}` | Exposes stack list with runtime status and container count. | implemented |
+| `dockhand_container_logs` | `GET /api/containers/{id}/logs?env={env_id}&tail={n}` | Reads container logs for debugging/verification workflows. | implemented |
 
 ## Additional Endpoints Not Yet Mapped
 
