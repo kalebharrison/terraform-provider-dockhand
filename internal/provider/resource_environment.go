@@ -175,7 +175,7 @@ func (r *environmentResource) Create(ctx context.Context, req resource.CreateReq
 		return
 	}
 
-	state := modelFromEnvironmentResponse(created)
+	state := modelFromEnvironmentResponse(plan, created)
 	resp.Diagnostics.Append(resp.State.Set(ctx, &state)...)
 }
 
@@ -201,7 +201,7 @@ func (r *environmentResource) Read(ctx context.Context, req resource.ReadRequest
 		return
 	}
 
-	newState := modelFromEnvironmentResponse(env)
+	newState := modelFromEnvironmentResponse(state, env)
 	resp.Diagnostics.Append(resp.State.Set(ctx, &newState)...)
 }
 
@@ -237,7 +237,7 @@ func (r *environmentResource) Update(ctx context.Context, req resource.UpdateReq
 		return
 	}
 
-	newState := modelFromEnvironmentResponse(updated)
+	newState := modelFromEnvironmentResponse(plan, updated)
 	resp.Diagnostics.Append(resp.State.Set(ctx, &newState)...)
 }
 
@@ -327,7 +327,7 @@ func buildEnvironmentPayload(plan environmentModel, prior environmentModel) (env
 	return payload, nil
 }
 
-func modelFromEnvironmentResponse(in *environmentResponse) environmentModel {
+func modelFromEnvironmentResponse(prior environmentModel, in *environmentResponse) environmentModel {
 	out := environmentModel{
 		ID:                    types.StringValue(strconv.FormatInt(in.ID, 10)),
 		Name:                  types.StringValue(in.Name),
@@ -357,7 +357,11 @@ func modelFromEnvironmentResponse(in *environmentResponse) environmentModel {
 	if in.Timezone != nil {
 		out.Timezone = types.StringValue(*in.Timezone)
 	} else {
-		out.Timezone = types.StringNull()
+		if !prior.Timezone.IsNull() && !prior.Timezone.IsUnknown() {
+			out.Timezone = prior.Timezone
+		} else {
+			out.Timezone = types.StringNull()
+		}
 	}
 	if in.CreatedAt != nil {
 		out.CreatedAt = types.StringValue(*in.CreatedAt)
