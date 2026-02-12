@@ -189,6 +189,7 @@ func (p *dockhandProvider) Resources(_ context.Context) []func() resource.Resour
 		NewNetworkResource,
 		NewVolumeResource,
 		NewImageResource,
+		NewContainerResource,
 		NewScheduleResource,
 	}
 }

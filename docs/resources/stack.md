@@ -33,7 +33,10 @@ resource "dockhand_stack" "example" {
 
 ### Read-Only
 
+- `container_count` (Number) Current number of containers in the stack.
+- `container_ids` (List of String) Container IDs currently associated with the stack.
 - `id` (String) Stack ID (`<env>:<name>` or `<name>`).
+- `status` (String) Current stack runtime status from Dockhand.
 
 ## Import
 

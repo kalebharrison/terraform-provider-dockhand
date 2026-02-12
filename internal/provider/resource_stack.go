@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/hashicorp/terraform-plugin-framework/attr"
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
@@ -29,11 +30,14 @@ type stackResource struct {
 }
 
 type stackResourceModel struct {
-	ID      types.String `tfsdk:"id"`
-	Name    types.String `tfsdk:"name"`
-	Env     types.String `tfsdk:"env"`
-	Compose types.String `tfsdk:"compose"`
-	Enabled types.Bool   `tfsdk:"enabled"`
+	ID             types.String `tfsdk:"id"`
+	Name           types.String `tfsdk:"name"`
+	Env            types.String `tfsdk:"env"`
+	Compose        types.String `tfsdk:"compose"`
+	Enabled        types.Bool   `tfsdk:"enabled"`
+	Status         types.String `tfsdk:"status"`
+	ContainerIDs   types.List   `tfsdk:"container_ids"`
+	ContainerCount types.Int64  `tfsdk:"container_count"`
 }
 
 func (r *stackResource) Metadata(_ context.Context, req resource.MetadataRequest, resp *resource.MetadataResponse) {
@@ -74,6 +78,19 @@ func (r *stackResource) Schema(_ context.Context, _ resource.SchemaRequest, resp
 				Optional:            true,
 				Computed:            true,
 				Default:             booldefault.StaticBool(true),
+			},
+			"status": schema.StringAttribute{
+				MarkdownDescription: "Current stack runtime status as reported by Dockhand.",
+				Computed:            true,
+			},
+			"container_ids": schema.ListAttribute{
+				MarkdownDescription: "Container IDs currently associated with the stack.",
+				Computed:            true,
+				ElementType:         types.StringType,
+			},
+			"container_count": schema.Int64Attribute{
+				MarkdownDescription: "Current number of containers associated with the stack.",
+				Computed:            true,
 			},
 		},
 	}
@@ -128,6 +145,16 @@ func (r *stackResource) Create(ctx context.Context, req resource.CreateRequest, 
 		}
 	}
 
+	stack, found, err := r.client.GetStackByName(ctx, env, name)
+	if err != nil {
+		resp.Diagnostics.AddError("Error reading Dockhand stack after create", err.Error())
+		return
+	}
+	if found {
+		plan.Status = types.StringValue(stack.Status)
+		plan.ContainerIDs = stringSliceToListValue(stack.Containers)
+		plan.ContainerCount = types.Int64Value(int64(len(stack.Containers)))
+	}
 	plan.ID = types.StringValue(formatStackID(env, name))
 	resp.Diagnostics.Append(resp.State.Set(ctx, &plan)...)
 }
@@ -158,6 +185,9 @@ func (r *stackResource) Read(ctx context.Context, req resource.ReadRequest, resp
 	if stack.Compose != "" {
 		state.Compose = types.StringValue(stack.Compose)
 	}
+	state.Status = types.StringValue(stack.Status)
+	state.ContainerIDs = stringSliceToListValue(stack.Containers)
+	state.ContainerCount = types.Int64Value(int64(len(stack.Containers)))
 
 	resp.Diagnostics.Append(resp.State.Set(ctx, &state)...)
 }
@@ -252,4 +282,16 @@ func formatStackID(env string, name string) string {
 		return name
 	}
 	return env + ":" + name
+}
+
+func stringSliceToListValue(values []string) types.List {
+	if len(values) == 0 {
+		return types.ListValueMust(types.StringType, []attr.Value{})
+	}
+
+	out := make([]attr.Value, 0, len(values))
+	for _, item := range values {
+		out = append(out, types.StringValue(item))
+	}
+	return types.ListValueMust(types.StringType, out)
 }

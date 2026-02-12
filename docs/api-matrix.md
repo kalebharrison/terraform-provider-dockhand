@@ -74,6 +74,11 @@ Source: [Dockhand Manual API Reference](https://dockhand.pro/manual/#api-referen
 | `dockhand_image` | Create | `POST /api/images/pull?env={env_id}` | Pulls image by reference; then resolves image by tags from list. | partial |
 | `dockhand_image` | Read | `GET /api/images?env={env_id}` | Matches by `id`, then by tags if needed. | partial |
 | `dockhand_image` | Delete | `DELETE /api/images/{id}?env={env_id}` | `404` treated as already deleted. | partial |
+| `dockhand_container` | Create | `POST /api/containers?env={env_id}` | Supports create payload for name/image plus selected runtime options. | partial |
+| `dockhand_container` | Read | `GET /api/containers?env={env_id}` | Reads full list and matches by container `id`. | partial |
+| `dockhand_container` | Update runtime | `POST /api/containers/{id}/start` or `POST /api/containers/{id}/stop` | `enabled` toggles runtime state. | implemented |
+| `dockhand_container` | Delete | `DELETE /api/containers/{id}?env={env_id}` | `404` treated as already deleted. | implemented |
+| `dockhand_container` | Import | `GET /api/containers?env={env_id}` | Import formats: `<id>` or `<env>:<id>`. | implemented |
 | `dockhand_schedule` | Read | `GET /api/schedules` | Resolves existing schedule by `type` + `schedule_id`. | partial |
 | `dockhand_schedule` | Update state | `POST /api/schedules/system/{id}/toggle` or `POST /api/schedules/{type}/{id}/toggle` | Manages pause/resume (`enabled`) for existing schedules. | partial |
 
@@ -92,7 +97,7 @@ Source: [Dockhand Manual API Reference](https://dockhand.pro/manual/#api-referen
 | `/api/environments` | additional environment data sources | partial |
 | `/api/schedules` | schedule details/advanced actions (`run`, executions history/settings) | partial |
 | `/api/images` | image actions (`scan`, `push`) | partial |
-| `/api/containers` | container status data source | planned |
+| `/api/containers` | container logs, restart action, and advanced create options coverage | partial |
 | `/api/volumes` | advanced volume operations (`clone`, `browse`, import/export) | partial |
 | `/api/networks` | advanced network operations (`connect`, inspect details as separate surface) | partial |
 | `/api/configs` | config management resource/data source | planned |

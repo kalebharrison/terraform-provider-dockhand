@@ -23,6 +23,7 @@ Repository guidance for coding agents working on `terraform-provider-dockhand`.
   - Resource: `dockhand_network`
   - Resource: `dockhand_volume`
   - Resource: `dockhand_image`
+  - Resource: `dockhand_container`
   - Resource: `dockhand_schedule`
   - Data source: `dockhand_health`
   - Data source: `dockhand_auth_providers`
@@ -99,6 +100,10 @@ Avoid testing by building local zips for release validation.
   - `GET/POST/DELETE /api/networks`
   - `GET/POST/DELETE /api/volumes`
   - `GET/POST/DELETE /api/images`
+  - `GET/POST/DELETE /api/containers`
+  - `POST /api/containers/{id}/start`
+  - `POST /api/containers/{id}/stop`
+  - `POST /api/containers/{id}/restart`
   - `GET /api/schedules`
   - `POST /api/schedules/system/{id}/toggle`
   - `POST /api/schedules/{type}/{id}/toggle`

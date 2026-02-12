@@ -29,6 +29,7 @@ provider "dockhand" {
 - `dockhand_network`
 - `dockhand_volume`
 - `dockhand_image`
+- `dockhand_container`
 - `dockhand_schedule`
 
 ## Data Sources

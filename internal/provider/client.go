@@ -28,9 +28,63 @@ type stackPayload struct {
 	Compose string `json:"compose"`
 }
 
+type stackContainerDetailResponse struct {
+	ID           string `json:"id"`
+	Name         string `json:"name"`
+	Service      string `json:"service"`
+	State        string `json:"state"`
+	Status       string `json:"status"`
+	Health       string `json:"health"`
+	Image        string `json:"image"`
+	RestartCount int64  `json:"restartCount"`
+}
+
 type stackResponse struct {
-	Name    string `json:"name"`
-	Compose string `json:"compose"`
+	Name             string                         `json:"name"`
+	Compose          string                         `json:"compose"`
+	Status           string                         `json:"status"`
+	Containers       []string                       `json:"containers"`
+	ContainerDetails []stackContainerDetailResponse `json:"containerDetails"`
+}
+
+type containerPortPayload struct {
+	ContainerPort int64  `json:"containerPort"`
+	HostPort      string `json:"hostPort"`
+	Protocol      string `json:"protocol,omitempty"`
+}
+
+type containerPayload struct {
+	Name          string                 `json:"name"`
+	Image         string                 `json:"image"`
+	Command       *string                `json:"command,omitempty"`
+	Env           []string               `json:"env,omitempty"`
+	Labels        map[string]string      `json:"labels,omitempty"`
+	Ports         []containerPortPayload `json:"ports,omitempty"`
+	NetworkMode   *string                `json:"networkMode,omitempty"`
+	RestartPolicy *string                `json:"restartPolicy,omitempty"`
+	Privileged    *bool                  `json:"privileged,omitempty"`
+	TTY           *bool                  `json:"tty,omitempty"`
+}
+
+type containerCreateResponse struct {
+	Success bool   `json:"success"`
+	ID      string `json:"id"`
+}
+
+type containerResponse struct {
+	ID           string            `json:"id"`
+	Name         string            `json:"name"`
+	Image        string            `json:"image"`
+	State        string            `json:"state"`
+	Status       string            `json:"status"`
+	Health       string            `json:"health"`
+	RestartCount int64             `json:"restartCount"`
+	Labels       map[string]string `json:"labels"`
+	Command      *string           `json:"command"`
+}
+
+type containerLogsResponse struct {
+	Logs string `json:"logs"`
 }
 
 type healthResponse struct {
@@ -904,6 +958,96 @@ func (c *Client) CreateStack(ctx context.Context, env string, payload stackPaylo
 	return nil
 }
 
+func (c *Client) ListContainers(ctx context.Context, env string) ([]containerResponse, int, error) {
+	query := map[string]string{}
+	if resolvedEnv := c.resolveEnv(env); resolvedEnv != "" {
+		query["env"] = resolvedEnv
+	}
+
+	var out []containerResponse
+	status, err := c.doJSONWithStatus(ctx, http.MethodGet, "/api/containers", query, nil, &out)
+	if err != nil {
+		return nil, status, err
+	}
+	return out, status, nil
+}
+
+func (c *Client) GetContainerByID(ctx context.Context, env string, id string) (*containerResponse, bool, error) {
+	containers, _, err := c.ListContainers(ctx, env)
+	if err != nil {
+		return nil, false, err
+	}
+	for i := range containers {
+		if containers[i].ID == id {
+			return &containers[i], true, nil
+		}
+	}
+	return nil, false, nil
+}
+
+func (c *Client) CreateContainer(ctx context.Context, env string, payload containerPayload) (*containerCreateResponse, int, error) {
+	query := map[string]string{}
+	if resolvedEnv := c.resolveEnv(env); resolvedEnv != "" {
+		query["env"] = resolvedEnv
+	}
+
+	var out containerCreateResponse
+	status, err := c.doJSONWithStatus(ctx, http.MethodPost, "/api/containers", query, payload, &out)
+	if err != nil {
+		return nil, status, err
+	}
+	return &out, status, nil
+}
+
+func (c *Client) StartContainer(ctx context.Context, env string, id string) (int, error) {
+	query := map[string]string{}
+	if resolvedEnv := c.resolveEnv(env); resolvedEnv != "" {
+		query["env"] = resolvedEnv
+	}
+	return c.doJSONWithStatus(ctx, http.MethodPost, "/api/containers/"+url.PathEscape(id)+"/start", query, nil, nil)
+}
+
+func (c *Client) StopContainer(ctx context.Context, env string, id string) (int, error) {
+	query := map[string]string{}
+	if resolvedEnv := c.resolveEnv(env); resolvedEnv != "" {
+		query["env"] = resolvedEnv
+	}
+	return c.doJSONWithStatus(ctx, http.MethodPost, "/api/containers/"+url.PathEscape(id)+"/stop", query, nil, nil)
+}
+
+func (c *Client) RestartContainer(ctx context.Context, env string, id string) (int, error) {
+	query := map[string]string{}
+	if resolvedEnv := c.resolveEnv(env); resolvedEnv != "" {
+		query["env"] = resolvedEnv
+	}
+	return c.doJSONWithStatus(ctx, http.MethodPost, "/api/containers/"+url.PathEscape(id)+"/restart", query, nil, nil)
+}
+
+func (c *Client) GetContainerLogs(ctx context.Context, env string, id string, tail int64) (*containerLogsResponse, int, error) {
+	query := map[string]string{}
+	if resolvedEnv := c.resolveEnv(env); resolvedEnv != "" {
+		query["env"] = resolvedEnv
+	}
+	if tail > 0 {
+		query["tail"] = strconv.FormatInt(tail, 10)
+	}
+
+	var out containerLogsResponse
+	status, err := c.doJSONWithStatus(ctx, http.MethodGet, "/api/containers/"+url.PathEscape(id)+"/logs", query, nil, &out)
+	if err != nil {
+		return nil, status, err
+	}
+	return &out, status, nil
+}
+
+func (c *Client) DeleteContainer(ctx context.Context, env string, id string) (int, error) {
+	query := map[string]string{}
+	if resolvedEnv := c.resolveEnv(env); resolvedEnv != "" {
+		query["env"] = resolvedEnv
+	}
+	return c.doJSONWithStatus(ctx, http.MethodDelete, "/api/containers/"+url.PathEscape(id), query, nil, nil)
+}
+
 func (c *Client) ListStacks(ctx context.Context, env string) ([]stackResponse, int, error) {
 	query := map[string]string{}
 	if resolvedEnv := c.resolveEnv(env); resolvedEnv != "" {
@@ -1194,12 +1338,24 @@ func mapsToStacks(input []map[string]any) []stackResponse {
 	for _, item := range input {
 		name := firstString(item, "name", "stack", "stack_name")
 		compose := firstString(item, "compose", "manifest")
+		status := firstString(item, "status")
+		containers := toStringSlice(item["containers"])
+
+		var details []stackContainerDetailResponse
+		if rawDetails, ok := item["containerDetails"]; ok {
+			if parsed := toStackContainerDetails(rawDetails); len(parsed) > 0 {
+				details = parsed
+			}
+		}
 		if name == "" {
 			continue
 		}
 		output = append(output, stackResponse{
-			Name:    name,
-			Compose: compose,
+			Name:             name,
+			Compose:          compose,
+			Status:           status,
+			Containers:       containers,
+			ContainerDetails: details,
 		})
 	}
 
@@ -1222,4 +1378,74 @@ func firstString(item map[string]any, keys ...string) string {
 	}
 
 	return ""
+}
+
+func toStringSlice(value any) []string {
+	raw, ok := value.([]any)
+	if !ok {
+		return nil
+	}
+
+	out := make([]string, 0, len(raw))
+	for _, item := range raw {
+		s, ok := item.(string)
+		if ok && s != "" {
+			out = append(out, s)
+		}
+	}
+	return out
+}
+
+func toStackContainerDetails(value any) []stackContainerDetailResponse {
+	raw, ok := value.([]any)
+	if !ok {
+		return nil
+	}
+
+	out := make([]stackContainerDetailResponse, 0, len(raw))
+	for _, entry := range raw {
+		m, ok := entry.(map[string]any)
+		if !ok {
+			continue
+		}
+		out = append(out, stackContainerDetailResponse{
+			ID:           firstString(m, "id"),
+			Name:         firstString(m, "name"),
+			Service:      firstString(m, "service"),
+			State:        firstString(m, "state"),
+			Status:       firstString(m, "status"),
+			Health:       firstString(m, "health"),
+			Image:        firstString(m, "image"),
+			RestartCount: firstInt64(m, "restartCount"),
+		})
+	}
+	return out
+}
+
+func firstInt64(item map[string]any, keys ...string) int64 {
+	for _, key := range keys {
+		value, ok := item[key]
+		if !ok || value == nil {
+			continue
+		}
+		switch v := value.(type) {
+		case int64:
+			return v
+		case int:
+			return int64(v)
+		case float64:
+			return int64(v)
+		case json.Number:
+			parsed, err := v.Int64()
+			if err == nil {
+				return parsed
+			}
+		case string:
+			parsed, err := strconv.ParseInt(v, 10, 64)
+			if err == nil {
+				return parsed
+			}
+		}
+	}
+	return 0
 }
