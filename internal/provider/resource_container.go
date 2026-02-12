@@ -389,7 +389,6 @@ func applyContainerRuntimeToState(state *containerResourceModel, container *cont
 	state.Status = types.StringValue(container.Status)
 	state.Health = types.StringValue(container.Health)
 	state.RestartCount = types.Int64Value(container.RestartCount)
-	state.Enabled = types.BoolValue(strings.EqualFold(container.State, "running"))
 }
 
 func flattenEnvVars(ctx context.Context, value types.Map) []string {
