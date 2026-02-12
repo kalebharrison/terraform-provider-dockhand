@@ -13,6 +13,9 @@ resource "dockhand_container" "example" {
   enabled        = true
   network_mode   = "bridge"
   restart_policy = "unless-stopped"
+  memory_bytes   = 268435456
+  nano_cpus      = 500000000
+  cap_add        = ["NET_ADMIN"]
 
   env_vars = {
     NGINX_ENTRYPOINT_QUIET_LOGS = "1"
@@ -46,6 +49,9 @@ resource "dockhand_container" "example" {
 - `env` (String) Optional environment ID query parameter.
 - `env_vars` (Map of String) Environment variables for create request.
 - `labels` (Map of String) Labels for create request.
+- `cap_add` (List of String) Linux capabilities to add at create time.
+- `memory_bytes` (Number) Memory limit in bytes.
+- `nano_cpus` (Number) CPU quota in NanoCPUs.
 - `network_mode` (String) Network mode for create request.
 - `ports` (Attributes List) Port mappings for create request.
 - `privileged` (Boolean) Create container in privileged mode.

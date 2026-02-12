@@ -19,6 +19,7 @@ Repository guidance for coding agents working on `terraform-provider-dockhand`.
   - Resource: `dockhand_registry`
   - Resource: `dockhand_git_credential`
   - Resource: `dockhand_git_repository`
+  - Resource: `dockhand_git_stack_webhook_action`
   - Resource: `dockhand_config_set`
   - Resource: `dockhand_environment`
   - Resource: `dockhand_network`
@@ -30,6 +31,7 @@ Repository guidance for coding agents working on `terraform-provider-dockhand`.
   - Resource: `dockhand_schedule`
   - Data source: `dockhand_health`
   - Data source: `dockhand_activity`
+  - Data source: `dockhand_hawser_status`
   - Data source: `dockhand_stacks`
   - Data source: `dockhand_container_logs`
   - Data source: `dockhand_container_inspect`
@@ -114,6 +116,8 @@ Avoid testing by building local zips for release validation.
   - `POST /api/containers/{id}/restart`
   - `GET /api/containers/{id}/logs`
   - `GET /api/activity`
+  - `GET /api/hawser/connect`
+  - `POST /api/git/stacks/{id}/webhook`
   - `GET /api/schedules`
   - `POST /api/schedules/system/{id}/toggle`
   - `POST /api/schedules/{type}/{id}/toggle`

@@ -11,6 +11,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/booldefault"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/boolplanmodifier"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/int64planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/listplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/mapplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
@@ -49,6 +50,9 @@ type containerResourceModel struct {
 	RestartPolicy types.String         `tfsdk:"restart_policy"`
 	Privileged    types.Bool           `tfsdk:"privileged"`
 	TTY           types.Bool           `tfsdk:"tty"`
+	MemoryBytes   types.Int64          `tfsdk:"memory_bytes"`
+	NanoCPUs      types.Int64          `tfsdk:"nano_cpus"`
+	CapAdd        types.List           `tfsdk:"cap_add"`
 	EnvVars       types.Map            `tfsdk:"env_vars"`
 	Labels        types.Map            `tfsdk:"labels"`
 	Ports         []containerPortModel `tfsdk:"ports"`
@@ -130,6 +134,28 @@ func (r *containerResource) Schema(_ context.Context, _ resource.SchemaRequest, 
 				Optional:            true,
 				PlanModifiers: []planmodifier.Bool{
 					boolplanmodifier.RequiresReplace(),
+				},
+			},
+			"memory_bytes": schema.Int64Attribute{
+				MarkdownDescription: "Container memory limit in bytes.",
+				Optional:            true,
+				PlanModifiers: []planmodifier.Int64{
+					int64planmodifier.RequiresReplace(),
+				},
+			},
+			"nano_cpus": schema.Int64Attribute{
+				MarkdownDescription: "CPU quota in NanoCPUs (for example `500000000` = 0.5 CPU).",
+				Optional:            true,
+				PlanModifiers: []planmodifier.Int64{
+					int64planmodifier.RequiresReplace(),
+				},
+			},
+			"cap_add": schema.ListAttribute{
+				MarkdownDescription: "Linux capabilities to add at container create time.",
+				Optional:            true,
+				ElementType:         types.StringType,
+				PlanModifiers: []planmodifier.List{
+					listplanmodifier.RequiresReplace(),
 				},
 			},
 			"env_vars": schema.MapAttribute{
@@ -234,6 +260,15 @@ func (r *containerResource) Create(ctx context.Context, req resource.CreateReque
 	}
 	if v := boolPtrFromBoolValue(plan.TTY); v != nil {
 		payload.TTY = v
+	}
+	if v := int64PtrFromInt64Value(plan.MemoryBytes); v != nil {
+		payload.Memory = v
+	}
+	if v := int64PtrFromInt64Value(plan.NanoCPUs); v != nil {
+		payload.NanoCPUs = v
+	}
+	if v := flattenStringList(ctx, plan.CapAdd); len(v) > 0 {
+		payload.CapAdd = v
 	}
 
 	created, _, err := r.client.CreateContainer(ctx, plan.Env.ValueString(), payload)
@@ -460,4 +495,24 @@ func boolPtrFromBoolValue(value types.Bool) *bool {
 	}
 	v := value.ValueBool()
 	return &v
+}
+
+func int64PtrFromInt64Value(value types.Int64) *int64 {
+	if value.IsNull() || value.IsUnknown() {
+		return nil
+	}
+	v := value.ValueInt64()
+	return &v
+}
+
+func flattenStringList(ctx context.Context, value types.List) []string {
+	if value.IsNull() || value.IsUnknown() {
+		return nil
+	}
+	out := []string{}
+	diags := value.ElementsAs(ctx, &out, false)
+	if diags.HasError() {
+		return nil
+	}
+	return out
 }

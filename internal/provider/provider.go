@@ -183,6 +183,7 @@ func (p *dockhandProvider) Resources(_ context.Context) []func() resource.Resour
 		NewRegistryResource,
 		NewGitCredentialResource,
 		NewGitRepositoryResource,
+		NewGitStackWebhookActionResource,
 		NewConfigSetResource,
 		NewNotificationResource,
 		NewEnvironmentResource,
@@ -201,6 +202,7 @@ func (p *dockhandProvider) DataSources(_ context.Context) []func() datasource.Da
 	return []func() datasource.DataSource{
 		NewHealthDataSource,
 		NewActivityDataSource,
+		NewHawserStatusDataSource,
 		NewAuthProvidersDataSource,
 		NewSchedulesDataSource,
 		NewContainerLogsDataSource,

@@ -53,6 +53,7 @@ Source: [Dockhand Manual API Reference](https://dockhand.pro/manual/#api-referen
 | `dockhand_git_repository` | Read | `GET /api/git/repositories/{id}` | `404` removes from state. | implemented |
 | `dockhand_git_repository` | Update | `PUT /api/git/repositories/{id}` | Updates repo integration settings. | partial |
 | `dockhand_git_repository` | Delete | `DELETE /api/git/repositories/{id}` | `404` treated as already deleted. | implemented |
+| `dockhand_git_stack_webhook_action` | Trigger webhook | `POST /api/git/stacks/{id}/webhook` | One-shot trigger for git stack deploy/sync webhook flow. | implemented |
 | `dockhand_config_set` | Create | `POST /api/config-sets` | Supports name/description/envVars/labels/ports/volumes/networkMode/restartPolicy. | partial |
 | `dockhand_config_set` | Read | `GET /api/config-sets/{id}` | `404` removes from state. | implemented |
 | `dockhand_config_set` | Update | `PUT /api/config-sets/{id}` | Updates config set settings. | partial |
@@ -75,7 +76,7 @@ Source: [Dockhand Manual API Reference](https://dockhand.pro/manual/#api-referen
 | `dockhand_image` | Read | `GET /api/images?env={env_id}` | Matches by `id`, then by tags if needed. | partial |
 | `dockhand_image` | Delete | `DELETE /api/images/{id}?env={env_id}` | `404` treated as already deleted. | partial |
 | `dockhand_image_scan_action` | Execute scan | `POST /api/images/scan?env={env_id}` | One-shot image scan action; payload uses `imageName`. | implemented |
-| `dockhand_container` | Create | `POST /api/containers?env={env_id}` | Supports create payload for name/image plus selected runtime options. | partial |
+| `dockhand_container` | Create | `POST /api/containers?env={env_id}` | Supports create payload for name/image, runtime options, memory/cpu, and capability adds. | partial |
 | `dockhand_container` | Read | `GET /api/containers?env={env_id}` | Reads full list and matches by container `id`. | partial |
 | `dockhand_container` | Update runtime | `POST /api/containers/{id}/start` or `POST /api/containers/{id}/stop` | `enabled` toggles runtime state. | implemented |
 | `dockhand_container` | Delete | `DELETE /api/containers/{id}?env={env_id}` | `404` treated as already deleted. | implemented |
@@ -91,6 +92,7 @@ Source: [Dockhand Manual API Reference](https://dockhand.pro/manual/#api-referen
 | --- | --- | --- | --- |
 | `dockhand_health` | `GET /api/dashboard/stats?env={env_id}` | Successful request is treated as API health (`status = ok`). | partial |
 | `dockhand_activity` | `GET /api/activity` | Returns recent event stream/history for observability. | implemented |
+| `dockhand_hawser_status` | `GET /api/hawser/connect` | Reads Hawser websocket endpoint readiness and active connection count. | implemented |
 | `dockhand_auth_providers` | `GET /api/auth/providers` | Exposes configured auth providers and default provider (local/free providers in current scope). | implemented |
 | `dockhand_schedules` | `GET /api/schedules` | Exposes schedule inventory (system cleanup + generated schedules). | implemented |
 | `dockhand_stacks` | `GET /api/stacks?env={env_id}` | Exposes stack list with runtime status and container count. | implemented |

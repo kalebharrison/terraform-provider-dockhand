@@ -6,6 +6,9 @@ resource "dockhand_container" "example" {
   enabled        = true
   network_mode   = "bridge"
   restart_policy = "unless-stopped"
+  memory_bytes   = 268435456
+  nano_cpus      = 500000000
+  cap_add        = ["NET_ADMIN"]
 
   env_vars = {
     NGINX_ENTRYPOINT_QUIET_LOGS = "1"

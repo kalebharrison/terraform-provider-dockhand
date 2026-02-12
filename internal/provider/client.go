@@ -64,6 +64,9 @@ type containerPayload struct {
 	RestartPolicy *string                `json:"restartPolicy,omitempty"`
 	Privileged    *bool                  `json:"privileged,omitempty"`
 	TTY           *bool                  `json:"tty,omitempty"`
+	Memory        *int64                 `json:"memory,omitempty"`
+	NanoCPUs      *int64                 `json:"nanoCpus,omitempty"`
+	CapAdd        []string               `json:"capAdd,omitempty"`
 }
 
 type containerCreateResponse struct {
@@ -107,6 +110,13 @@ type activityResponse struct {
 
 type imageScanPayload struct {
 	ImageName string `json:"imageName"`
+}
+
+type hawserConnectStatus struct {
+	Status            string `json:"status"`
+	Message           string `json:"message"`
+	Protocol          string `json:"protocol"`
+	ActiveConnections int64  `json:"activeConnections"`
 }
 
 type healthResponse struct {
@@ -642,6 +652,10 @@ func (c *Client) DeleteGitRepository(ctx context.Context, id string) (int, error
 	return c.doJSONWithStatus(ctx, http.MethodDelete, "/api/git/repositories/"+url.PathEscape(id), nil, nil, nil)
 }
 
+func (c *Client) TriggerGitStackWebhook(ctx context.Context, id string) (int, error) {
+	return c.doJSONWithStatus(ctx, http.MethodPost, "/api/git/stacks/"+url.PathEscape(id)+"/webhook", nil, map[string]any{}, nil)
+}
+
 func (c *Client) ListConfigSets(ctx context.Context) ([]configSetResponse, int, error) {
 	var out []configSetResponse
 	status, err := c.doJSONWithStatus(ctx, http.MethodGet, "/api/config-sets", nil, nil, &out)
@@ -1097,6 +1111,15 @@ func (c *Client) ListActivity(ctx context.Context) ([]activityEventResponse, int
 		return nil, status, err
 	}
 	return out.Events, status, nil
+}
+
+func (c *Client) GetHawserStatus(ctx context.Context) (*hawserConnectStatus, int, error) {
+	var out hawserConnectStatus
+	status, err := c.doJSONWithStatus(ctx, http.MethodGet, "/api/hawser/connect", nil, nil, &out)
+	if err != nil {
+		return nil, status, err
+	}
+	return &out, status, nil
 }
 
 func (c *Client) DeleteContainer(ctx context.Context, env string, id string) (int, error) {

@@ -24,6 +24,7 @@ provider "dockhand" {
 - `dockhand_registry`
 - `dockhand_git_credential`
 - `dockhand_git_repository`
+- `dockhand_git_stack_webhook_action`
 - `dockhand_config_set`
 - `dockhand_notification`
 - `dockhand_environment`
@@ -39,6 +40,7 @@ provider "dockhand" {
 
 - `dockhand_health`
 - `dockhand_activity`
+- `dockhand_hawser_status`
 - `dockhand_auth_providers`
 - `dockhand_schedules`
 - `dockhand_container_logs`
