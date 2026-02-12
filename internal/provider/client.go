@@ -186,6 +186,72 @@ type notificationResponse struct {
 	UpdatedAt  *string        `json:"updatedAt"`
 }
 
+type environmentPayload struct {
+	Name                  string  `json:"name"`
+	ConnectionType        string  `json:"connectionType"`
+	Host                  *string `json:"host,omitempty"`
+	Port                  *int64  `json:"port,omitempty"`
+	Protocol              *string `json:"protocol,omitempty"`
+	SocketPath            *string `json:"socketPath,omitempty"`
+	TLSSkipVerify         *bool   `json:"tlsSkipVerify,omitempty"`
+	Icon                  *string `json:"icon,omitempty"`
+	CollectActivity       *bool   `json:"collectActivity,omitempty"`
+	CollectMetrics        *bool   `json:"collectMetrics,omitempty"`
+	HighlightChanges      *bool   `json:"highlightChanges,omitempty"`
+	Timezone              *string `json:"timezone,omitempty"`
+	UpdateCheckEnabled    *bool   `json:"updateCheckEnabled,omitempty"`
+	UpdateCheckAutoUpdate *bool   `json:"updateCheckAutoUpdate,omitempty"`
+	ImagePruneEnabled     *bool   `json:"imagePruneEnabled,omitempty"`
+}
+
+type environmentResponse struct {
+	ID                    int64    `json:"id"`
+	Name                  string   `json:"name"`
+	ConnectionType        string   `json:"connectionType"`
+	Host                  *string  `json:"host"`
+	Port                  int64    `json:"port"`
+	Protocol              string   `json:"protocol"`
+	SocketPath            *string  `json:"socketPath"`
+	TLSSkipVerify         bool     `json:"tlsSkipVerify"`
+	Icon                  string   `json:"icon"`
+	CollectActivity       bool     `json:"collectActivity"`
+	CollectMetrics        bool     `json:"collectMetrics"`
+	HighlightChanges      bool     `json:"highlightChanges"`
+	Timezone              *string  `json:"timezone"`
+	UpdateCheckEnabled    bool     `json:"updateCheckEnabled"`
+	UpdateCheckAutoUpdate bool     `json:"updateCheckAutoUpdate"`
+	ImagePruneEnabled     bool     `json:"imagePruneEnabled"`
+	CreatedAt             *string  `json:"createdAt"`
+	UpdatedAt             *string  `json:"updatedAt"`
+	Labels                []string `json:"labels"`
+}
+
+type authSettingsResponse struct {
+	ID              int64   `json:"id"`
+	AuthEnabled     bool    `json:"authEnabled"`
+	DefaultProvider string  `json:"defaultProvider"`
+	SessionTimeout  int64   `json:"sessionTimeout"`
+	CreatedAt       *string `json:"createdAt"`
+	UpdatedAt       *string `json:"updatedAt"`
+}
+
+type authSettingsPayload struct {
+	AuthEnabled     bool   `json:"authEnabled"`
+	DefaultProvider string `json:"defaultProvider"`
+	SessionTimeout  int64  `json:"sessionTimeout"`
+}
+
+type authProviderItem struct {
+	ID   string `json:"id"`
+	Name string `json:"name"`
+	Type string `json:"type"`
+}
+
+type authProvidersResponse struct {
+	DefaultProvider string             `json:"defaultProvider"`
+	Providers       []authProviderItem `json:"providers"`
+}
+
 type generalSettings struct {
 	ConfirmDestructive        bool     `json:"confirmDestructive"`
 	DarkTheme                 string   `json:"darkTheme"`
@@ -479,6 +545,73 @@ func (c *Client) UpdateNotification(ctx context.Context, id string, payload noti
 
 func (c *Client) DeleteNotification(ctx context.Context, id string) (int, error) {
 	return c.doJSONWithStatus(ctx, http.MethodDelete, "/api/notifications/"+url.PathEscape(id), nil, nil, nil)
+}
+
+func (c *Client) ListEnvironments(ctx context.Context) ([]environmentResponse, int, error) {
+	var out []environmentResponse
+	status, err := c.doJSONWithStatus(ctx, http.MethodGet, "/api/environments", nil, nil, &out)
+	if err != nil {
+		return nil, status, err
+	}
+	return out, status, nil
+}
+
+func (c *Client) GetEnvironment(ctx context.Context, id string) (*environmentResponse, int, error) {
+	var out environmentResponse
+	status, err := c.doJSONWithStatus(ctx, http.MethodGet, "/api/environments/"+url.PathEscape(id), nil, nil, &out)
+	if err != nil {
+		return nil, status, err
+	}
+	return &out, status, nil
+}
+
+func (c *Client) CreateEnvironment(ctx context.Context, payload environmentPayload) (*environmentResponse, int, error) {
+	var out environmentResponse
+	status, err := c.doJSONWithStatus(ctx, http.MethodPost, "/api/environments", nil, payload, &out)
+	if err != nil {
+		return nil, status, err
+	}
+	return &out, status, nil
+}
+
+func (c *Client) UpdateEnvironment(ctx context.Context, id string, payload environmentPayload) (*environmentResponse, int, error) {
+	var out environmentResponse
+	status, err := c.doJSONWithStatus(ctx, http.MethodPut, "/api/environments/"+url.PathEscape(id), nil, payload, &out)
+	if err != nil {
+		return nil, status, err
+	}
+	return &out, status, nil
+}
+
+func (c *Client) DeleteEnvironment(ctx context.Context, id string) (int, error) {
+	return c.doJSONWithStatus(ctx, http.MethodDelete, "/api/environments/"+url.PathEscape(id), nil, nil, nil)
+}
+
+func (c *Client) GetAuthSettings(ctx context.Context) (*authSettingsResponse, int, error) {
+	var out authSettingsResponse
+	status, err := c.doJSONWithStatus(ctx, http.MethodGet, "/api/auth/settings", nil, nil, &out)
+	if err != nil {
+		return nil, status, err
+	}
+	return &out, status, nil
+}
+
+func (c *Client) UpdateAuthSettings(ctx context.Context, payload authSettingsPayload) (*authSettingsResponse, int, error) {
+	var out authSettingsResponse
+	status, err := c.doJSONWithStatus(ctx, http.MethodPut, "/api/auth/settings", nil, payload, &out)
+	if err != nil {
+		return nil, status, err
+	}
+	return &out, status, nil
+}
+
+func (c *Client) GetAuthProviders(ctx context.Context) (*authProvidersResponse, int, error) {
+	var out authProvidersResponse
+	status, err := c.doJSONWithStatus(ctx, http.MethodGet, "/api/auth/providers", nil, nil, &out)
+	if err != nil {
+		return nil, status, err
+	}
+	return &out, status, nil
 }
 
 func (c *Client) CreateStack(ctx context.Context, env string, payload stackPayload) error {

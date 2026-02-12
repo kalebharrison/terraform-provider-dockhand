@@ -12,7 +12,15 @@ Repository guidance for coding agents working on `terraform-provider-dockhand`.
   - Resource: `dockhand_stack`
   - Resource: `dockhand_user`
   - Resource: `dockhand_notification`
+  - Resource: `dockhand_settings_general`
+  - Resource: `dockhand_auth_settings`
+  - Resource: `dockhand_registry`
+  - Resource: `dockhand_git_credential`
+  - Resource: `dockhand_git_repository`
+  - Resource: `dockhand_config_set`
+  - Resource: `dockhand_environment`
   - Data source: `dockhand_health`
+  - Data source: `dockhand_auth_providers`
 
 ## Working Rules
 

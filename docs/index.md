@@ -18,11 +18,18 @@ provider "dockhand" {
 - `dockhand_stack`
 - `dockhand_user`
 - `dockhand_settings_general`
+- `dockhand_auth_settings`
 - `dockhand_registry`
 - `dockhand_git_credential`
 - `dockhand_git_repository`
 - `dockhand_config_set`
 - `dockhand_notification`
+- `dockhand_environment`
+
+## Data Sources
+
+- `dockhand_health`
+- `dockhand_auth_providers`
 
 ## Schema
 

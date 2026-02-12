@@ -178,16 +178,19 @@ func (p *dockhandProvider) Resources(_ context.Context) []func() resource.Resour
 		NewStackResource,
 		NewUserResource,
 		NewGeneralSettingsResource,
+		NewAuthSettingsResource,
 		NewRegistryResource,
 		NewGitCredentialResource,
 		NewGitRepositoryResource,
 		NewConfigSetResource,
 		NewNotificationResource,
+		NewEnvironmentResource,
 	}
 }
 
 func (p *dockhandProvider) DataSources(_ context.Context) []func() datasource.DataSource {
 	return []func() datasource.DataSource{
 		NewHealthDataSource,
+		NewAuthProvidersDataSource,
 	}
 }
