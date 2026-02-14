@@ -214,6 +214,7 @@ func (p *dockhandProvider) DataSources(_ context.Context) []func() datasource.Da
 		NewAuthProvidersDataSource,
 		NewSchedulesDataSource,
 		NewSchedulesExecutionsDataSource,
+		NewContainersDataSource,
 		NewContainerStatsDataSource,
 		NewContainerPendingUpdatesDataSource,
 		NewStackSourcesDataSource,

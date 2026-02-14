@@ -41,6 +41,7 @@ Repository guidance for coding agents working on `terraform-provider-dockhand`.
   - Data source: `dockhand_hawser_status`
   - Data source: `dockhand_stacks`
   - Data source: `dockhand_stack_sources`
+  - Data source: `dockhand_containers`
   - Data source: `dockhand_container_stats`
   - Data source: `dockhand_container_pending_updates`
   - Resource: `dockhand_stack_scan_action`
