@@ -13,6 +13,12 @@ set -euo pipefail
 # - gh CLI authenticated
 # - terraform installed (or tofu; terraform is used here explicitly)
 # - terraform/dockhand/test/env.sh exists (gitignored) and exports DOCKHAND_* vars
+#
+# Optional opt-in adopt coverage:
+# - RELEASE_TEST_ENABLE_STACK_ADOPT=1
+# - RELEASE_TEST_STACK_ADOPT_ENV_ID=<environment id>
+# - RELEASE_TEST_STACK_ADOPT_NAME=<stack name>
+# - RELEASE_TEST_STACK_ADOPT_COMPOSE_PATH=<compose path>
 
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 ver="${1:-}"
@@ -68,12 +74,23 @@ fi
   source ./env.sh
   export TF_CLI_CONFIG_FILE="../terraformrc.dockhand"
 
+  tf_var_args=()
+  if [[ "${RELEASE_TEST_ENABLE_STACK_ADOPT:-0}" == "1" ]]; then
+    : "${RELEASE_TEST_STACK_ADOPT_ENV_ID:?set RELEASE_TEST_STACK_ADOPT_ENV_ID when RELEASE_TEST_ENABLE_STACK_ADOPT=1}"
+    : "${RELEASE_TEST_STACK_ADOPT_NAME:?set RELEASE_TEST_STACK_ADOPT_NAME when RELEASE_TEST_ENABLE_STACK_ADOPT=1}"
+    : "${RELEASE_TEST_STACK_ADOPT_COMPOSE_PATH:?set RELEASE_TEST_STACK_ADOPT_COMPOSE_PATH when RELEASE_TEST_ENABLE_STACK_ADOPT=1}"
+    tf_var_args+=(
+      -var "enable_stack_adopt_test=true"
+      -var "stack_adopt_environment_id=${RELEASE_TEST_STACK_ADOPT_ENV_ID}"
+      -var "stack_adopt_stacks=[{name=\"${RELEASE_TEST_STACK_ADOPT_NAME}\",compose_path=\"${RELEASE_TEST_STACK_ADOPT_COMPOSE_PATH}\"}]"
+    )
+  fi
+
   perl -pi -e "s/version\\s*=\\s*\\\"[0-9.]+\\\"/version = \\\"${ver}\\\"/g" versions.tf
 
   rm -rf .terraform .terraform.lock.hcl terraform.tfstate terraform.tfstate.backup
   terraform init -upgrade
-  terraform plan -no-color
-  terraform apply -auto-approve -no-color
-  terraform destroy -auto-approve -no-color
+  terraform plan -no-color "${tf_var_args[@]}"
+  terraform apply -auto-approve -no-color "${tf_var_args[@]}"
+  terraform destroy -auto-approve -no-color "${tf_var_args[@]}"
 )
-
