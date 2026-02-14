@@ -18,7 +18,7 @@ resource "dockhand_container_action" "restart_web" {
 ### Required
 
 - `container_id` (String) Container ID to act on.
-- `action` (String) Action to execute: `start`, `stop`, or `restart`.
+- `action` (String) Action to execute: `start`, `stop`, `restart`, `pause`, or `unpause`.
 
 ### Optional
 

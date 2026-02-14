@@ -41,7 +41,7 @@ func (r *containerActionResource) Metadata(_ context.Context, req resource.Metad
 
 func (r *containerActionResource) Schema(_ context.Context, _ resource.SchemaRequest, resp *resource.SchemaResponse) {
 	resp.Schema = schema.Schema{
-		MarkdownDescription: "Runs a one-shot container action (`start`, `stop`, or `restart`). Change `trigger` to run it again.",
+		MarkdownDescription: "Runs a one-shot container action (`start`, `stop`, `restart`, `pause`, `unpause`). Change `trigger` to run it again.",
 		Attributes: map[string]schema.Attribute{
 			"id": schema.StringAttribute{
 				Computed: true,
@@ -113,8 +113,12 @@ func (r *containerActionResource) Create(ctx context.Context, req resource.Creat
 		status, err = r.client.StopContainer(ctx, env, id)
 	case "restart":
 		status, err = r.client.RestartContainer(ctx, env, id)
+	case "pause":
+		status, err = r.client.PauseContainer(ctx, env, id)
+	case "unpause":
+		status, err = r.client.UnpauseContainer(ctx, env, id)
 	default:
-		resp.Diagnostics.AddError("Invalid action", "Supported actions: start, stop, restart.")
+		resp.Diagnostics.AddError("Invalid action", "Supported actions: start, stop, restart, pause, unpause.")
 		return
 	}
 	if err != nil {

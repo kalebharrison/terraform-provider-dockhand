@@ -31,11 +31,16 @@ Repository guidance for coding agents working on `terraform-provider-dockhand`.
   - Resource: `dockhand_image_scan_action`
   - Resource: `dockhand_container`
   - Resource: `dockhand_container_action`
+  - Resource: `dockhand_container_check_updates_action`
   - Resource: `dockhand_schedule`
   - Data source: `dockhand_health`
   - Data source: `dockhand_activity`
   - Data source: `dockhand_hawser_status`
   - Data source: `dockhand_stacks`
+  - Data source: `dockhand_stack_sources`
+  - Data source: `dockhand_container_stats`
+  - Data source: `dockhand_container_pending_updates`
+  - Resource: `dockhand_stack_scan_action`
   - Data source: `dockhand_container_logs`
   - Data source: `dockhand_container_inspect`
   - Data source: `dockhand_auth_providers`
@@ -122,12 +127,19 @@ Avoid testing by building local zips for release validation.
   - `POST /api/containers/{id}/start`
   - `POST /api/containers/{id}/stop`
   - `POST /api/containers/{id}/restart`
+  - `POST /api/containers/{id}/pause`
+  - `POST /api/containers/{id}/unpause`
+  - `GET /api/containers/stats`
+  - `POST /api/containers/check-updates`
+  - `GET /api/containers/pending-updates`
   - `GET /api/containers/{id}/logs`
   - `GET /api/activity`
   - `GET /api/hawser/connect`
   - `POST /api/git/stacks/{id}/webhook`
   - `GET /api/schedules`
   - `GET /api/schedules/executions`
+  - `POST /api/stacks/scan`
+  - `GET /api/stacks/sources`
   - `POST /api/schedules/system/{id}/toggle`
   - `POST /api/schedules/{type}/{id}/toggle`
 - Verify response payload shapes against live Dockhand responses before release.

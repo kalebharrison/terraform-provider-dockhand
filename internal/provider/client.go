@@ -90,6 +90,41 @@ type containerLogsResponse struct {
 	Logs string `json:"logs"`
 }
 
+type containerStatsResponse struct {
+	ID          string  `json:"id"`
+	Name        string  `json:"name"`
+	CPUPercent  float64 `json:"cpuPercent"`
+	MemoryUsage int64   `json:"memoryUsage"`
+	MemoryRaw   int64   `json:"memoryRaw"`
+	MemoryCache int64   `json:"memoryCache"`
+	MemoryLimit int64   `json:"memoryLimit"`
+	MemoryPct   float64 `json:"memoryPercent"`
+	NetworkRX   int64   `json:"networkRx"`
+	NetworkTX   int64   `json:"networkTx"`
+	BlockRead   int64   `json:"blockRead"`
+	BlockWrite  int64   `json:"blockWrite"`
+}
+
+type containerUpdateCheckResult struct {
+	ContainerID   string  `json:"containerId"`
+	ContainerName string  `json:"containerName"`
+	ImageName     string  `json:"imageName"`
+	HasUpdate     bool    `json:"hasUpdate"`
+	CurrentDigest *string `json:"currentDigest"`
+	LatestDigest  *string `json:"latestDigest"`
+}
+
+type containerUpdateCheckResponse struct {
+	Total        int64                        `json:"total"`
+	UpdatesFound int64                        `json:"updatesFound"`
+	Results      []containerUpdateCheckResult `json:"results"`
+}
+
+type containerPendingUpdatesResponse struct {
+	EnvironmentID  int64            `json:"environmentId"`
+	PendingUpdates []map[string]any `json:"pendingUpdates"`
+}
+
 type activityEventResponse struct {
 	ID              int64             `json:"id"`
 	EnvironmentID   *int64            `json:"environmentId"`
@@ -473,6 +508,40 @@ type schedulesExecutionsResponse struct {
 	Total      int64                           `json:"total"`
 	Limit      int64                           `json:"limit"`
 	Offset     int64                           `json:"offset"`
+}
+
+type stackScanResponse struct {
+	Discovered []map[string]any `json:"discovered"`
+	Adopted    []map[string]any `json:"adopted"`
+	Skipped    []map[string]any `json:"skipped"`
+	Errors     []map[string]any `json:"errors"`
+}
+
+type stackSourceRepositoryResponse struct {
+	ID                 int64   `json:"id"`
+	Name               string  `json:"name"`
+	URL                string  `json:"url"`
+	Branch             *string `json:"branch"`
+	CredentialID       *int64  `json:"credentialId"`
+	ComposePath        *string `json:"composePath"`
+	EnvironmentID      *int64  `json:"environmentId"`
+	AutoUpdate         bool    `json:"autoUpdate"`
+	AutoUpdateSchedule *string `json:"autoUpdateSchedule"`
+	AutoUpdateCron     *string `json:"autoUpdateCron"`
+	WebhookEnabled     bool    `json:"webhookEnabled"`
+	WebhookSecret      *string `json:"webhookSecret"`
+	LastSync           *string `json:"lastSync"`
+	LastCommit         *string `json:"lastCommit"`
+	SyncStatus         *string `json:"syncStatus"`
+	SyncError          *string `json:"syncError"`
+	CreatedAt          *string `json:"createdAt"`
+	UpdatedAt          *string `json:"updatedAt"`
+}
+
+type stackSourceResponse struct {
+	SourceType  string                         `json:"sourceType"`
+	ComposePath *string                        `json:"composePath"`
+	Repository  *stackSourceRepositoryResponse `json:"repository"`
 }
 
 type generalSettings struct {
@@ -1159,6 +1228,22 @@ func (c *Client) RestartContainer(ctx context.Context, env string, id string) (i
 	return c.doJSONWithStatus(ctx, http.MethodPost, "/api/containers/"+url.PathEscape(id)+"/restart", query, nil, nil)
 }
 
+func (c *Client) PauseContainer(ctx context.Context, env string, id string) (int, error) {
+	query := map[string]string{}
+	if resolvedEnv := c.resolveEnv(env); resolvedEnv != "" {
+		query["env"] = resolvedEnv
+	}
+	return c.doJSONWithStatus(ctx, http.MethodPost, "/api/containers/"+url.PathEscape(id)+"/pause", query, nil, nil)
+}
+
+func (c *Client) UnpauseContainer(ctx context.Context, env string, id string) (int, error) {
+	query := map[string]string{}
+	if resolvedEnv := c.resolveEnv(env); resolvedEnv != "" {
+		query["env"] = resolvedEnv
+	}
+	return c.doJSONWithStatus(ctx, http.MethodPost, "/api/containers/"+url.PathEscape(id)+"/unpause", query, nil, nil)
+}
+
 func (c *Client) GetContainerLogs(ctx context.Context, env string, id string, tail int64) (*containerLogsResponse, int, error) {
 	query := map[string]string{}
 	if resolvedEnv := c.resolveEnv(env); resolvedEnv != "" {
@@ -1188,6 +1273,48 @@ func (c *Client) GetContainerInspect(ctx context.Context, env string, id string)
 		return nil, status, err
 	}
 	return out, status, nil
+}
+
+func (c *Client) GetContainerStats(ctx context.Context, env string) ([]containerStatsResponse, int, error) {
+	query := map[string]string{}
+	if resolvedEnv := c.resolveEnv(env); resolvedEnv != "" {
+		query["env"] = resolvedEnv
+	}
+
+	var out []containerStatsResponse
+	status, err := c.doJSONWithStatus(ctx, http.MethodGet, "/api/containers/stats", query, nil, &out)
+	if err != nil {
+		return nil, status, err
+	}
+	return out, status, nil
+}
+
+func (c *Client) CheckContainerUpdates(ctx context.Context, env string) (*containerUpdateCheckResponse, int, error) {
+	query := map[string]string{}
+	if resolvedEnv := c.resolveEnv(env); resolvedEnv != "" {
+		query["env"] = resolvedEnv
+	}
+
+	var out containerUpdateCheckResponse
+	status, err := c.doJSONWithStatus(ctx, http.MethodPost, "/api/containers/check-updates", query, map[string]any{}, &out)
+	if err != nil {
+		return nil, status, err
+	}
+	return &out, status, nil
+}
+
+func (c *Client) GetContainerPendingUpdates(ctx context.Context, env string) (*containerPendingUpdatesResponse, int, error) {
+	query := map[string]string{}
+	if resolvedEnv := c.resolveEnv(env); resolvedEnv != "" {
+		query["env"] = resolvedEnv
+	}
+
+	var out containerPendingUpdatesResponse
+	status, err := c.doJSONWithStatus(ctx, http.MethodGet, "/api/containers/pending-updates", query, nil, &out)
+	if err != nil {
+		return nil, status, err
+	}
+	return &out, status, nil
 }
 
 func (c *Client) ScanImage(ctx context.Context, env string, imageName string) (string, int, error) {
@@ -1300,6 +1427,24 @@ func (c *Client) DeleteStack(ctx context.Context, env string, name string) (int,
 		query["env"] = resolvedEnv
 	}
 	return c.doJSONWithStatus(ctx, http.MethodDelete, "/api/stacks/"+url.PathEscape(name), query, nil, nil)
+}
+
+func (c *Client) ScanStacks(ctx context.Context) (*stackScanResponse, int, error) {
+	var out stackScanResponse
+	status, err := c.doJSONWithStatus(ctx, http.MethodPost, "/api/stacks/scan", nil, map[string]any{}, &out)
+	if err != nil {
+		return nil, status, err
+	}
+	return &out, status, nil
+}
+
+func (c *Client) GetStackSources(ctx context.Context) (map[string]stackSourceResponse, int, error) {
+	var out map[string]stackSourceResponse
+	status, err := c.doJSONWithStatus(ctx, http.MethodGet, "/api/stacks/sources", nil, nil, &out)
+	if err != nil {
+		return nil, status, err
+	}
+	return out, status, nil
 }
 
 func (c *Client) Health(ctx context.Context, env string) (*healthResponse, error) {
