@@ -218,6 +218,7 @@ func (p *dockhandProvider) DataSources(_ context.Context) []func() datasource.Da
 		NewContainerStatsDataSource,
 		NewContainerPendingUpdatesDataSource,
 		NewStackSourcesDataSource,
+		NewContainerShellsDataSource,
 		NewContainerLogsDataSource,
 		NewContainerInspectDataSource,
 		NewStacksDataSource,

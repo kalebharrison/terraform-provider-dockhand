@@ -44,6 +44,7 @@ Repository guidance for coding agents working on `terraform-provider-dockhand`.
   - Data source: `dockhand_containers`
   - Data source: `dockhand_container_stats`
   - Data source: `dockhand_container_pending_updates`
+  - Data source: `dockhand_container_shells`
   - Resource: `dockhand_stack_scan_action`
   - Data source: `dockhand_container_logs`
   - Data source: `dockhand_container_inspect`
@@ -138,6 +139,7 @@ Avoid testing by building local zips for release validation.
   - `GET /api/containers/stats`
   - `POST /api/containers/check-updates`
   - `GET /api/containers/pending-updates`
+  - `GET /api/containers/{id}/shells`
   - `GET /api/containers/{id}/logs`
   - `GET /api/activity`
   - `GET /api/hawser/connect`

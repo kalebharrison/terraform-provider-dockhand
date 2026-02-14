@@ -100,6 +100,18 @@ type containerLogsResponse struct {
 	Logs string `json:"logs"`
 }
 
+type containerShellOptionResponse struct {
+	Path      string `json:"path"`
+	Label     string `json:"label"`
+	Available bool   `json:"available"`
+}
+
+type containerShellsResponse struct {
+	Shells       []string                       `json:"shells"`
+	DefaultShell *string                        `json:"defaultShell"`
+	AllShells    []containerShellOptionResponse `json:"allShells"`
+}
+
 type containerStatsResponse struct {
 	ID          string  `json:"id"`
 	Name        string  `json:"name"`
@@ -1296,6 +1308,21 @@ func (c *Client) GetContainerLogs(ctx context.Context, env string, id string, ta
 
 	var out containerLogsResponse
 	status, err := c.doJSONWithStatus(ctx, http.MethodGet, "/api/containers/"+url.PathEscape(id)+"/logs", query, nil, &out)
+	if err != nil {
+		return nil, status, err
+	}
+	return &out, status, nil
+}
+
+func (c *Client) GetContainerShells(ctx context.Context, env string, id string) (*containerShellsResponse, int, error) {
+	query := map[string]string{}
+	if resolvedEnv := c.resolveEnv(env); resolvedEnv != "" {
+		// Dockhand terminal APIs use `envId` query key instead of `env`.
+		query["envId"] = resolvedEnv
+	}
+
+	var out containerShellsResponse
+	status, err := c.doJSONWithStatus(ctx, http.MethodGet, "/api/containers/"+url.PathEscape(id)+"/shells", query, nil, &out)
 	if err != nil {
 		return nil, status, err
 	}
