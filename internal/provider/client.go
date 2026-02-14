@@ -112,6 +112,19 @@ type imageScanPayload struct {
 	ImageName string `json:"imageName"`
 }
 
+type imagePushPayload struct {
+	ImageID    string `json:"imageId"`
+	RegistryID int64  `json:"registryId"`
+}
+
+type networkContainerPayload struct {
+	ContainerID string `json:"containerId"`
+}
+
+type volumeClonePayload struct {
+	Name string `json:"name"`
+}
+
 type hawserConnectStatus struct {
 	Status            string `json:"status"`
 	Message           string `json:"message"`
@@ -435,6 +448,31 @@ type scheduleResponse struct {
 
 type schedulesListResponse struct {
 	Schedules []scheduleResponse `json:"schedules"`
+}
+
+type scheduleExecutionItemResponse struct {
+	ID            int64          `json:"id"`
+	ScheduleType  string         `json:"scheduleType"`
+	ScheduleID    int64          `json:"scheduleId"`
+	EnvironmentID *int64         `json:"environmentId"`
+	EntityName    *string        `json:"entityName"`
+	TriggeredBy   *string        `json:"triggeredBy"`
+	TriggeredAt   *string        `json:"triggeredAt"`
+	StartedAt     *string        `json:"startedAt"`
+	CompletedAt   *string        `json:"completedAt"`
+	Duration      *int64         `json:"duration"`
+	Status        *string        `json:"status"`
+	ErrorMessage  *string        `json:"errorMessage"`
+	Details       map[string]any `json:"details"`
+	CreatedAt     *string        `json:"createdAt"`
+	Logs          *string        `json:"logs"`
+}
+
+type schedulesExecutionsResponse struct {
+	Executions []scheduleExecutionItemResponse `json:"executions"`
+	Total      int64                           `json:"total"`
+	Limit      int64                           `json:"limit"`
+	Offset     int64                           `json:"offset"`
 }
 
 type generalSettings struct {
@@ -826,6 +864,28 @@ func (c *Client) DeleteNetwork(ctx context.Context, env string, id string) (int,
 	return c.doJSONWithStatus(ctx, http.MethodDelete, "/api/networks/"+url.PathEscape(id), query, nil, nil)
 }
 
+func (c *Client) ConnectNetwork(ctx context.Context, env string, id string, containerID string) (int, error) {
+	query := map[string]string{}
+	if resolvedEnv := c.resolveEnv(env); resolvedEnv != "" {
+		query["env"] = resolvedEnv
+	}
+	payload := networkContainerPayload{
+		ContainerID: containerID,
+	}
+	return c.doJSONWithStatus(ctx, http.MethodPost, "/api/networks/"+url.PathEscape(id)+"/connect", query, payload, nil)
+}
+
+func (c *Client) DisconnectNetwork(ctx context.Context, env string, id string, containerID string) (int, error) {
+	query := map[string]string{}
+	if resolvedEnv := c.resolveEnv(env); resolvedEnv != "" {
+		query["env"] = resolvedEnv
+	}
+	payload := networkContainerPayload{
+		ContainerID: containerID,
+	}
+	return c.doJSONWithStatus(ctx, http.MethodPost, "/api/networks/"+url.PathEscape(id)+"/disconnect", query, payload, nil)
+}
+
 func (c *Client) ListVolumes(ctx context.Context, env string) ([]volumeResponse, int, error) {
 	query := map[string]string{}
 	if resolvedEnv := c.resolveEnv(env); resolvedEnv != "" {
@@ -878,6 +938,17 @@ func (c *Client) DeleteVolume(ctx context.Context, env string, name string) (int
 	return c.doJSONWithStatus(ctx, http.MethodDelete, "/api/volumes/"+url.PathEscape(name), query, nil, nil)
 }
 
+func (c *Client) CloneVolume(ctx context.Context, env string, sourceName string, newName string) (int, error) {
+	query := map[string]string{}
+	if resolvedEnv := c.resolveEnv(env); resolvedEnv != "" {
+		query["env"] = resolvedEnv
+	}
+	payload := volumeClonePayload{
+		Name: newName,
+	}
+	return c.doJSONWithStatus(ctx, http.MethodPost, "/api/volumes/"+url.PathEscape(sourceName)+"/clone", query, payload, nil)
+}
+
 func (c *Client) ListImages(ctx context.Context, env string) ([]imageResponse, int, error) {
 	query := map[string]string{}
 	if resolvedEnv := c.resolveEnv(env); resolvedEnv != "" {
@@ -910,6 +981,18 @@ func (c *Client) DeleteImage(ctx context.Context, env string, id string) (int, e
 		query["env"] = resolvedEnv
 	}
 	return c.doJSONWithStatus(ctx, http.MethodDelete, "/api/images/"+url.PathEscape(id), query, nil, nil)
+}
+
+func (c *Client) PushImage(ctx context.Context, env string, imageID string, registryID int64) (int, error) {
+	query := map[string]string{}
+	if resolvedEnv := c.resolveEnv(env); resolvedEnv != "" {
+		query["env"] = resolvedEnv
+	}
+	payload := imagePushPayload{
+		ImageID:    imageID,
+		RegistryID: registryID,
+	}
+	return c.doJSONWithStatus(ctx, http.MethodPost, "/api/images/push", query, payload, nil)
 }
 
 func (c *Client) ToggleSchedule(ctx context.Context, scheduleType string, id string, isSystem bool) (int, error) {
@@ -977,6 +1060,23 @@ func (c *Client) DeleteLicense(ctx context.Context) (int, error) {
 func (c *Client) GetSchedules(ctx context.Context) (*schedulesListResponse, int, error) {
 	var out schedulesListResponse
 	status, err := c.doJSONWithStatus(ctx, http.MethodGet, "/api/schedules", nil, nil, &out)
+	if err != nil {
+		return nil, status, err
+	}
+	return &out, status, nil
+}
+
+func (c *Client) GetScheduleExecutions(ctx context.Context, limit int64, offset int64) (*schedulesExecutionsResponse, int, error) {
+	query := map[string]string{}
+	if limit > 0 {
+		query["limit"] = strconv.FormatInt(limit, 10)
+	}
+	if offset > 0 {
+		query["offset"] = strconv.FormatInt(offset, 10)
+	}
+
+	var out schedulesExecutionsResponse
+	status, err := c.doJSONWithStatus(ctx, http.MethodGet, "/api/schedules/executions", query, nil, &out)
 	if err != nil {
 		return nil, status, err
 	}

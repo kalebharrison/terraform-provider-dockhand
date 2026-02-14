@@ -23,8 +23,11 @@ Repository guidance for coding agents working on `terraform-provider-dockhand`.
   - Resource: `dockhand_config_set`
   - Resource: `dockhand_environment`
   - Resource: `dockhand_network`
+  - Resource: `dockhand_network_connection_action`
   - Resource: `dockhand_volume`
+  - Resource: `dockhand_volume_clone_action`
   - Resource: `dockhand_image`
+  - Resource: `dockhand_image_push_action`
   - Resource: `dockhand_image_scan_action`
   - Resource: `dockhand_container`
   - Resource: `dockhand_container_action`
@@ -37,6 +40,7 @@ Repository guidance for coding agents working on `terraform-provider-dockhand`.
   - Data source: `dockhand_container_inspect`
   - Data source: `dockhand_auth_providers`
   - Data source: `dockhand_schedules`
+  - Data source: `dockhand_schedules_executions`
 
 ## Working Rules
 
@@ -107,8 +111,12 @@ Avoid testing by building local zips for release validation.
   - `DELETE /api/stacks/{name}?force=true`
   - `GET /api/dashboard/stats`
   - `GET/POST/DELETE /api/networks`
+  - `POST /api/networks/{id}/connect`
+  - `POST /api/networks/{id}/disconnect`
   - `GET/POST/DELETE /api/volumes`
+  - `POST /api/volumes/{name}/clone`
   - `GET/POST/DELETE /api/images`
+  - `POST /api/images/push`
   - `POST /api/images/scan`
   - `GET/POST/DELETE /api/containers`
   - `POST /api/containers/{id}/start`
@@ -119,6 +127,7 @@ Avoid testing by building local zips for release validation.
   - `GET /api/hawser/connect`
   - `POST /api/git/stacks/{id}/webhook`
   - `GET /api/schedules`
+  - `GET /api/schedules/executions`
   - `POST /api/schedules/system/{id}/toggle`
   - `POST /api/schedules/{type}/{id}/toggle`
 - Verify response payload shapes against live Dockhand responses before release.
