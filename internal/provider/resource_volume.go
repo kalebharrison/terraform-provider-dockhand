@@ -150,8 +150,10 @@ func (r *volumeResource) Create(ctx context.Context, req resource.CreateRequest,
 			return
 		}
 	}
+	env := strings.TrimSpace(plan.Env.ValueString())
+	resolvedEnv := r.client.resolveEnv(env)
 
-	_, _, err := r.client.CreateVolume(ctx, strings.TrimSpace(plan.Env.ValueString()), volumePayload{
+	_, _, err := r.client.CreateVolume(ctx, env, volumePayload{
 		Name:       name,
 		Driver:     driver,
 		DriverOpts: driverOptions,
@@ -162,7 +164,7 @@ func (r *volumeResource) Create(ctx context.Context, req resource.CreateRequest,
 		return
 	}
 
-	vol, status, err := r.client.GetVolumeInspect(ctx, strings.TrimSpace(plan.Env.ValueString()), name)
+	vol, status, err := r.client.GetVolumeInspect(ctx, env, name)
 	if err != nil && status != 404 {
 		resp.Diagnostics.AddError("Error reading created Dockhand volume", err.Error())
 		return
@@ -172,15 +174,18 @@ func (r *volumeResource) Create(ctx context.Context, req resource.CreateRequest,
 		ID:            types.StringValue(name),
 		Name:          types.StringValue(name),
 		Driver:        types.StringValue(driver),
-		Env:           plan.Env,
+		Env:           types.StringNull(),
 		DriverOptions: plan.DriverOptions,
 		Labels:        plan.Labels,
 		Mountpoint:    types.StringNull(),
 		Scope:         types.StringNull(),
 		CreatedAt:     types.StringNull(),
 	}
+	if resolvedEnv != "" {
+		state.Env = types.StringValue(resolvedEnv)
+	}
 	if vol != nil {
-		state = modelFromVolumeResponse(plan.Env, vol)
+		state = modelFromVolumeResponse(state.Env, vol)
 	}
 
 	resp.Diagnostics.Append(resp.State.Set(ctx, &state)...)

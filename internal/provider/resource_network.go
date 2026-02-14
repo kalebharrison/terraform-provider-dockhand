@@ -164,8 +164,10 @@ func (r *networkResource) Create(ctx context.Context, req resource.CreateRequest
 			return
 		}
 	}
+	env := strings.TrimSpace(plan.Env.ValueString())
+	resolvedEnv := r.client.resolveEnv(env)
 
-	created, _, err := r.client.CreateNetwork(ctx, strings.TrimSpace(plan.Env.ValueString()), networkPayload{
+	created, _, err := r.client.CreateNetwork(ctx, env, networkPayload{
 		Name:       name,
 		Driver:     driver,
 		Internal:   internal,
@@ -181,7 +183,7 @@ func (r *networkResource) Create(ctx context.Context, req resource.CreateRequest
 		ID:         types.StringValue(created.ID),
 		Name:       types.StringValue(created.Name),
 		Driver:     types.StringValue(created.Driver),
-		Env:        plan.Env,
+		Env:        types.StringNull(),
 		Internal:   types.BoolValue(created.Internal),
 		Attachable: types.BoolValue(created.Attachable),
 		Scope:      types.StringNull(),
@@ -189,7 +191,10 @@ func (r *networkResource) Create(ctx context.Context, req resource.CreateRequest
 		Options:    types.MapNull(types.StringType),
 		Labels:     types.MapNull(types.StringType),
 	}
-	inspected, _, inspectErr := r.client.GetNetworkInspect(ctx, strings.TrimSpace(plan.Env.ValueString()), state.ID.ValueString())
+	if resolvedEnv != "" {
+		state.Env = types.StringValue(resolvedEnv)
+	}
+	inspected, _, inspectErr := r.client.GetNetworkInspect(ctx, env, state.ID.ValueString())
 	if inspectErr == nil && inspected != nil {
 		applyNetworkInspectToState(ctx, &state, inspected, nil)
 	} else {

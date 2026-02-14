@@ -124,6 +124,7 @@ func (r *imageResource) Create(ctx context.Context, req resource.CreateRequest, 
 	}
 
 	env := strings.TrimSpace(plan.Env.ValueString())
+	resolvedEnv := r.client.resolveEnv(env)
 	scanAfterPull := false
 	if !plan.ScanAfterPull.IsNull() && !plan.ScanAfterPull.IsUnknown() {
 		scanAfterPull = plan.ScanAfterPull.ValueBool()
@@ -159,8 +160,12 @@ func (r *imageResource) Create(ctx context.Context, req resource.CreateRequest, 
 		return
 	}
 
-	state, diags := modelFromImageResponse(ctx, plan.Env, name, found)
-	state.ScanAfterPull = plan.ScanAfterPull
+	envVal := types.StringNull()
+	if resolvedEnv != "" {
+		envVal = types.StringValue(resolvedEnv)
+	}
+	state, diags := modelFromImageResponse(ctx, envVal, name, found)
+	state.ScanAfterPull = types.BoolValue(scanAfterPull)
 	resp.Diagnostics.Append(diags...)
 	resp.Diagnostics.Append(resp.State.Set(ctx, &state)...)
 }

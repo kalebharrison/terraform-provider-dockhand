@@ -134,7 +134,23 @@ func (r *volumeCloneActionResource) Update(ctx context.Context, req resource.Upd
 	resp.Diagnostics.Append(resp.State.Set(ctx, &plan)...)
 }
 
-func (r *volumeCloneActionResource) Delete(context.Context, resource.DeleteRequest, *resource.DeleteResponse) {
+func (r *volumeCloneActionResource) Delete(ctx context.Context, req resource.DeleteRequest, resp *resource.DeleteResponse) {
+	if r.client == nil {
+		resp.Diagnostics.AddError("Unconfigured client", "The provider client was not configured.")
+		return
+	}
+
+	var state volumeCloneActionModel
+	resp.Diagnostics.Append(req.State.Get(ctx, &state)...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+
+	status, err := r.client.DeleteVolume(ctx, strings.TrimSpace(state.Env.ValueString()), strings.TrimSpace(state.TargetName.ValueString()))
+	if err != nil && status != 404 {
+		resp.Diagnostics.AddError("Error deleting cloned Dockhand volume", err.Error())
+		return
+	}
 }
 
 func (r *volumeCloneActionResource) ImportState(ctx context.Context, req resource.ImportStateRequest, resp *resource.ImportStateResponse) {
