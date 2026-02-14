@@ -31,8 +31,11 @@ Repository guidance for coding agents working on `terraform-provider-dockhand`.
   - Resource: `dockhand_image_scan_action`
   - Resource: `dockhand_container`
   - Resource: `dockhand_container_action`
+  - Resource: `dockhand_container_rename_action`
+  - Resource: `dockhand_container_update_action`
   - Resource: `dockhand_container_check_updates_action`
   - Resource: `dockhand_schedule`
+  - Resource: `dockhand_stack_adopt_action`
   - Data source: `dockhand_health`
   - Data source: `dockhand_activity`
   - Data source: `dockhand_hawser_status`
@@ -129,6 +132,8 @@ Avoid testing by building local zips for release validation.
   - `POST /api/containers/{id}/restart`
   - `POST /api/containers/{id}/pause`
   - `POST /api/containers/{id}/unpause`
+  - `POST /api/containers/{id}/rename`
+  - `POST /api/containers/{id}/update`
   - `GET /api/containers/stats`
   - `POST /api/containers/check-updates`
   - `GET /api/containers/pending-updates`
@@ -139,6 +144,7 @@ Avoid testing by building local zips for release validation.
   - `GET /api/schedules`
   - `GET /api/schedules/executions`
   - `POST /api/stacks/scan`
+  - `POST /api/stacks/adopt`
   - `GET /api/stacks/sources`
   - `POST /api/schedules/system/{id}/toggle`
   - `POST /api/schedules/{type}/{id}/toggle`

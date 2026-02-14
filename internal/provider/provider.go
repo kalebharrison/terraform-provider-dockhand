@@ -196,10 +196,13 @@ func (p *dockhandProvider) Resources(_ context.Context) []func() resource.Resour
 		NewImageScanActionResource,
 		NewContainerResource,
 		NewContainerActionResource,
+		NewContainerRenameActionResource,
+		NewContainerUpdateActionResource,
 		NewContainerCheckUpdatesActionResource,
 		NewScheduleResource,
 		NewStackActionResource,
 		NewStackScanActionResource,
+		NewStackAdoptActionResource,
 	}
 }
 

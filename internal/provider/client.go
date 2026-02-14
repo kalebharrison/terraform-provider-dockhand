@@ -28,6 +28,16 @@ type stackPayload struct {
 	Compose string `json:"compose"`
 }
 
+type stackAdoptItemPayload struct {
+	Name        string `json:"name"`
+	ComposePath string `json:"composePath"`
+}
+
+type stackAdoptPayload struct {
+	EnvironmentID int64                   `json:"environmentId"`
+	Stacks        []stackAdoptItemPayload `json:"stacks"`
+}
+
 type stackContainerDetailResponse struct {
 	ID           string `json:"id"`
 	Name         string `json:"name"`
@@ -542,6 +552,11 @@ type stackSourceResponse struct {
 	SourceType  string                         `json:"sourceType"`
 	ComposePath *string                        `json:"composePath"`
 	Repository  *stackSourceRepositoryResponse `json:"repository"`
+}
+
+type stackAdoptResponse struct {
+	Adopted []string `json:"adopted"`
+	Failed  []string `json:"failed"`
 }
 
 type generalSettings struct {
@@ -1228,6 +1243,30 @@ func (c *Client) RestartContainer(ctx context.Context, env string, id string) (i
 	return c.doJSONWithStatus(ctx, http.MethodPost, "/api/containers/"+url.PathEscape(id)+"/restart", query, nil, nil)
 }
 
+func (c *Client) RenameContainer(ctx context.Context, env string, id string, name string) (int, error) {
+	query := map[string]string{}
+	if resolvedEnv := c.resolveEnv(env); resolvedEnv != "" {
+		query["env"] = resolvedEnv
+	}
+	payload := map[string]string{
+		"name": name,
+	}
+	return c.doJSONWithStatus(ctx, http.MethodPost, "/api/containers/"+url.PathEscape(id)+"/rename", query, payload, nil)
+}
+
+func (c *Client) UpdateContainer(ctx context.Context, env string, id string, payload map[string]any) (map[string]any, int, error) {
+	query := map[string]string{}
+	if resolvedEnv := c.resolveEnv(env); resolvedEnv != "" {
+		query["env"] = resolvedEnv
+	}
+	var out map[string]any
+	status, err := c.doJSONWithStatus(ctx, http.MethodPost, "/api/containers/"+url.PathEscape(id)+"/update", query, payload, &out)
+	if err != nil {
+		return nil, status, err
+	}
+	return out, status, nil
+}
+
 func (c *Client) PauseContainer(ctx context.Context, env string, id string) (int, error) {
 	query := map[string]string{}
 	if resolvedEnv := c.resolveEnv(env); resolvedEnv != "" {
@@ -1432,6 +1471,15 @@ func (c *Client) DeleteStack(ctx context.Context, env string, name string) (int,
 func (c *Client) ScanStacks(ctx context.Context) (*stackScanResponse, int, error) {
 	var out stackScanResponse
 	status, err := c.doJSONWithStatus(ctx, http.MethodPost, "/api/stacks/scan", nil, map[string]any{}, &out)
+	if err != nil {
+		return nil, status, err
+	}
+	return &out, status, nil
+}
+
+func (c *Client) AdoptStacks(ctx context.Context, payload stackAdoptPayload) (*stackAdoptResponse, int, error) {
+	var out stackAdoptResponse
+	status, err := c.doJSONWithStatus(ctx, http.MethodPost, "/api/stacks/adopt", nil, payload, &out)
 	if err != nil {
 		return nil, status, err
 	}
