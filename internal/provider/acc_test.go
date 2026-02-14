@@ -25,6 +25,13 @@ func testAccEnv(t *testing.T) (endpoint string, username string, password string
 	return endpoint, username, password
 }
 
+func testAccDefaultEnv() string {
+	if v := os.Getenv("DOCKHAND_TEST_DEFAULT_ENV"); v != "" {
+		return v
+	}
+	return "1"
+}
+
 func testAccLoginSessionCookie(t *testing.T, endpoint string, username string, password string) string {
 	t.Helper()
 

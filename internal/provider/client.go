@@ -1060,7 +1060,9 @@ func (c *Client) PullImage(ctx context.Context, env string, image string, scanAf
 }
 
 func (c *Client) DeleteImage(ctx context.Context, env string, id string) (int, error) {
-	query := map[string]string{}
+	query := map[string]string{
+		"force": "true",
+	}
 	if resolvedEnv := c.resolveEnv(env); resolvedEnv != "" {
 		query["env"] = resolvedEnv
 	}
@@ -1394,7 +1396,30 @@ func (c *Client) DeleteContainer(ctx context.Context, env string, id string) (in
 		query["env"] = resolvedEnv
 	}
 	query["force"] = "true"
-	return c.doJSONWithStatus(ctx, http.MethodDelete, "/api/containers/"+url.PathEscape(id), query, nil, nil)
+
+	var (
+		status int
+		err    error
+	)
+	for i := range 5 {
+		status, err = c.doJSONWithStatus(ctx, http.MethodDelete, "/api/containers/"+url.PathEscape(id), query, nil, nil)
+		if err == nil || status == http.StatusNotFound {
+			return status, err
+		}
+		if status < 500 {
+			return status, err
+		}
+		if i == 4 {
+			break
+		}
+		select {
+		case <-ctx.Done():
+			return status, ctx.Err()
+		case <-time.After(1200 * time.Millisecond):
+		}
+	}
+
+	return status, err
 }
 
 func (c *Client) ListStacks(ctx context.Context, env string) ([]stackResponse, int, error) {

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"sort"
 	"strings"
+	"time"
 
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
@@ -386,9 +387,42 @@ func (r *containerResource) Delete(ctx context.Context, req resource.DeleteReque
 
 	status, err := r.client.DeleteContainer(ctx, state.Env.ValueString(), state.ID.ValueString())
 	if err != nil && status != 404 {
-		resp.Diagnostics.AddError("Error deleting Dockhand container", err.Error())
-		return
+		// Some Dockhand builds return 500 "Failed to remove container" when the
+		// container is already gone. Re-check existence before failing destroy.
+		_, found, readErr := r.client.GetContainerByID(ctx, state.Env.ValueString(), state.ID.ValueString())
+		if readErr != nil {
+			resp.Diagnostics.AddError("Error confirming Dockhand container deletion", readErr.Error())
+			return
+		}
+		if found {
+			resp.Diagnostics.AddError("Error deleting Dockhand container", err.Error())
+			return
+		}
 	}
+
+	// Dockhand may briefly report containers as "marked for removal". Wait until
+	// the container no longer appears before allowing dependent deletes (images).
+	for range 30 {
+		_, found, readErr := r.client.GetContainerByID(ctx, state.Env.ValueString(), state.ID.ValueString())
+		if readErr != nil {
+			resp.Diagnostics.AddError("Error confirming Dockhand container deletion", readErr.Error())
+			return
+		}
+		if !found {
+			return
+		}
+		select {
+		case <-ctx.Done():
+			resp.Diagnostics.AddError("Error confirming Dockhand container deletion", ctx.Err().Error())
+			return
+		case <-time.After(1 * time.Second):
+		}
+	}
+
+	resp.Diagnostics.AddError(
+		"Timed out waiting for Dockhand container deletion",
+		fmt.Sprintf("Container %q still appears after delete; retry destroy.", state.ID.ValueString()),
+	)
 }
 
 func (r *containerResource) ImportState(ctx context.Context, req resource.ImportStateRequest, resp *resource.ImportStateResponse) {

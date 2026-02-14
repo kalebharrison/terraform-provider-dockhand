@@ -148,7 +148,12 @@ User acceptance tests are environment-gated and require real Dockhand access:
 export DOCKHAND_TEST_ENDPOINT="http://dockhand.example.internal:13001"
 export DOCKHAND_TEST_USERNAME="your-username"
 export DOCKHAND_TEST_PASSWORD="your-password"
-go test -v ./internal/provider -run TestAccUserResource
+export DOCKHAND_TEST_DEFAULT_ENV="1"
+go test -v ./internal/provider -run 'TestAcc(UserResource|ContainerRenameAction)'
+
+# Optional container update action acceptance test (uses an existing container fixture):
+export DOCKHAND_TEST_UPDATE_CONTAINER_ID="existing-container-id"
+go test -v ./internal/provider -run 'TestAccContainerUpdateAction'
 ```
 
 ## Release
