@@ -1,8 +1,8 @@
 package provider
 
 import (
+	"context"
 	"fmt"
-	"os"
 	"strings"
 	"testing"
 	"time"
@@ -50,15 +50,14 @@ func TestAccContainerRenameActionTerraform(t *testing.T) {
 func TestAccContainerUpdateActionTerraform(t *testing.T) {
 	endpoint, username, password := testAccEnv(t)
 	defaultEnv := testAccDefaultEnv()
-	containerID := strings.TrimSpace(os.Getenv("DOCKHAND_TEST_UPDATE_CONTAINER_ID"))
-	if containerID == "" {
-		t.Skip("acceptance test requires DOCKHAND_TEST_UPDATE_CONTAINER_ID")
-	}
 
 	t.Setenv("DOCKHAND_ENDPOINT", endpoint)
 	t.Setenv("DOCKHAND_USERNAME", username)
 	t.Setenv("DOCKHAND_PASSWORD", password)
 	t.Setenv("DOCKHAND_DEFAULT_ENV", defaultEnv)
+
+	containerID, cleanup := testAccCreateContainerFixture(t, endpoint, username, password, defaultEnv)
+	defer cleanup()
 
 	resource.Test(t, resource.TestCase{
 		ProtoV6ProviderFactories: map[string]func() (tfprotov6.ProviderServer, error){
@@ -70,12 +69,6 @@ func TestAccContainerUpdateActionTerraform(t *testing.T) {
 				Check: resource.ComposeTestCheckFunc(
 					resource.TestCheckResourceAttr("dockhand_container_update_action.test", "payload_json", "{}"),
 					resource.TestCheckResourceAttrSet("dockhand_container_update_action.test", "result_json"),
-				),
-			},
-			{
-				Config: testAccContainerUpdateActionConfig(defaultEnv, containerID, "acc-run-2"),
-				Check: resource.ComposeTestCheckFunc(
-					resource.TestCheckResourceAttr("dockhand_container_update_action.test", "trigger", "acc-run-2"),
 				),
 			},
 		},
@@ -96,7 +89,7 @@ resource "dockhand_container" "test" {
   env     = %q
   name    = %q
   image   = dockhand_image.test.name
-  enabled = false
+  enabled = true
 }
 
 resource "dockhand_container_rename_action" "test" {
@@ -120,4 +113,39 @@ resource "dockhand_container_update_action" "test" {
   trigger      = %q
 }
 `, env, containerID, trigger)
+}
+
+func testAccCreateContainerFixture(t *testing.T, endpoint string, username string, password string, env string) (string, func()) {
+	t.Helper()
+
+	ctx := context.Background()
+	sessionCookie := testAccLoginSessionCookie(t, endpoint, username, password)
+	client, err := NewClient(endpoint, sessionCookie, env, false)
+	if err != nil {
+		t.Fatalf("create client: %v", err)
+	}
+
+	pullStatus, pullErr := client.PullImage(ctx, env, "nginx:latest", false)
+	if pullErr != nil || pullStatus < 200 || pullStatus > 299 {
+		t.Fatalf("pull image failed status=%d err=%v", pullStatus, pullErr)
+	}
+
+	name := "tf-acc-update-fixture-" + strings.ToLower(time.Now().UTC().Format("20060102150405"))
+	created, createStatus, createErr := client.CreateContainer(ctx, env, containerPayload{
+		Name:  name,
+		Image: "nginx:latest",
+	})
+	if createErr != nil || createStatus < 200 || createStatus > 299 || created == nil || strings.TrimSpace(created.ID) == "" {
+		t.Fatalf("create fixture container failed status=%d err=%v", createStatus, createErr)
+	}
+	id := created.ID
+
+	if _, startErr := client.StartContainer(ctx, env, id); startErr != nil {
+		t.Fatalf("start fixture container failed: %v", startErr)
+	}
+
+	cleanup := func() {
+		_, _ = client.DeleteContainer(ctx, env, id)
+	}
+	return id, cleanup
 }

@@ -15,7 +15,7 @@ func TestBuildContainerUpdatePayload(t *testing.T) {
 			NanoCPUs:    types.Int64Value(500000000),
 		}
 
-		out, _, err := buildContainerUpdatePayload(plan, "")
+		out, err := buildContainerUpdatePayload(plan, "")
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
@@ -32,7 +32,7 @@ func TestBuildContainerUpdatePayload(t *testing.T) {
 			CPUShares: types.Int64Value(1024),
 		}
 
-		out, _, err := buildContainerUpdatePayload(plan, `{"CpuShares":2048}`)
+		out, err := buildContainerUpdatePayload(plan, `{"CpuShares":2048}`)
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}

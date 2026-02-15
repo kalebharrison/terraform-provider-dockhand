@@ -140,7 +140,7 @@ func (r *containerUpdateActionResource) Create(ctx context.Context, req resource
 	}
 
 	payloadRaw := strings.TrimSpace(plan.PayloadJSON.ValueString())
-	payload, effectiveJSON, err := buildContainerUpdatePayload(plan, payloadRaw)
+	payload, err := buildContainerUpdatePayload(plan, payloadRaw)
 	if err != nil {
 		resp.Diagnostics.AddError("Invalid update payload", err.Error())
 		return
@@ -157,7 +157,7 @@ func (r *containerUpdateActionResource) Create(ctx context.Context, req resource
 	}
 
 	plan.ID = types.StringValue(fmt.Sprintf("%s:%s:%s", plan.Env.ValueString(), containerID, plan.Trigger.ValueString()))
-	plan.PayloadJSON = types.StringValue(effectiveJSON)
+	plan.PayloadJSON = types.StringValue(payloadRaw)
 	plan.ResultJSON = types.StringValue(mustJSON(result))
 	resp.Diagnostics.Append(resp.State.Set(ctx, &plan)...)
 }
@@ -185,7 +185,7 @@ func (r *containerUpdateActionResource) ImportState(ctx context.Context, req res
 	resp.Diagnostics.Append(resp.State.SetAttribute(ctx, path.Root("id"), raw)...)
 }
 
-func buildContainerUpdatePayload(plan containerUpdateActionModel, payloadRaw string) (map[string]any, string, error) {
+func buildContainerUpdatePayload(plan containerUpdateActionModel, payloadRaw string) (map[string]any, error) {
 	merged := map[string]any{}
 
 	if !plan.CPUShares.IsNull() && !plan.CPUShares.IsUnknown() {
@@ -217,7 +217,7 @@ func buildContainerUpdatePayload(plan containerUpdateActionModel, payloadRaw str
 
 	userPayload := map[string]any{}
 	if err := json.Unmarshal([]byte(raw), &userPayload); err != nil {
-		return nil, "", fmt.Errorf("`payload_json` must be a valid JSON object: %w", err)
+		return nil, fmt.Errorf("`payload_json` must be a valid JSON object: %w", err)
 	}
 	for k, v := range userPayload {
 		merged[k] = v
@@ -225,5 +225,5 @@ func buildContainerUpdatePayload(plan containerUpdateActionModel, payloadRaw str
 	if len(merged) == 0 {
 		merged = map[string]any{}
 	}
-	return merged, mustJSON(merged), nil
+	return merged, nil
 }
