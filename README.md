@@ -26,6 +26,7 @@ This initial scaffold includes:
 - Resource: `dockhand_container_file`
 - Resource: `dockhand_container_action`
 - Resource: `dockhand_schedule`
+- Resource: `dockhand_schedule_run_action`
 - Resource: `dockhand_stack_env`
 - Data source: `dockhand_health`
 - Data source: `dockhand_activity`
@@ -62,6 +63,7 @@ This initial scaffold includes:
   - `GET /api/stacks/{name}/env/raw`
   - `PUT /api/stacks/{name}/env/raw`
   - `GET /api/schedules`
+  - `POST /api/schedules/{type}/{id}/run`
   - `POST /api/schedules/system/{id}/toggle`
   - `POST /api/schedules/{type}/{id}/toggle`
 

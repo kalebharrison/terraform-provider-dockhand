@@ -57,6 +57,7 @@ resource "dockhand_container" "example" {
 - `privileged` (Boolean) Create container in privileged mode.
 - `restart_policy` (String) Restart policy for create request.
 - `tty` (Boolean) Allocate a TTY at create time.
+- `update_payload_json` (String) Optional raw JSON object sent to `/api/containers/{id}/update` after create and on updates.
 
 ### Read-Only
 

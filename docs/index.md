@@ -44,6 +44,7 @@ provider "dockhand" {
 - `dockhand_container_update_action`
 - `dockhand_container_check_updates_action`
 - `dockhand_schedule`
+- `dockhand_schedule_run_action`
 - `dockhand_stack_scan_action`
 - `dockhand_stack_adopt_action`
 - `dockhand_stack_env`

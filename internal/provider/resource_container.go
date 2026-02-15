@@ -2,6 +2,7 @@ package provider
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"sort"
 	"strings"
@@ -57,6 +58,7 @@ type containerResourceModel struct {
 	EnvVars       types.Map            `tfsdk:"env_vars"`
 	Labels        types.Map            `tfsdk:"labels"`
 	Ports         []containerPortModel `tfsdk:"ports"`
+	UpdatePayload types.String         `tfsdk:"update_payload_json"`
 	State         types.String         `tfsdk:"state"`
 	Status        types.String         `tfsdk:"status"`
 	Health        types.String         `tfsdk:"health"`
@@ -195,6 +197,11 @@ func (r *containerResource) Schema(_ context.Context, _ resource.SchemaRequest, 
 					},
 				},
 			},
+			"update_payload_json": schema.StringAttribute{
+				MarkdownDescription: "Optional raw JSON object sent to `/api/containers/{id}/update` after create and on updates. Use this to access advanced Dockhand update fields not yet modeled as first-class attributes.",
+				Optional:            true,
+				Computed:            true,
+			},
 			"state": schema.StringAttribute{
 				MarkdownDescription: "Current container state from Dockhand.",
 				Computed:            true,
@@ -284,6 +291,24 @@ func (r *containerResource) Create(ctx context.Context, req resource.CreateReque
 
 	plan.ID = types.StringValue(created.ID)
 
+	if payloadRaw := strings.TrimSpace(plan.UpdatePayload.ValueString()); payloadRaw != "" {
+		updatePayload, parseErr := parseContainerUpdatePayload(payloadRaw)
+		if parseErr != nil {
+			resp.Diagnostics.AddError("Invalid `update_payload_json`", parseErr.Error())
+			return
+		}
+		if _, status, err := r.client.UpdateContainer(ctx, plan.Env.ValueString(), created.ID, updatePayload); err != nil {
+			resp.Diagnostics.AddError("Error applying Dockhand container update payload", err.Error())
+			return
+		} else if status < 200 || status > 299 {
+			resp.Diagnostics.AddError("Error applying Dockhand container update payload", fmt.Sprintf("Dockhand returned status %d", status))
+			return
+		}
+		plan.UpdatePayload = types.StringValue(payloadRaw)
+	} else {
+		plan.UpdatePayload = types.StringNull()
+	}
+
 	if !plan.Enabled.ValueBool() {
 		if _, err := r.client.StopContainer(ctx, plan.Env.ValueString(), created.ID); err != nil {
 			resp.Diagnostics.AddError("Error stopping Dockhand container after create", err.Error())
@@ -356,6 +381,27 @@ func (r *containerResource) Update(ctx context.Context, req resource.UpdateReque
 			resp.Diagnostics.AddError("Error updating Dockhand container runtime state", err.Error())
 			return
 		}
+	}
+
+	payloadRaw := strings.TrimSpace(plan.UpdatePayload.ValueString())
+	if payloadRaw != "" {
+		updatePayload, parseErr := parseContainerUpdatePayload(payloadRaw)
+		if parseErr != nil {
+			resp.Diagnostics.AddError("Invalid `update_payload_json`", parseErr.Error())
+			return
+		}
+		if payloadRaw != strings.TrimSpace(state.UpdatePayload.ValueString()) {
+			if _, status, err := r.client.UpdateContainer(ctx, env, id, updatePayload); err != nil {
+				resp.Diagnostics.AddError("Error applying Dockhand container update payload", err.Error())
+				return
+			} else if status < 200 || status > 299 {
+				resp.Diagnostics.AddError("Error applying Dockhand container update payload", fmt.Sprintf("Dockhand returned status %d", status))
+				return
+			}
+		}
+		plan.UpdatePayload = types.StringValue(payloadRaw)
+	} else {
+		plan.UpdatePayload = types.StringNull()
 	}
 
 	container, found, err := r.client.GetContainerByID(ctx, env, id)
@@ -458,6 +504,17 @@ func applyContainerRuntimeToState(state *containerResourceModel, container *cont
 	state.Status = types.StringValue(container.Status)
 	state.Health = types.StringValue(container.Health)
 	state.RestartCount = types.Int64Value(container.RestartCount)
+}
+
+func parseContainerUpdatePayload(raw string) (map[string]any, error) {
+	payload := map[string]any{}
+	if err := json.Unmarshal([]byte(raw), &payload); err != nil {
+		return nil, fmt.Errorf("must be valid JSON object: %w", err)
+	}
+	if payload == nil {
+		payload = map[string]any{}
+	}
+	return payload, nil
 }
 
 func flattenEnvVars(ctx context.Context, value types.Map) []string {

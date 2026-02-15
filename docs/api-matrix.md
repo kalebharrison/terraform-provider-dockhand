@@ -93,6 +93,7 @@ Source: [Dockhand Manual API Reference](https://dockhand.pro/manual/#api-referen
 | `dockhand_stack_env` | Update secret env variables | `PUT /api/stacks/{name}/env?env={env_id}` | Writes secret variable list (`isSecret=true`). | implemented |
 | `dockhand_schedule` | Read | `GET /api/schedules` | Resolves existing schedule by `type` + `schedule_id`. | partial |
 | `dockhand_schedule` | Update state | `POST /api/schedules/system/{id}/toggle` or `POST /api/schedules/{type}/{id}/toggle` | Manages pause/resume (`enabled`) for existing schedules. | partial |
+| `dockhand_schedule_run_action` | Execute run-now action | `POST /api/schedules/{type}/{id}/run` | One-shot run trigger resource with replace-by-trigger behavior. | implemented |
 
 ## Data Sources
 
@@ -119,8 +120,8 @@ Source: [Dockhand Manual API Reference](https://dockhand.pro/manual/#api-referen
 | `/api/stacks/{name}/env` | broader non-secret env var editing semantics | partial |
 | `/api/volumes` | advanced volume operations (`clone`, `browse`, import/export) | partial |
 | `/api/networks` | advanced network operations (`connect`, inspect details as separate surface) | partial |
-| `/api/configs` | config management resource/data source | planned |
-| `/api/backups` | backup resource/data source | planned |
+| `/api/configs` | config management resource/data source | planned (endpoint not present on tested instance; returns 404) |
+| `/api/backups` | backup resource/data source | planned (endpoint not present on tested instance; returns 404) |
 | license-tier auth endpoints (LDAP/AD/roles) | auth enterprise resources/data sources | planned |
 
 ## Open Contract Questions
