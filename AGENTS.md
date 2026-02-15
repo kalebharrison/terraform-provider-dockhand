@@ -90,6 +90,7 @@ Run from repo root:
 go mod tidy
 go test ./...
 go build ./...
+/usr/bin/python3 scripts/endpoint-probe.py
 ```
 
 If tests require Dockhand access, clearly separate them as acceptance tests.
@@ -180,6 +181,9 @@ Avoid testing by building local zips for release validation.
   - `POST /api/schedules/system/{id}/toggle`
   - `POST /api/schedules/{type}/{id}/toggle`
 - Verify response payload shapes against live Dockhand responses before release.
+- Endpoint presence should be re-verified with `scripts/endpoint-probe.py` and reviewed in:
+  - `docs/reports/endpoint-probe.md`
+  - `docs/non-present-endpoints.md`
 
 ## CI Expectations
 

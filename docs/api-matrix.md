@@ -2,6 +2,12 @@
 
 Source: [Dockhand Manual API Reference](https://dockhand.pro/manual/#api-reference)
 
+Live verification artifacts:
+
+- Endpoint probe script: `scripts/endpoint-probe.py`
+- Latest safe probe report: `docs/reports/endpoint-probe.md` (February 15, 2026)
+- Non-present backlog: `docs/non-present-endpoints.md`
+
 ## Status Legend
 
 - `implemented`: Provider code exists.
@@ -120,9 +126,24 @@ Source: [Dockhand Manual API Reference](https://dockhand.pro/manual/#api-referen
 | `/api/stacks/{name}/env` | broader non-secret env var editing semantics | partial |
 | `/api/volumes` | advanced volume operations (`clone`, `browse`, import/export) | partial |
 | `/api/networks` | advanced network operations (`connect`, inspect details as separate surface) | partial |
-| `/api/configs` | config management resource/data source | planned (endpoint not present on tested instance; returns 404) |
-| `/api/backups` | backup resource/data source | planned (endpoint not present on tested instance; returns 404) |
+| `/api/configs` | config management resource/data source | planned (verified not present on tested instance; `404`) |
+| `/api/backups` | backup resource/data source | planned (verified not present on tested instance; `404`) |
 | license-tier auth endpoints (LDAP/AD/roles) | auth enterprise resources/data sources | planned |
+
+## Probe Follow-Up (February 15, 2026)
+
+- Not present on tested instance:
+  - `GET /api/configs`
+  - `GET /api/backups`
+- Unverified or unexpected on parameterized routes (fixture-dependent):
+  - `GET /api/notifications/{id}` (`unverified_no_fixture`)
+  - `GET /api/git/stacks/{id}/env-files` (`unverified_no_fixture`)
+  - `PUT /api/users/{id}` (`unexpected_404` in safe placeholder probe)
+  - `DELETE /api/users/{id}` (`unexpected_404` in safe placeholder probe)
+  - `PUT /api/environments/{id}` (`unexpected_404` in safe placeholder probe)
+  - `DELETE /api/environments/{id}` (`unexpected_404` in safe placeholder probe)
+  - `POST /api/git/stacks/{id}/deploy-stream` (`unexpected_404` in safe placeholder probe)
+  - `POST /api/git/stacks/{id}/env-files` (`unexpected_404` in safe placeholder probe)
 
 ## Open Contract Questions
 

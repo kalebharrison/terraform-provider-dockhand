@@ -4,7 +4,7 @@ Terraform provider for managing Dockhand resources.
 
 ## Current Scope
 
-This initial scaffold includes:
+This provider currently includes:
 
 - Provider config with `endpoint`, `username`/`password` (login-based), `default_env`, and `insecure`.
 - Resource: `dockhand_stack`
@@ -28,9 +28,33 @@ This initial scaffold includes:
 - Resource: `dockhand_schedule`
 - Resource: `dockhand_schedule_run_action`
 - Resource: `dockhand_stack_env`
+- Resource: `dockhand_stack_scan_action`
+- Resource: `dockhand_stack_adopt_action`
+- Resource: `dockhand_auth_settings`
+- Resource: `dockhand_license`
+- Resource: `dockhand_notification`
+- Resource: `dockhand_environment`
+- Resource: `dockhand_network_connection_action`
+- Resource: `dockhand_volume_clone_action`
+- Resource: `dockhand_image_push_action`
+- Resource: `dockhand_container_rename_action`
+- Resource: `dockhand_container_update_action`
+- Resource: `dockhand_container_check_updates_action`
 - Data source: `dockhand_health`
 - Data source: `dockhand_activity`
 - Data source: `dockhand_hawser_status`
+- Data source: `dockhand_auth_providers`
+- Data source: `dockhand_schedules`
+- Data source: `dockhand_schedules_executions`
+- Data source: `dockhand_containers`
+- Data source: `dockhand_container_stats`
+- Data source: `dockhand_container_pending_updates`
+- Data source: `dockhand_container_shells`
+- Data source: `dockhand_stack_sources`
+- Data source: `dockhand_container_logs`
+- Data source: `dockhand_container_inspect`
+- Data source: `dockhand_container_processes`
+- Data source: `dockhand_stacks`
 - Data source: `dockhand_users`
 - Data source: `dockhand_registries`
 - Data source: `dockhand_git_credentials`
@@ -41,10 +65,6 @@ This initial scaffold includes:
 - Data source: `dockhand_networks`
 - Data source: `dockhand_volumes`
 - Data source: `dockhand_images`
-- Data source: `dockhand_stacks`
-- Data source: `dockhand_container_logs`
-- Data source: `dockhand_container_inspect`
-- Data source: `dockhand_container_processes`
 - HTTP client wiring against:
   - `POST /api/auth/login` (session-based auth)
   - `GET /api/auth/session` (session check)
@@ -134,6 +154,8 @@ export DOCKHAND_DEFAULT_ENV="1"
 Private distribution (team-friendly, still private):
 
 - Filesystem mirror workflow: `docs/PRIVATE_DISTRIBUTION.md`
+- Endpoint contract probe workflow: `docs/ENDPOINT_PROBE.md`
+- Public/registry readiness checklist: `docs/REGISTRY_READINESS.md`
 
 Example resource:
 

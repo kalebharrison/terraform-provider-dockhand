@@ -54,6 +54,16 @@ provider "dockhand" {
 - `dockhand_health`
 - `dockhand_activity`
 - `dockhand_hawser_status`
+- `dockhand_users`
+- `dockhand_registries`
+- `dockhand_git_credentials`
+- `dockhand_git_repositories`
+- `dockhand_notifications`
+- `dockhand_config_sets`
+- `dockhand_environments`
+- `dockhand_networks`
+- `dockhand_volumes`
+- `dockhand_images`
 - `dockhand_auth_providers`
 - `dockhand_schedules`
 - `dockhand_schedules_executions`
