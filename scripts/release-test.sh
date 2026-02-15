@@ -104,7 +104,13 @@ fi
 
   rm -rf .terraform .terraform.lock.hcl terraform.tfstate terraform.tfstate.backup
   terraform init -upgrade
-  terraform plan -no-color "${tf_var_args[@]}"
-  terraform apply -auto-approve -no-color "${tf_var_args[@]}"
-  terraform destroy -auto-approve -no-color "${tf_var_args[@]}"
+  if (( ${#tf_var_args[@]} > 0 )); then
+    terraform plan -no-color "${tf_var_args[@]}"
+    terraform apply -auto-approve -no-color "${tf_var_args[@]}"
+    terraform destroy -auto-approve -no-color "${tf_var_args[@]}"
+  else
+    terraform plan -no-color
+    terraform apply -auto-approve -no-color
+    terraform destroy -auto-approve -no-color
+  fi
 )
