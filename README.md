@@ -31,6 +31,10 @@ This initial scaffold includes:
 - Data source: `dockhand_health`
 - Data source: `dockhand_activity`
 - Data source: `dockhand_hawser_status`
+- Data source: `dockhand_environments`
+- Data source: `dockhand_networks`
+- Data source: `dockhand_volumes`
+- Data source: `dockhand_images`
 - Data source: `dockhand_stacks`
 - Data source: `dockhand_container_logs`
 - Data source: `dockhand_container_inspect`

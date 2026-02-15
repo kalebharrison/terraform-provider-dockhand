@@ -48,8 +48,19 @@ git push origin "${tag}"
 run_id="$(gh run list --workflow release-artifacts.yml --limit 20 --json databaseId,headBranch,displayTitle | \
   /usr/bin/python3 -c "import json,sys; runs=json.load(sys.stdin); print(next((str(r['databaseId']) for r in runs if r.get('headBranch')=='${tag}'), ''))")"
 if [[ -z "${run_id}" ]]; then
-  echo "could not find workflow run for ${tag}; check GitHub Actions manually" >&2
-  exit 2
+  # GitHub can lag briefly before listing newly-triggered runs.
+  for _ in {1..20}; do
+    sleep 3
+    run_id="$(gh run list --workflow release-artifacts.yml --limit 20 --json databaseId,headBranch,displayTitle | \
+      /usr/bin/python3 -c "import json,sys; runs=json.load(sys.stdin); print(next((str(r['databaseId']) for r in runs if r.get('headBranch')=='${tag}'), ''))")"
+    if [[ -n "${run_id}" ]]; then
+      break
+    fi
+  done
+  if [[ -z "${run_id}" ]]; then
+    echo "could not find workflow run for ${tag}; check GitHub Actions manually" >&2
+    exit 2
+  fi
 fi
 
 gh run watch "${run_id}" --exit-status
@@ -73,6 +84,9 @@ fi
   # shellcheck disable=SC1091
   source ./env.sh
   export TF_CLI_CONFIG_FILE="../terraformrc.dockhand"
+
+  # Best-effort cleanup of known release-test fixtures to avoid create conflicts.
+  "${repo_root}/scripts/release-precheck.sh"
 
   tf_var_args=()
   if [[ "${RELEASE_TEST_ENABLE_STACK_ADOPT:-0}" == "1" ]]; then
