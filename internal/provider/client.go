@@ -1765,6 +1765,15 @@ func (c *Client) Health(ctx context.Context, env string) (*healthResponse, error
 	return &healthResponse{Status: "ok"}, nil
 }
 
+func (c *Client) ListUsers(ctx context.Context) ([]userResponse, int, error) {
+	var out []userResponse
+	status, err := c.doJSONWithStatus(ctx, http.MethodGet, "/api/users", nil, nil, &out)
+	if err != nil {
+		return nil, status, err
+	}
+	return out, status, nil
+}
+
 func (c *Client) CreateUser(ctx context.Context, payload userPayload) (*userResponse, error) {
 	var out userResponse
 	if _, err := c.doJSONWithStatus(ctx, http.MethodPost, "/api/users", nil, payload, &out); err != nil {

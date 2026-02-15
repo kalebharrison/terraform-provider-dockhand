@@ -55,6 +55,12 @@ Repository guidance for coding agents working on `terraform-provider-dockhand`.
   - Data source: `dockhand_container_inspect`
   - Data source: `dockhand_container_processes`
   - Data source: `dockhand_auth_providers`
+  - Data source: `dockhand_users`
+  - Data source: `dockhand_registries`
+  - Data source: `dockhand_git_credentials`
+  - Data source: `dockhand_git_repositories`
+  - Data source: `dockhand_notifications`
+  - Data source: `dockhand_config_sets`
   - Data source: `dockhand_environments`
   - Data source: `dockhand_networks`
   - Data source: `dockhand_volumes`
