@@ -15,12 +15,14 @@ This initial scaffold includes:
 - Resource: `dockhand_git_credential`
 - Resource: `dockhand_git_repository`
 - Resource: `dockhand_git_stack_webhook_action`
+- Resource: `dockhand_git_stack_deploy_action`
 - Resource: `dockhand_config_set`
 - Resource: `dockhand_network`
 - Resource: `dockhand_volume`
 - Resource: `dockhand_image`
 - Resource: `dockhand_image_scan_action`
 - Resource: `dockhand_container`
+- Resource: `dockhand_container_file`
 - Resource: `dockhand_container_action`
 - Resource: `dockhand_schedule`
 - Data source: `dockhand_health`
@@ -29,6 +31,7 @@ This initial scaffold includes:
 - Data source: `dockhand_stacks`
 - Data source: `dockhand_container_logs`
 - Data source: `dockhand_container_inspect`
+- Data source: `dockhand_container_processes`
 - HTTP client wiring against:
   - `POST /api/auth/login` (session-based auth)
   - `GET /api/auth/session` (session check)

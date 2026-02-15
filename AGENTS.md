@@ -20,6 +20,7 @@ Repository guidance for coding agents working on `terraform-provider-dockhand`.
   - Resource: `dockhand_git_credential`
   - Resource: `dockhand_git_repository`
   - Resource: `dockhand_git_stack_webhook_action`
+  - Resource: `dockhand_git_stack_deploy_action`
   - Resource: `dockhand_config_set`
   - Resource: `dockhand_environment`
   - Resource: `dockhand_network`
@@ -30,6 +31,7 @@ Repository guidance for coding agents working on `terraform-provider-dockhand`.
   - Resource: `dockhand_image_push_action`
   - Resource: `dockhand_image_scan_action`
   - Resource: `dockhand_container`
+  - Resource: `dockhand_container_file`
   - Resource: `dockhand_container_action`
   - Resource: `dockhand_container_rename_action`
   - Resource: `dockhand_container_update_action`
@@ -48,6 +50,7 @@ Repository guidance for coding agents working on `terraform-provider-dockhand`.
   - Resource: `dockhand_stack_scan_action`
   - Data source: `dockhand_container_logs`
   - Data source: `dockhand_container_inspect`
+  - Data source: `dockhand_container_processes`
   - Data source: `dockhand_auth_providers`
   - Data source: `dockhand_schedules`
   - Data source: `dockhand_schedules_executions`
@@ -141,9 +144,14 @@ Avoid testing by building local zips for release validation.
   - `GET /api/containers/pending-updates`
   - `GET /api/containers/{id}/shells`
   - `GET /api/containers/{id}/logs`
+  - `GET /api/containers/{id}/top`
+  - `POST /api/containers/{id}/files/create`
+  - `GET/PUT /api/containers/{id}/files/content`
+  - `DELETE /api/containers/{id}/files/delete`
   - `GET /api/activity`
   - `GET /api/hawser/connect`
   - `POST /api/git/stacks/{id}/webhook`
+  - `POST /api/git/stacks/{id}/deploy-stream`
   - `GET /api/schedules`
   - `GET /api/schedules/executions`
   - `POST /api/stacks/scan`

@@ -54,6 +54,7 @@ Source: [Dockhand Manual API Reference](https://dockhand.pro/manual/#api-referen
 | `dockhand_git_repository` | Update | `PUT /api/git/repositories/{id}` | Updates repo integration settings. | partial |
 | `dockhand_git_repository` | Delete | `DELETE /api/git/repositories/{id}` | `404` treated as already deleted. | implemented |
 | `dockhand_git_stack_webhook_action` | Trigger webhook | `POST /api/git/stacks/{id}/webhook` | One-shot trigger for git stack deploy/sync webhook flow. | implemented |
+| `dockhand_git_stack_deploy_action` | Trigger deploy | `POST /api/git/stacks/{id}/deploy-stream` | One-shot deploy request for git-managed stacks. | implemented |
 | `dockhand_config_set` | Create | `POST /api/config-sets` | Supports name/description/envVars/labels/ports/volumes/networkMode/restartPolicy. | partial |
 | `dockhand_config_set` | Read | `GET /api/config-sets/{id}` | `404` removes from state. | implemented |
 | `dockhand_config_set` | Update | `PUT /api/config-sets/{id}` | Updates config set settings. | partial |
@@ -82,7 +83,8 @@ Source: [Dockhand Manual API Reference](https://dockhand.pro/manual/#api-referen
 | `dockhand_container` | Delete | `DELETE /api/containers/{id}?env={env_id}` | `404` treated as already deleted. | implemented |
 | `dockhand_container` | Import | `GET /api/containers?env={env_id}` | Import formats: `<id>` or `<env>:<id>`. | implemented |
 | `dockhand_container_action` | Execute action | `POST /api/containers/{id}/start`, `POST /api/containers/{id}/stop`, `POST /api/containers/{id}/restart` | One-shot runtime action resource with replace-by-trigger behavior. | implemented |
-| `dockhand_stack_action` | Execute action | `POST /api/stacks/{name}/start`, `POST /api/stacks/{name}/stop` | One-shot runtime action resource; `restart` runs stop then start. | implemented |
+| `dockhand_container_file` | Manage file | `POST /api/containers/{id}/files/create`, `GET/PUT /api/containers/{id}/files/content`, `DELETE /api/containers/{id}/files/delete` | Manages text file contents in running containers. | implemented |
+| `dockhand_stack_action` | Execute action | `POST /api/stacks/{name}/start`, `POST /api/stacks/{name}/stop`, `POST /api/stacks/{name}/restart`, `POST /api/stacks/{name}/down` | One-shot runtime action resource for stack lifecycle operations. | implemented |
 | `dockhand_schedule` | Read | `GET /api/schedules` | Resolves existing schedule by `type` + `schedule_id`. | partial |
 | `dockhand_schedule` | Update state | `POST /api/schedules/system/{id}/toggle` or `POST /api/schedules/{type}/{id}/toggle` | Manages pause/resume (`enabled`) for existing schedules. | partial |
 
@@ -98,6 +100,7 @@ Source: [Dockhand Manual API Reference](https://dockhand.pro/manual/#api-referen
 | `dockhand_stacks` | `GET /api/stacks?env={env_id}` | Exposes stack list with runtime status and container count. | implemented |
 | `dockhand_container_logs` | `GET /api/containers/{id}/logs?env={env_id}&tail={n}` | Reads container logs for debugging/verification workflows. | implemented |
 | `dockhand_container_inspect` | `GET /api/containers/{id}?env={env_id}` | Exposes full inspect payload as raw JSON for advanced automation. | implemented |
+| `dockhand_container_processes` | `GET /api/containers/{id}/top?env={env_id}` | Reads process table (`Titles` + `Processes`) for running containers. | implemented |
 
 ## Additional Endpoints Not Yet Mapped
 
@@ -106,7 +109,7 @@ Source: [Dockhand Manual API Reference](https://dockhand.pro/manual/#api-referen
 | `/api/environments` | additional environment data sources | partial |
 | `/api/schedules` | schedule details/advanced actions (`run`, executions history/settings) | partial |
 | `/api/images` | image actions (`scan`, `push`) | partial |
-| `/api/containers` | container logs, restart action, and advanced create options coverage | partial |
+| `/api/containers` | exec websocket, upload/download streams, and advanced create/update options coverage | partial |
 | `/api/volumes` | advanced volume operations (`clone`, `browse`, import/export) | partial |
 | `/api/networks` | advanced network operations (`connect`, inspect details as separate surface) | partial |
 | `/api/configs` | config management resource/data source | planned |

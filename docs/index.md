@@ -25,6 +25,7 @@ provider "dockhand" {
 - `dockhand_git_credential`
 - `dockhand_git_repository`
 - `dockhand_git_stack_webhook_action`
+- `dockhand_git_stack_deploy_action`
 - `dockhand_config_set`
 - `dockhand_notification`
 - `dockhand_environment`
@@ -33,6 +34,7 @@ provider "dockhand" {
 - `dockhand_image`
 - `dockhand_image_scan_action`
 - `dockhand_container`
+- `dockhand_container_file`
 - `dockhand_container_action`
 - `dockhand_schedule`
 
@@ -45,6 +47,7 @@ provider "dockhand" {
 - `dockhand_schedules`
 - `dockhand_container_logs`
 - `dockhand_container_inspect`
+- `dockhand_container_processes`
 - `dockhand_stacks`
 
 ## Schema

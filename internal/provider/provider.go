@@ -184,6 +184,7 @@ func (p *dockhandProvider) Resources(_ context.Context) []func() resource.Resour
 		NewGitCredentialResource,
 		NewGitRepositoryResource,
 		NewGitStackWebhookActionResource,
+		NewGitStackDeployActionResource,
 		NewConfigSetResource,
 		NewNotificationResource,
 		NewEnvironmentResource,
@@ -195,6 +196,7 @@ func (p *dockhandProvider) Resources(_ context.Context) []func() resource.Resour
 		NewImagePushActionResource,
 		NewImageScanActionResource,
 		NewContainerResource,
+		NewContainerFileResource,
 		NewContainerActionResource,
 		NewContainerRenameActionResource,
 		NewContainerUpdateActionResource,
@@ -221,6 +223,7 @@ func (p *dockhandProvider) DataSources(_ context.Context) []func() datasource.Da
 		NewContainerShellsDataSource,
 		NewContainerLogsDataSource,
 		NewContainerInspectDataSource,
+		NewContainerProcessesDataSource,
 		NewStacksDataSource,
 	}
 }

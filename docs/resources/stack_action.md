@@ -18,7 +18,7 @@ resource "dockhand_stack_action" "restart_stack" {
 ### Required
 
 - `stack_name` (String) Stack name to act on.
-- `action` (String) Action to execute: `start`, `stop`, or `restart`.
+- `action` (String) Action to execute: `start`, `stop`, `restart`, or `down`.
 
 ### Optional
 

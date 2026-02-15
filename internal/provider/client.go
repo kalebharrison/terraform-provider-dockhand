@@ -100,6 +100,12 @@ type containerLogsResponse struct {
 	Logs string `json:"logs"`
 }
 
+type containerTopResponse struct {
+	Titles    []string   `json:"Titles"`
+	Processes [][]string `json:"Processes"`
+	Error     *string    `json:"error"`
+}
+
 type containerShellOptionResponse struct {
 	Path      string `json:"path"`
 	Label     string `json:"label"`
@@ -1314,6 +1320,76 @@ func (c *Client) GetContainerLogs(ctx context.Context, env string, id string, ta
 	return &out, status, nil
 }
 
+func (c *Client) GetContainerTop(ctx context.Context, env string, id string) (*containerTopResponse, int, error) {
+	query := map[string]string{}
+	if resolvedEnv := c.resolveEnv(env); resolvedEnv != "" {
+		query["env"] = resolvedEnv
+	}
+
+	var out containerTopResponse
+	status, err := c.doJSONWithStatus(ctx, http.MethodGet, "/api/containers/"+url.PathEscape(id)+"/top", query, nil, &out)
+	if err != nil {
+		return nil, status, err
+	}
+	return &out, status, nil
+}
+
+func (c *Client) GetContainerFileContent(ctx context.Context, env string, id string, path string) (string, int, error) {
+	query := map[string]string{
+		"path": path,
+	}
+	if resolvedEnv := c.resolveEnv(env); resolvedEnv != "" {
+		query["env"] = resolvedEnv
+	}
+
+	var out struct {
+		Content string  `json:"content"`
+		Error   *string `json:"error"`
+	}
+	status, err := c.doJSONWithStatus(ctx, http.MethodGet, "/api/containers/"+url.PathEscape(id)+"/files/content", query, nil, &out)
+	if err != nil {
+		return "", status, err
+	}
+	return out.Content, status, nil
+}
+
+func (c *Client) CreateContainerFile(ctx context.Context, env string, id string, path string, fileType string) (int, error) {
+	query := map[string]string{}
+	if resolvedEnv := c.resolveEnv(env); resolvedEnv != "" {
+		query["env"] = resolvedEnv
+	}
+
+	payload := map[string]any{
+		"path": path,
+		"type": fileType,
+	}
+	return c.doJSONWithStatus(ctx, http.MethodPost, "/api/containers/"+url.PathEscape(id)+"/files/create", query, payload, nil)
+}
+
+func (c *Client) UpdateContainerFileContent(ctx context.Context, env string, id string, path string, content string) (int, error) {
+	query := map[string]string{
+		"path": path,
+	}
+	if resolvedEnv := c.resolveEnv(env); resolvedEnv != "" {
+		query["env"] = resolvedEnv
+	}
+
+	payload := map[string]any{
+		"content": content,
+	}
+	return c.doJSONWithStatus(ctx, http.MethodPut, "/api/containers/"+url.PathEscape(id)+"/files/content", query, payload, nil)
+}
+
+func (c *Client) DeleteContainerFile(ctx context.Context, env string, id string, path string) (int, error) {
+	query := map[string]string{
+		"path": path,
+	}
+	if resolvedEnv := c.resolveEnv(env); resolvedEnv != "" {
+		query["env"] = resolvedEnv
+	}
+	return c.doJSONWithStatus(ctx, http.MethodDelete, "/api/containers/"+url.PathEscape(id)+"/files/delete", query, nil, nil)
+}
+
 func (c *Client) GetContainerShells(ctx context.Context, env string, id string) (*containerShellsResponse, int, error) {
 	query := map[string]string{}
 	if resolvedEnv := c.resolveEnv(env); resolvedEnv != "" {
@@ -1510,6 +1586,22 @@ func (c *Client) StopStackWithStatus(ctx context.Context, env string, name strin
 	return c.doJSONWithStatus(ctx, http.MethodPost, "/api/stacks/"+url.PathEscape(name)+"/stop", query, nil, nil)
 }
 
+func (c *Client) RestartStackWithStatus(ctx context.Context, env string, name string) (int, error) {
+	query := map[string]string{}
+	if resolvedEnv := c.resolveEnv(env); resolvedEnv != "" {
+		query["env"] = resolvedEnv
+	}
+	return c.doJSONWithStatus(ctx, http.MethodPost, "/api/stacks/"+url.PathEscape(name)+"/restart", query, nil, nil)
+}
+
+func (c *Client) DownStackWithStatus(ctx context.Context, env string, name string) (int, error) {
+	query := map[string]string{}
+	if resolvedEnv := c.resolveEnv(env); resolvedEnv != "" {
+		query["env"] = resolvedEnv
+	}
+	return c.doJSONWithStatus(ctx, http.MethodPost, "/api/stacks/"+url.PathEscape(name)+"/down", query, nil, nil)
+}
+
 func (c *Client) DeleteStack(ctx context.Context, env string, name string) (int, error) {
 	query := map[string]string{
 		"force": "true",
@@ -1545,6 +1637,30 @@ func (c *Client) GetStackSources(ctx context.Context) (map[string]stackSourceRes
 		return nil, status, err
 	}
 	return out, status, nil
+}
+
+func (c *Client) DeployGitStack(ctx context.Context, id string) (int, string, error) {
+	endpoint, err := c.baseURL.Parse("/api/git/stacks/" + url.PathEscape(id) + "/deploy-stream")
+	if err != nil {
+		return 0, "", fmt.Errorf("compose deploy URL: %w", err)
+	}
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint.String(), nil)
+	if err != nil {
+		return 0, "", err
+	}
+	if c.sessionCookie != "" {
+		req.Header.Set("Cookie", c.sessionCookie)
+	}
+
+	res, err := c.httpClient.Do(req)
+	if err != nil {
+		return 0, "", err
+	}
+	defer res.Body.Close()
+
+	body, _ := io.ReadAll(io.LimitReader(res.Body, 1024*1024))
+	return res.StatusCode, strings.TrimSpace(string(body)), nil
 }
 
 func (c *Client) Health(ctx context.Context, env string) (*healthResponse, error) {

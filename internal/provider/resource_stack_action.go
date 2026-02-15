@@ -42,7 +42,7 @@ func (r *stackActionResource) Metadata(_ context.Context, req resource.MetadataR
 
 func (r *stackActionResource) Schema(_ context.Context, _ resource.SchemaRequest, resp *resource.SchemaResponse) {
 	resp.Schema = schema.Schema{
-		MarkdownDescription: "Runs a one-shot stack action (`start`, `stop`, or `restart`). Change `trigger` to run it again.",
+		MarkdownDescription: "Runs a one-shot stack action (`start`, `stop`, `restart`, or `down`). Change `trigger` to run it again.",
 		Attributes: map[string]schema.Attribute{
 			"id": schema.StringAttribute{
 				Computed: true,
@@ -116,17 +116,17 @@ func (r *stackActionResource) Create(ctx context.Context, req resource.CreateReq
 			return e
 		})
 	case "restart":
-		if err = r.retryStackAction(ctx, func() error {
-			_, e := r.client.StopStackWithStatus(ctx, env, name)
+		err = r.retryStackAction(ctx, func() error {
+			_, e := r.client.RestartStackWithStatus(ctx, env, name)
 			return e
-		}); err == nil {
-			err = r.retryStackAction(ctx, func() error {
-				_, e := r.client.StartStackWithStatus(ctx, env, name)
-				return e
-			})
-		}
+		})
+	case "down":
+		err = r.retryStackAction(ctx, func() error {
+			_, e := r.client.DownStackWithStatus(ctx, env, name)
+			return e
+		})
 	default:
-		resp.Diagnostics.AddError("Invalid action", "Supported actions: start, stop, restart.")
+		resp.Diagnostics.AddError("Invalid action", "Supported actions: start, stop, restart, down.")
 		return
 	}
 	if err != nil {
