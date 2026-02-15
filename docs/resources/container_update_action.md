@@ -23,6 +23,12 @@ resource "dockhand_container_update_action" "update" {
 
 - `env` (String)
 - `payload_json` (String) JSON object sent to `/api/containers/{id}/update`.
+- `restart_policy_name` (String) Typed helper for `RestartPolicy.Name`.
+- `restart_policy_maximum_retry_count` (Number) Typed helper for `RestartPolicy.MaximumRetryCount`.
+- `cpu_shares` (Number) Typed helper for `CpuShares`.
+- `pids_limit` (Number) Typed helper for `PidsLimit`.
+- `memory_bytes` (Number) Typed helper for `Memory`.
+- `nano_cpus` (Number) Typed helper for `NanoCpus`.
 - `trigger` (String)
 
 ### Read-Only

@@ -115,6 +115,7 @@ provider "dockhand" {}
 resource "dockhand_container_update_action" "test" {
   env          = %q
   container_id = %q
+  restart_policy_name = "no"
   payload_json = jsonencode({})
   trigger      = %q
 }

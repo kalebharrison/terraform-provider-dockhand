@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"strconv"
+	"strings"
 
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
 	"github.com/hashicorp/terraform-plugin-framework/datasource/schema"
@@ -46,6 +47,10 @@ type schedulesExecutionsDataSourceModel struct {
 	ID             types.String                 `tfsdk:"id"`
 	Limit          types.Int64                  `tfsdk:"limit"`
 	Offset         types.Int64                  `tfsdk:"offset"`
+	FilterType     types.String                 `tfsdk:"filter_schedule_type"`
+	FilterID       types.String                 `tfsdk:"filter_schedule_id"`
+	FilterStatus   types.String                 `tfsdk:"filter_status"`
+	FilterEnvID    types.String                 `tfsdk:"filter_environment_id"`
 	Total          types.Int64                  `tfsdk:"total"`
 	ReturnedLimit  types.Int64                  `tfsdk:"returned_limit"`
 	ReturnedOffset types.Int64                  `tfsdk:"returned_offset"`
@@ -60,9 +65,21 @@ func (d *schedulesExecutionsDataSource) Schema(_ context.Context, _ datasource.S
 	resp.Schema = schema.Schema{
 		MarkdownDescription: "Reads schedule execution history from `/api/schedules/executions`.",
 		Attributes: map[string]schema.Attribute{
-			"id":              schema.StringAttribute{Computed: true},
-			"limit":           schema.Int64Attribute{Optional: true},
-			"offset":          schema.Int64Attribute{Optional: true},
+			"id":     schema.StringAttribute{Computed: true},
+			"limit":  schema.Int64Attribute{Optional: true},
+			"offset": schema.Int64Attribute{Optional: true},
+			"filter_schedule_type": schema.StringAttribute{
+				Optional: true,
+			},
+			"filter_schedule_id": schema.StringAttribute{
+				Optional: true,
+			},
+			"filter_status": schema.StringAttribute{
+				Optional: true,
+			},
+			"filter_environment_id": schema.StringAttribute{
+				Optional: true,
+			},
 			"total":           schema.Int64Attribute{Computed: true},
 			"returned_limit":  schema.Int64Attribute{Computed: true},
 			"returned_offset": schema.Int64Attribute{Computed: true},
@@ -145,16 +162,28 @@ func (d *schedulesExecutionsDataSource) Read(ctx context.Context, req datasource
 	}
 
 	out := schedulesExecutionsDataSourceModel{
-		ID:             types.StringValue(fmt.Sprintf("dockhand-schedule-executions:%d:%d", limit, offset)),
+		ID:             types.StringValue(fmt.Sprintf("dockhand-schedule-executions:%d:%d:%s:%s:%s:%s", limit, offset, strings.TrimSpace(config.FilterType.ValueString()), strings.TrimSpace(config.FilterID.ValueString()), strings.TrimSpace(config.FilterStatus.ValueString()), strings.TrimSpace(config.FilterEnvID.ValueString()))),
 		Limit:          types.Int64Value(limit),
 		Offset:         types.Int64Value(offset),
+		FilterType:     config.FilterType,
+		FilterID:       config.FilterID,
+		FilterStatus:   config.FilterStatus,
+		FilterEnvID:    config.FilterEnvID,
 		Total:          types.Int64Value(apiOut.Total),
 		ReturnedLimit:  types.Int64Value(apiOut.Limit),
 		ReturnedOffset: types.Int64Value(apiOut.Offset),
 		Executions:     make([]scheduleExecutionItemModel, 0, len(apiOut.Executions)),
 	}
 
+	filterType := strings.TrimSpace(config.FilterType.ValueString())
+	filterID := strings.TrimSpace(config.FilterID.ValueString())
+	filterStatus := strings.TrimSpace(config.FilterStatus.ValueString())
+	filterEnvID := strings.TrimSpace(config.FilterEnvID.ValueString())
+
 	for _, e := range apiOut.Executions {
+		if !matchesScheduleExecutionFilters(e, filterType, filterID, filterStatus, filterEnvID) {
+			continue
+		}
 		item := scheduleExecutionItemModel{
 			ID:           types.StringValue(strconv.FormatInt(e.ID, 10)),
 			ScheduleType: types.StringValue(e.ScheduleType),
@@ -224,6 +253,26 @@ func (d *schedulesExecutionsDataSource) Read(ctx context.Context, req datasource
 	}
 
 	resp.Diagnostics.Append(resp.State.Set(ctx, &out)...)
+}
+
+func matchesScheduleExecutionFilters(e scheduleExecutionItemResponse, filterType string, filterID string, filterStatus string, filterEnvID string) bool {
+	if filterType != "" && e.ScheduleType != filterType {
+		return false
+	}
+	if filterID != "" && strconv.FormatInt(e.ScheduleID, 10) != filterID {
+		return false
+	}
+	if filterStatus != "" {
+		if e.Status == nil || *e.Status != filterStatus {
+			return false
+		}
+	}
+	if filterEnvID != "" {
+		if e.EnvironmentID == nil || strconv.FormatInt(*e.EnvironmentID, 10) != filterEnvID {
+			return false
+		}
+	}
+	return true
 }
 
 func mustJSON(v any) string {
