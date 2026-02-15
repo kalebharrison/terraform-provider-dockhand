@@ -51,10 +51,15 @@ delete_containers_named() {
   local payload
   payload="$(api_get "${query}")"
   local ids
-  ids="$(printf '%s' "${payload}" | /usr/bin/python3 - "${target_name}" <<'PY'
-import json, sys
+  ids="$(/usr/bin/python3 - "${target_name}" "${payload}" <<'PY'
+import json
+import sys
 name = sys.argv[1]
-items = json.load(sys.stdin)
+raw = sys.argv[2]
+try:
+    items = json.loads(raw)
+except Exception:
+    items = []
 for item in items:
     if str(item.get("name", "")) == name:
         print(item.get("id", ""))
@@ -85,10 +90,15 @@ delete_networks_named() {
   local payload
   payload="$(api_get "${query}")"
   local ids
-  ids="$(printf '%s' "${payload}" | /usr/bin/python3 - "${target_name}" <<'PY'
-import json, sys
+  ids="$(/usr/bin/python3 - "${target_name}" "${payload}" <<'PY'
+import json
+import sys
 name = sys.argv[1]
-items = json.load(sys.stdin)
+raw = sys.argv[2]
+try:
+    items = json.loads(raw)
+except Exception:
+    items = []
 for item in items:
     if str(item.get("name", "")) == name:
         print(item.get("id", ""))
@@ -128,10 +138,14 @@ delete_by_name() {
   local payload
   payload="$(api_get "${list_path}")"
   local ids
-  ids="$(printf '%s' "${payload}" | /usr/bin/python3 - "${id_key}" "${name_key}" "${target_name}" <<'PY'
-import json, sys
-id_key, name_key, target = sys.argv[1], sys.argv[2], sys.argv[3]
-items = json.load(sys.stdin)
+  ids="$(/usr/bin/python3 - "${id_key}" "${name_key}" "${target_name}" "${payload}" <<'PY'
+import json
+import sys
+id_key, name_key, target, raw = sys.argv[1], sys.argv[2], sys.argv[3], sys.argv[4]
+try:
+    items = json.loads(raw)
+except Exception:
+    items = []
 for item in items:
     if str(item.get(name_key, "")) == target:
         print(item.get(id_key, ""))
@@ -155,10 +169,15 @@ delete_test_user() {
   fi
 
   local ids
-  ids="$(printf '%s' "${payload}" | /usr/bin/python3 - <<'PY'
-import json, sys
+  ids="$(/usr/bin/python3 - "${payload}" <<'PY'
+import json
+import sys
+raw = sys.argv[1]
 target = "tf-test-user"
-items = json.load(sys.stdin)
+try:
+    items = json.loads(raw)
+except Exception:
+    items = []
 for item in items:
     if str(item.get("username", "")) == target:
         print(item.get("id", ""))
