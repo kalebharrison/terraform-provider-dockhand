@@ -26,17 +26,27 @@ provider "dockhand" {
 - `dockhand_git_repository`
 - `dockhand_git_stack_webhook_action`
 - `dockhand_git_stack_deploy_action`
+- `dockhand_git_stack_env_file`
 - `dockhand_config_set`
 - `dockhand_notification`
 - `dockhand_environment`
 - `dockhand_network`
+- `dockhand_network_connection_action`
 - `dockhand_volume`
+- `dockhand_volume_clone_action`
 - `dockhand_image`
+- `dockhand_image_push_action`
 - `dockhand_image_scan_action`
 - `dockhand_container`
 - `dockhand_container_file`
 - `dockhand_container_action`
+- `dockhand_container_rename_action`
+- `dockhand_container_update_action`
+- `dockhand_container_check_updates_action`
 - `dockhand_schedule`
+- `dockhand_stack_scan_action`
+- `dockhand_stack_adopt_action`
+- `dockhand_stack_env`
 
 ## Data Sources
 
@@ -45,9 +55,15 @@ provider "dockhand" {
 - `dockhand_hawser_status`
 - `dockhand_auth_providers`
 - `dockhand_schedules`
+- `dockhand_schedules_executions`
+- `dockhand_containers`
+- `dockhand_container_stats`
+- `dockhand_container_pending_updates`
+- `dockhand_container_shells`
 - `dockhand_container_logs`
 - `dockhand_container_inspect`
 - `dockhand_container_processes`
+- `dockhand_stack_sources`
 - `dockhand_stacks`
 
 ## Schema

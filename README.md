@@ -16,6 +16,7 @@ This initial scaffold includes:
 - Resource: `dockhand_git_repository`
 - Resource: `dockhand_git_stack_webhook_action`
 - Resource: `dockhand_git_stack_deploy_action`
+- Resource: `dockhand_git_stack_env_file`
 - Resource: `dockhand_config_set`
 - Resource: `dockhand_network`
 - Resource: `dockhand_volume`
@@ -25,6 +26,7 @@ This initial scaffold includes:
 - Resource: `dockhand_container_file`
 - Resource: `dockhand_container_action`
 - Resource: `dockhand_schedule`
+- Resource: `dockhand_stack_env`
 - Data source: `dockhand_health`
 - Data source: `dockhand_activity`
 - Data source: `dockhand_hawser_status`
@@ -53,6 +55,12 @@ This initial scaffold includes:
   - `GET /api/activity`
   - `GET /api/hawser/connect`
   - `POST /api/git/stacks/{id}/webhook`
+  - `GET /api/git/stacks/{id}/env-files`
+  - `POST /api/git/stacks/{id}/env-files`
+  - `GET /api/stacks/{name}/env`
+  - `PUT /api/stacks/{name}/env`
+  - `GET /api/stacks/{name}/env/raw`
+  - `PUT /api/stacks/{name}/env/raw`
   - `GET /api/schedules`
   - `POST /api/schedules/system/{id}/toggle`
   - `POST /api/schedules/{type}/{id}/toggle`
@@ -157,6 +165,14 @@ go test -v ./internal/provider -run 'TestAcc(UserResource|ContainerRenameAction)
 # Optional container update action acceptance test (uses an existing container fixture):
 export DOCKHAND_TEST_UPDATE_CONTAINER_ID="existing-container-id"
 go test -v ./internal/provider -run 'TestAccContainerUpdateAction'
+
+# New surfaces acceptance tests (optional env-gated cases):
+# - Requires an existing running container for directory tests:
+export DOCKHAND_TEST_FILE_CONTAINER_ID="existing-container-id"
+# - Requires a git-managed stack id and an env-file path in that stack repo:
+export DOCKHAND_TEST_GIT_STACK_ID="12"
+export DOCKHAND_TEST_GIT_STACK_ENV_PATH="stacks/app/.env"
+go test -v ./internal/provider -run 'TestAcc(ContainerFileDirectoryResourceTerraform|ContainerProcessesDataSourceTerraform|StackActionDownTerraform|StackEnvResourceTerraform|GitStackEnvFileResourceTerraform)'
 ```
 
 ## Release

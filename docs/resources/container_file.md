@@ -1,6 +1,6 @@
 # dockhand_container_file (Resource)
 
-Manages a text file inside a running container.
+Manages a file or directory inside a running container.
 
 ## Example Usage
 
@@ -9,6 +9,7 @@ resource "dockhand_container_file" "motd" {
   env          = "2"
   container_id = "abc123"
   path         = "/tmp/motd.txt"
+  type         = "file"
   content      = "managed by terraform"
 }
 ```
@@ -19,11 +20,12 @@ resource "dockhand_container_file" "motd" {
 
 - `container_id` (String)
 - `path` (String)
-- `content` (String)
 
 ### Optional
 
 - `env` (String)
+- `type` (String) `file` (default) or `directory`.
+- `content` (String) File content. Applies when `type = "file"`.
 
 ### Read-Only
 

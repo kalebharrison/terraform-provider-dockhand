@@ -286,6 +286,20 @@ type gitRepositoryResponse struct {
 	UpdatedAt          *string `json:"updatedAt"`
 }
 
+type stackEnvVariable struct {
+	Key      string `json:"key"`
+	Value    string `json:"value"`
+	IsSecret bool   `json:"isSecret"`
+}
+
+type stackEnvResponse struct {
+	Variables []stackEnvVariable `json:"variables"`
+}
+
+type stackEnvRawResponse struct {
+	Content string `json:"content"`
+}
+
 type configSetKV struct {
 	Key   string `json:"key"`
 	Value string `json:"value"`
@@ -794,6 +808,31 @@ func (c *Client) DeleteGitRepository(ctx context.Context, id string) (int, error
 
 func (c *Client) TriggerGitStackWebhook(ctx context.Context, id string) (int, error) {
 	return c.doJSONWithStatus(ctx, http.MethodPost, "/api/git/stacks/"+url.PathEscape(id)+"/webhook", nil, map[string]any{}, nil)
+}
+
+func (c *Client) ListGitStackEnvFiles(ctx context.Context, id string) ([]string, int, error) {
+	var out struct {
+		Files []string `json:"files"`
+	}
+	status, err := c.doJSONWithStatus(ctx, http.MethodGet, "/api/git/stacks/"+url.PathEscape(id)+"/env-files", nil, nil, &out)
+	if err != nil {
+		return nil, status, err
+	}
+	return out.Files, status, nil
+}
+
+func (c *Client) GetGitStackEnvFileVars(ctx context.Context, id string, path string) (map[string]string, int, error) {
+	payload := map[string]string{
+		"path": path,
+	}
+	var out struct {
+		Vars map[string]string `json:"vars"`
+	}
+	status, err := c.doJSONWithStatus(ctx, http.MethodPost, "/api/git/stacks/"+url.PathEscape(id)+"/env-files", nil, payload, &out)
+	if err != nil {
+		return nil, status, err
+	}
+	return out.Vars, status, nil
 }
 
 func (c *Client) ListConfigSets(ctx context.Context) ([]configSetResponse, int, error) {
@@ -1558,6 +1597,54 @@ func (c *Client) GetStackByName(ctx context.Context, env string, name string) (*
 	}
 
 	return nil, false, nil
+}
+
+func (c *Client) GetStackEnvVars(ctx context.Context, env string, name string) ([]stackEnvVariable, int, error) {
+	query := map[string]string{}
+	if resolvedEnv := c.resolveEnv(env); resolvedEnv != "" {
+		query["env"] = resolvedEnv
+	}
+	var out stackEnvResponse
+	status, err := c.doJSONWithStatus(ctx, http.MethodGet, "/api/stacks/"+url.PathEscape(name)+"/env", query, nil, &out)
+	if err != nil {
+		return nil, status, err
+	}
+	return out.Variables, status, nil
+}
+
+func (c *Client) UpdateStackEnvVars(ctx context.Context, env string, name string, variables []stackEnvVariable) (int, error) {
+	query := map[string]string{}
+	if resolvedEnv := c.resolveEnv(env); resolvedEnv != "" {
+		query["env"] = resolvedEnv
+	}
+	payload := map[string]any{
+		"variables": variables,
+	}
+	return c.doJSONWithStatus(ctx, http.MethodPut, "/api/stacks/"+url.PathEscape(name)+"/env", query, payload, nil)
+}
+
+func (c *Client) GetStackEnvRaw(ctx context.Context, env string, name string) (string, int, error) {
+	query := map[string]string{}
+	if resolvedEnv := c.resolveEnv(env); resolvedEnv != "" {
+		query["env"] = resolvedEnv
+	}
+	var out stackEnvRawResponse
+	status, err := c.doJSONWithStatus(ctx, http.MethodGet, "/api/stacks/"+url.PathEscape(name)+"/env/raw", query, nil, &out)
+	if err != nil {
+		return "", status, err
+	}
+	return out.Content, status, nil
+}
+
+func (c *Client) UpdateStackEnvRaw(ctx context.Context, env string, name string, content string) (int, error) {
+	query := map[string]string{}
+	if resolvedEnv := c.resolveEnv(env); resolvedEnv != "" {
+		query["env"] = resolvedEnv
+	}
+	payload := map[string]string{
+		"content": content,
+	}
+	return c.doJSONWithStatus(ctx, http.MethodPut, "/api/stacks/"+url.PathEscape(name)+"/env/raw", query, payload, nil)
 }
 
 func (c *Client) StartStack(ctx context.Context, env string, name string) error {

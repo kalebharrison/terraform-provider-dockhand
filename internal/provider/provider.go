@@ -185,6 +185,7 @@ func (p *dockhandProvider) Resources(_ context.Context) []func() resource.Resour
 		NewGitRepositoryResource,
 		NewGitStackWebhookActionResource,
 		NewGitStackDeployActionResource,
+		NewGitStackEnvFileResource,
 		NewConfigSetResource,
 		NewNotificationResource,
 		NewEnvironmentResource,
@@ -205,6 +206,7 @@ func (p *dockhandProvider) Resources(_ context.Context) []func() resource.Resour
 		NewStackActionResource,
 		NewStackScanActionResource,
 		NewStackAdoptActionResource,
+		NewStackEnvResource,
 	}
 }
 

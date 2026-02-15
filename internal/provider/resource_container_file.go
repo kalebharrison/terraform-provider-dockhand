@@ -31,6 +31,7 @@ type containerFileResourceModel struct {
 	Env         types.String `tfsdk:"env"`
 	ContainerID types.String `tfsdk:"container_id"`
 	Path        types.String `tfsdk:"path"`
+	Type        types.String `tfsdk:"type"`
 	Content     types.String `tfsdk:"content"`
 }
 
@@ -40,7 +41,7 @@ func (r *containerFileResource) Metadata(_ context.Context, req resource.Metadat
 
 func (r *containerFileResource) Schema(_ context.Context, _ resource.SchemaRequest, resp *resource.SchemaResponse) {
 	resp.Schema = schema.Schema{
-		MarkdownDescription: "Manages a text file inside a running container via Dockhand file APIs.",
+		MarkdownDescription: "Manages a file or directory inside a running container via Dockhand file APIs.",
 		Attributes: map[string]schema.Attribute{
 			"id": schema.StringAttribute{
 				Computed: true,
@@ -63,8 +64,16 @@ func (r *containerFileResource) Schema(_ context.Context, _ resource.SchemaReque
 					stringplanmodifier.RequiresReplace(),
 				},
 			},
+			"type": schema.StringAttribute{
+				Optional: true,
+				Computed: true,
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.RequiresReplace(),
+				},
+			},
 			"content": schema.StringAttribute{
-				Required: true,
+				Optional: true,
+				Computed: true,
 			},
 		},
 	}
@@ -97,7 +106,18 @@ func (r *containerFileResource) Create(ctx context.Context, req resource.CreateR
 	env := plan.Env.ValueString()
 	containerID := strings.TrimSpace(plan.ContainerID.ValueString())
 	filePath := strings.TrimSpace(plan.Path.ValueString())
-	content := plan.Content.ValueString()
+	entryType := strings.ToLower(strings.TrimSpace(plan.Type.ValueString()))
+	if entryType == "" {
+		entryType = "file"
+	}
+	if entryType != "file" && entryType != "directory" {
+		resp.Diagnostics.AddError("Invalid type", "`type` must be `file` or `directory`.")
+		return
+	}
+	content := ""
+	if !plan.Content.IsNull() && !plan.Content.IsUnknown() {
+		content = plan.Content.ValueString()
+	}
 
 	if containerID == "" {
 		resp.Diagnostics.AddError("Invalid container ID", "`container_id` cannot be empty.")
@@ -108,7 +128,7 @@ func (r *containerFileResource) Create(ctx context.Context, req resource.CreateR
 		return
 	}
 
-	status, err := r.client.CreateContainerFile(ctx, env, containerID, filePath, "file")
+	status, err := r.client.CreateContainerFile(ctx, env, containerID, filePath, entryType)
 	if err != nil {
 		resp.Diagnostics.AddError("Error creating Dockhand container file", err.Error())
 		return
@@ -118,17 +138,23 @@ func (r *containerFileResource) Create(ctx context.Context, req resource.CreateR
 		return
 	}
 
-	status, err = r.client.UpdateContainerFileContent(ctx, env, containerID, filePath, content)
-	if err != nil {
-		resp.Diagnostics.AddError("Error writing Dockhand container file", err.Error())
-		return
-	}
-	if status < 200 || status > 299 {
-		resp.Diagnostics.AddError("Error writing Dockhand container file", fmt.Sprintf("Dockhand returned status %d", status))
-		return
+	if entryType == "file" {
+		status, err = r.client.UpdateContainerFileContent(ctx, env, containerID, filePath, content)
+		if err != nil {
+			resp.Diagnostics.AddError("Error writing Dockhand container file", err.Error())
+			return
+		}
+		if status < 200 || status > 299 {
+			resp.Diagnostics.AddError("Error writing Dockhand container file", fmt.Sprintf("Dockhand returned status %d", status))
+			return
+		}
+		plan.Content = types.StringValue(content)
+	} else {
+		plan.Content = types.StringNull()
 	}
 
 	plan.ID = types.StringValue(fmt.Sprintf("%s:%s:%s", env, containerID, filePath))
+	plan.Type = types.StringValue(entryType)
 	resp.Diagnostics.Append(resp.State.Set(ctx, &plan)...)
 }
 
@@ -144,25 +170,32 @@ func (r *containerFileResource) Read(ctx context.Context, req resource.ReadReque
 		return
 	}
 
-	content, status, err := r.client.GetContainerFileContent(ctx, state.Env.ValueString(), state.ContainerID.ValueString(), state.Path.ValueString())
-	if err != nil {
+	if strings.EqualFold(state.Type.ValueString(), "file") || state.Type.IsNull() || state.Type.IsUnknown() {
+		content, status, err := r.client.GetContainerFileContent(ctx, state.Env.ValueString(), state.ContainerID.ValueString(), state.Path.ValueString())
+		if err != nil {
+			if status == http.StatusNotFound {
+				resp.State.RemoveResource(ctx)
+				return
+			}
+			resp.Diagnostics.AddError("Error reading Dockhand container file", err.Error())
+			return
+		}
 		if status == http.StatusNotFound {
 			resp.State.RemoveResource(ctx)
 			return
 		}
-		resp.Diagnostics.AddError("Error reading Dockhand container file", err.Error())
-		return
-	}
-	if status == http.StatusNotFound {
-		resp.State.RemoveResource(ctx)
-		return
-	}
-	if status < 200 || status > 299 {
-		resp.Diagnostics.AddError("Error reading Dockhand container file", fmt.Sprintf("Dockhand returned status %d", status))
-		return
+		if status < 200 || status > 299 {
+			resp.Diagnostics.AddError("Error reading Dockhand container file", fmt.Sprintf("Dockhand returned status %d", status))
+			return
+		}
+		state.Content = types.StringValue(content)
+	} else {
+		state.Content = types.StringNull()
 	}
 
-	state.Content = types.StringValue(content)
+	if state.Type.IsNull() || state.Type.IsUnknown() {
+		state.Type = types.StringValue("file")
+	}
 	resp.Diagnostics.Append(resp.State.Set(ctx, &state)...)
 }
 
@@ -178,15 +211,29 @@ func (r *containerFileResource) Update(ctx context.Context, req resource.UpdateR
 		return
 	}
 
-	status, err := r.client.UpdateContainerFileContent(ctx, plan.Env.ValueString(), plan.ContainerID.ValueString(), plan.Path.ValueString(), plan.Content.ValueString())
-	if err != nil {
-		resp.Diagnostics.AddError("Error updating Dockhand container file", err.Error())
-		return
+	entryType := strings.ToLower(strings.TrimSpace(plan.Type.ValueString()))
+	if entryType == "" {
+		entryType = "file"
 	}
-	if status < 200 || status > 299 {
-		resp.Diagnostics.AddError("Error updating Dockhand container file", fmt.Sprintf("Dockhand returned status %d", status))
-		return
+	if entryType == "file" {
+		content := ""
+		if !plan.Content.IsNull() && !plan.Content.IsUnknown() {
+			content = plan.Content.ValueString()
+		}
+		status, err := r.client.UpdateContainerFileContent(ctx, plan.Env.ValueString(), plan.ContainerID.ValueString(), plan.Path.ValueString(), content)
+		if err != nil {
+			resp.Diagnostics.AddError("Error updating Dockhand container file", err.Error())
+			return
+		}
+		if status < 200 || status > 299 {
+			resp.Diagnostics.AddError("Error updating Dockhand container file", fmt.Sprintf("Dockhand returned status %d", status))
+			return
+		}
+		plan.Content = types.StringValue(content)
+	} else {
+		plan.Content = types.StringNull()
 	}
+	plan.Type = types.StringValue(entryType)
 
 	resp.Diagnostics.Append(resp.State.Set(ctx, &plan)...)
 }

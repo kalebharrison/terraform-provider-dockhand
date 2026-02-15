@@ -55,6 +55,8 @@ Source: [Dockhand Manual API Reference](https://dockhand.pro/manual/#api-referen
 | `dockhand_git_repository` | Delete | `DELETE /api/git/repositories/{id}` | `404` treated as already deleted. | implemented |
 | `dockhand_git_stack_webhook_action` | Trigger webhook | `POST /api/git/stacks/{id}/webhook` | One-shot trigger for git stack deploy/sync webhook flow. | implemented |
 | `dockhand_git_stack_deploy_action` | Trigger deploy | `POST /api/git/stacks/{id}/deploy-stream` | One-shot deploy request for git-managed stacks. | implemented |
+| `dockhand_git_stack_env_file` | Read available env-file paths | `GET /api/git/stacks/{id}/env-files` | Reads env-file path inventory for a git-managed stack. | implemented |
+| `dockhand_git_stack_env_file` | Read selected env-file variables | `POST /api/git/stacks/{id}/env-files` | Reads key/value variables for a selected env file path. | implemented |
 | `dockhand_config_set` | Create | `POST /api/config-sets` | Supports name/description/envVars/labels/ports/volumes/networkMode/restartPolicy. | partial |
 | `dockhand_config_set` | Read | `GET /api/config-sets/{id}` | `404` removes from state. | implemented |
 | `dockhand_config_set` | Update | `PUT /api/config-sets/{id}` | Updates config set settings. | partial |
@@ -83,8 +85,12 @@ Source: [Dockhand Manual API Reference](https://dockhand.pro/manual/#api-referen
 | `dockhand_container` | Delete | `DELETE /api/containers/{id}?env={env_id}` | `404` treated as already deleted. | implemented |
 | `dockhand_container` | Import | `GET /api/containers?env={env_id}` | Import formats: `<id>` or `<env>:<id>`. | implemented |
 | `dockhand_container_action` | Execute action | `POST /api/containers/{id}/start`, `POST /api/containers/{id}/stop`, `POST /api/containers/{id}/restart` | One-shot runtime action resource with replace-by-trigger behavior. | implemented |
-| `dockhand_container_file` | Manage file | `POST /api/containers/{id}/files/create`, `GET/PUT /api/containers/{id}/files/content`, `DELETE /api/containers/{id}/files/delete` | Manages text file contents in running containers. | implemented |
+| `dockhand_container_file` | Manage file/directory | `POST /api/containers/{id}/files/create`, `GET/PUT /api/containers/{id}/files/content`, `DELETE /api/containers/{id}/files/delete` | Supports creating `file` or `directory`; content read/write applies to `file` type. | implemented |
 | `dockhand_stack_action` | Execute action | `POST /api/stacks/{name}/start`, `POST /api/stacks/{name}/stop`, `POST /api/stacks/{name}/restart`, `POST /api/stacks/{name}/down` | One-shot runtime action resource for stack lifecycle operations. | implemented |
+| `dockhand_stack_env` | Read raw env | `GET /api/stacks/{name}/env/raw?env={env_id}` | Reads stack raw `.env` document. | implemented |
+| `dockhand_stack_env` | Read secret env variables | `GET /api/stacks/{name}/env?env={env_id}` | Reads stack secret variable objects. | implemented |
+| `dockhand_stack_env` | Update raw env | `PUT /api/stacks/{name}/env/raw?env={env_id}` | Writes stack raw `.env` document. | implemented |
+| `dockhand_stack_env` | Update secret env variables | `PUT /api/stacks/{name}/env?env={env_id}` | Writes secret variable list (`isSecret=true`). | implemented |
 | `dockhand_schedule` | Read | `GET /api/schedules` | Resolves existing schedule by `type` + `schedule_id`. | partial |
 | `dockhand_schedule` | Update state | `POST /api/schedules/system/{id}/toggle` or `POST /api/schedules/{type}/{id}/toggle` | Manages pause/resume (`enabled`) for existing schedules. | partial |
 
@@ -110,6 +116,7 @@ Source: [Dockhand Manual API Reference](https://dockhand.pro/manual/#api-referen
 | `/api/schedules` | schedule details/advanced actions (`run`, executions history/settings) | partial |
 | `/api/images` | image actions (`scan`, `push`) | partial |
 | `/api/containers` | exec websocket, upload/download streams, and advanced create/update options coverage | partial |
+| `/api/stacks/{name}/env` | broader non-secret env var editing semantics | partial |
 | `/api/volumes` | advanced volume operations (`clone`, `browse`, import/export) | partial |
 | `/api/networks` | advanced network operations (`connect`, inspect details as separate surface) | partial |
 | `/api/configs` | config management resource/data source | planned |

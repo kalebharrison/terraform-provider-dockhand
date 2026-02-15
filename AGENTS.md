@@ -21,6 +21,7 @@ Repository guidance for coding agents working on `terraform-provider-dockhand`.
   - Resource: `dockhand_git_repository`
   - Resource: `dockhand_git_stack_webhook_action`
   - Resource: `dockhand_git_stack_deploy_action`
+  - Resource: `dockhand_git_stack_env_file`
   - Resource: `dockhand_config_set`
   - Resource: `dockhand_environment`
   - Resource: `dockhand_network`
@@ -38,6 +39,7 @@ Repository guidance for coding agents working on `terraform-provider-dockhand`.
   - Resource: `dockhand_container_check_updates_action`
   - Resource: `dockhand_schedule`
   - Resource: `dockhand_stack_adopt_action`
+  - Resource: `dockhand_stack_env`
   - Data source: `dockhand_health`
   - Data source: `dockhand_activity`
   - Data source: `dockhand_hawser_status`
@@ -152,10 +154,16 @@ Avoid testing by building local zips for release validation.
   - `GET /api/hawser/connect`
   - `POST /api/git/stacks/{id}/webhook`
   - `POST /api/git/stacks/{id}/deploy-stream`
+  - `GET /api/git/stacks/{id}/env-files`
+  - `POST /api/git/stacks/{id}/env-files`
   - `GET /api/schedules`
   - `GET /api/schedules/executions`
   - `POST /api/stacks/scan`
   - `POST /api/stacks/adopt`
+  - `GET /api/stacks/{name}/env`
+  - `PUT /api/stacks/{name}/env`
+  - `GET /api/stacks/{name}/env/raw`
+  - `PUT /api/stacks/{name}/env/raw`
   - `GET /api/stacks/sources`
   - `POST /api/schedules/system/{id}/toggle`
   - `POST /api/schedules/{type}/{id}/toggle`
