@@ -118,6 +118,7 @@ Avoid testing by building local zips for release validation.
   - `auth_provider` (optional, default `local`)
   - `default_env`
   - `insecure`
+  - `allow_unauthenticated` (optional, for first-install bootstrap flows)
 - Environment variable fallbacks:
   - `DOCKHAND_ENDPOINT`
   - `DOCKHAND_USERNAME`
@@ -125,6 +126,7 @@ Avoid testing by building local zips for release validation.
   - `DOCKHAND_MFA_TOKEN`
   - `DOCKHAND_AUTH_PROVIDER`
   - `DOCKHAND_DEFAULT_ENV`
+  - `DOCKHAND_ALLOW_UNAUTHENTICATED`
 
 ## API Integration Notes
 

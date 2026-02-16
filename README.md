@@ -6,7 +6,7 @@ Terraform provider for managing Dockhand resources.
 
 This provider currently includes:
 
-- Provider config with `endpoint`, `username`/`password` (login-based), `default_env`, and `insecure`.
+- Provider config with `endpoint`, `username`/`password` (login-based), `default_env`, `insecure`, and `allow_unauthenticated` (bootstrap mode).
 - Resource: `dockhand_stack`
 - Resource: `dockhand_stack_action`
 - Resource: `dockhand_user`
@@ -133,6 +133,12 @@ provider "dockhand" {
   password       = var.dockhand_password
   default_env    = "1"
 }
+
+# Fresh-install bootstrap mode (auth disabled): allow unauthenticated calls so the first admin can be created.
+provider "dockhand" {
+  endpoint              = "https://dockhand.example.com"
+  allow_unauthenticated = true
+}
 ```
 
 Local development (private, no registry publish):
@@ -184,6 +190,26 @@ resource "dockhand_user" "example" {
   is_active    = true
 }
 ```
+
+Bootstrap (fresh install with auth disabled):
+
+```hcl
+provider "dockhand" {
+  endpoint              = "http://dockhand.example.internal:13001"
+  allow_unauthenticated = true
+}
+
+resource "dockhand_user" "initial_admin" {
+  username     = "admin"
+  password     = var.initial_admin_password
+  email        = "admin@example.local"
+  display_name = "Initial Admin"
+  is_admin     = true
+  is_active    = true
+}
+```
+
+After the initial admin exists, switch back to normal provider auth (`username`/`password`) for ongoing Terraform management.
 
 ## Acceptance Tests
 

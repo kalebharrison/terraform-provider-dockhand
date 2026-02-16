@@ -626,9 +626,6 @@ func NewClient(endpoint string, sessionCookie string, defaultEnv string, insecur
 	if endpoint == "" {
 		return nil, fmt.Errorf("endpoint is required")
 	}
-	if sessionCookie == "" {
-		return nil, fmt.Errorf("session cookie is required")
-	}
 
 	if !strings.HasPrefix(endpoint, "http://") && !strings.HasPrefix(endpoint, "https://") {
 		endpoint = "https://" + endpoint

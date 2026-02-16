@@ -27,13 +27,14 @@ type dockhandProvider struct {
 }
 
 type dockhandProviderModel struct {
-	Endpoint     types.String `tfsdk:"endpoint"`
-	Username     types.String `tfsdk:"username"`
-	Password     types.String `tfsdk:"password"`
-	MFAToken     types.String `tfsdk:"mfa_token"`
-	AuthProvider types.String `tfsdk:"auth_provider"`
-	DefaultEnv   types.String `tfsdk:"default_env"`
-	Insecure     types.Bool   `tfsdk:"insecure"`
+	Endpoint             types.String `tfsdk:"endpoint"`
+	Username             types.String `tfsdk:"username"`
+	Password             types.String `tfsdk:"password"`
+	MFAToken             types.String `tfsdk:"mfa_token"`
+	AuthProvider         types.String `tfsdk:"auth_provider"`
+	DefaultEnv           types.String `tfsdk:"default_env"`
+	Insecure             types.Bool   `tfsdk:"insecure"`
+	AllowUnauthenticated types.Bool   `tfsdk:"allow_unauthenticated"`
 }
 
 func (p *dockhandProvider) Metadata(_ context.Context, _ provider.MetadataRequest, resp *provider.MetadataResponse) {
@@ -72,6 +73,10 @@ func (p *dockhandProvider) Schema(_ context.Context, _ provider.SchemaRequest, r
 			},
 			"insecure": schema.BoolAttribute{
 				MarkdownDescription: "Disable TLS verification for API requests. Useful only for local development.",
+				Optional:            true,
+			},
+			"allow_unauthenticated": schema.BoolAttribute{
+				MarkdownDescription: "Allow provider initialization without login credentials. Intended for first-install bootstrap flows (for example creating the initial admin user when Dockhand auth is disabled). Can also be set with `DOCKHAND_ALLOW_UNAUTHENTICATED`.",
 				Optional:            true,
 			},
 		},
@@ -123,6 +128,17 @@ func (p *dockhandProvider) Configure(ctx context.Context, req provider.Configure
 		insecure = config.Insecure.ValueBool()
 	}
 
+	allowUnauthenticated := false
+	if raw := os.Getenv("DOCKHAND_ALLOW_UNAUTHENTICATED"); raw != "" {
+		switch raw {
+		case "1", "true", "TRUE", "yes", "YES":
+			allowUnauthenticated = true
+		}
+	}
+	if !config.AllowUnauthenticated.IsNull() && !config.AllowUnauthenticated.IsUnknown() {
+		allowUnauthenticated = config.AllowUnauthenticated.ValueBool()
+	}
+
 	if endpoint == "" {
 		resp.Diagnostics.AddError(
 			"Missing Dockhand endpoint",
@@ -131,33 +147,40 @@ func (p *dockhandProvider) Configure(ctx context.Context, req provider.Configure
 		return
 	}
 
-	// Fail fast on missing auth rather than letting every resource/data source call fail later.
+	sessionCookie := ""
 	if username == "" && password == "" {
-		resp.Diagnostics.AddError(
-			"Missing Dockhand authentication",
-			"Set provider `username` and `password` (or export `DOCKHAND_USERNAME`/`DOCKHAND_PASSWORD`).",
+		if !allowUnauthenticated {
+			resp.Diagnostics.AddError(
+				"Missing Dockhand authentication",
+				"Set provider `username` and `password` (or export `DOCKHAND_USERNAME`/`DOCKHAND_PASSWORD`). For first-install bootstrap flows, set `allow_unauthenticated = true` (or `DOCKHAND_ALLOW_UNAUTHENTICATED=true`).",
+			)
+			return
+		}
+		resp.Diagnostics.AddWarning(
+			"Unauthenticated provider mode enabled",
+			"The provider was initialized without login credentials. Only endpoints that Dockhand exposes without auth will work (for example initial bootstrap flows).",
 		)
-		return
-	}
-	if username != "" && password == "" {
-		resp.Diagnostics.AddError(
-			"Incomplete Dockhand authentication",
-			"`username` was set but `password` was not. Set both `username` and `password`.",
-		)
-		return
-	}
-	if password != "" && username == "" {
-		resp.Diagnostics.AddError(
-			"Incomplete Dockhand authentication",
-			"`password` was set but `username` was not. Set both `username` and `password`.",
-		)
-		return
-	}
-
-	sessionCookie, err := Login(ctx, endpoint, username, password, mfaToken, authProvider, insecure)
-	if err != nil {
-		resp.Diagnostics.AddError("Authentication failed", err.Error())
-		return
+	} else {
+		if username != "" && password == "" {
+			resp.Diagnostics.AddError(
+				"Incomplete Dockhand authentication",
+				"`username` was set but `password` was not. Set both `username` and `password`.",
+			)
+			return
+		}
+		if password != "" && username == "" {
+			resp.Diagnostics.AddError(
+				"Incomplete Dockhand authentication",
+				"`password` was set but `username` was not. Set both `username` and `password`.",
+			)
+			return
+		}
+		var err error
+		sessionCookie, err = Login(ctx, endpoint, username, password, mfaToken, authProvider, insecure)
+		if err != nil {
+			resp.Diagnostics.AddError("Authentication failed", err.Error())
+			return
+		}
 	}
 
 	client, err := NewClient(endpoint, sessionCookie, defaultEnv, insecure)

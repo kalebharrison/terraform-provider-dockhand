@@ -25,6 +25,7 @@ Live verification artifacts:
 | `provider.dockhand.auth_provider` | Auth provider | Supports `DOCKHAND_AUTH_PROVIDER`; defaults to `local`. | implemented |
 | `provider.dockhand.default_env` | `env` query default | Supports `DOCKHAND_DEFAULT_ENV`. | implemented |
 | `provider.dockhand.insecure` | TLS behavior | Disables TLS verification for development. | implemented |
+| `provider.dockhand.allow_unauthenticated` | Bootstrap mode | Supports `DOCKHAND_ALLOW_UNAUTHENTICATED`; allows initialization without login credentials for first-install bootstrap flows. | implemented |
 
 ## Resources
 

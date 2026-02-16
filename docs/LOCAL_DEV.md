@@ -36,4 +36,7 @@ export DOCKHAND_ENDPOINT="http://dockhand.example.internal:13001"
 export DOCKHAND_USERNAME="your-username"
 export DOCKHAND_PASSWORD="your-password"
 export DOCKHAND_DEFAULT_ENV="1"
+
+# Optional fresh-install bootstrap mode (no auth configured yet):
+# export DOCKHAND_ALLOW_UNAUTHENTICATED="true"
 ```

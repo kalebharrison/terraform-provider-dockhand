@@ -88,3 +88,4 @@ provider "dockhand" {
 - `auth_provider` (String) Auth provider id (default `local`). Can also be set with `DOCKHAND_AUTH_PROVIDER`.
 - `default_env` (String) Default environment ID used when resources omit `env`. Can also be set with `DOCKHAND_DEFAULT_ENV`.
 - `insecure` (Boolean) Disable TLS verification.
+- `allow_unauthenticated` (Boolean) Allow provider initialization without login credentials for first-install bootstrap flows. Can also be set with `DOCKHAND_ALLOW_UNAUTHENTICATED`.
