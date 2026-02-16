@@ -15,23 +15,32 @@ This checklist is for preparing a public release path for Terraform Registry and
 - Keep provider source address stable (`kalebharrison/dockhand`).
 
 2. Release artifact quality
-- Verify release assets include all supported platform zips plus `SHA256SUMS`.
+- Verify release assets include all supported platform zips plus:
+  - `terraform-provider-dockhand_<version>_SHA256SUMS`
+  - `terraform-provider-dockhand_<version>_SHA256SUMS.sig`
 - Keep naming pattern: `terraform-provider-dockhand_<version>_<os>_<arch>.zip`.
 
-3. Provider documentation completeness
+3. GitHub Actions signing setup
+- Add repository secret `GPG_PRIVATE_KEY`:
+  - ASCII-armored private key for the signing identity.
+- Add repository secret `GPG_PASSPHRASE`:
+  - Passphrase for the private key.
+- Keep the matching public key available for Terraform Registry onboarding.
+
+4. Provider documentation completeness
 - Keep `docs/index.md` resource/data source list current.
 - Keep `docs/api-matrix.md` and `docs/non-present-endpoints.md` current.
 - Include acceptance test prerequisites in `README.md`.
 
-4. Security and hygiene
+5. Security and hygiene
 - No secrets or local override files in git history.
 - Keep `.gitignore` covering local test state and mirrors.
 - Keep endpoint probes and acceptance tests running against non-production fixtures.
 
-5. Registry onboarding tasks
+6. Registry onboarding tasks
 - Terraform Registry:
   - Follow HashiCorp provider publishing/onboarding steps for namespace ownership and releases.
-  - Add any required signing/verification assets per current registry requirements.
+  - Configure the provider signing key in registry onboarding using the public key that matches release signatures.
 - OpenTofu:
   - Decide distribution model (filesystem mirror, release assets, or OpenTofu registry integration).
   - Publish matching versioned artifacts and checksums.

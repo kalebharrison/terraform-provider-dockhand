@@ -215,4 +215,9 @@ This repo currently focuses on private/local development and private distributio
 
 To publish versioned zip artifacts to a GitHub Release (useful for downloading and then installing into a local/team mirror), push a tag like `v0.1.0`.
 
+For Terraform Registry readiness, configure GitHub repository secrets used by the release workflow:
+
+- `GPG_PRIVATE_KEY` (ASCII-armored private key)
+- `GPG_PASSPHRASE` (private key passphrase)
+
 See `docs/PRIVATE_DISTRIBUTION.md` for installing from a filesystem mirror.
