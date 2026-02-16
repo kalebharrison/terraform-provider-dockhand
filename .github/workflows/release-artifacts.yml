@@ -79,7 +79,8 @@ jobs:
           set -euo pipefail
           sums="dist-local/terraform-provider-dockhand_${{ steps.ver.outputs.version }}_SHA256SUMS"
           sig="${sums}.sig"
-          gpg --batch --yes --armor --detach-sign --pinentry-mode loopback \
+          # Terraform Registry expects a binary detached signature (not ASCII-armored).
+          gpg --batch --yes --detach-sign --pinentry-mode loopback \
             --passphrase "${{ secrets.GPG_PASSPHRASE }}" \
             --output "${sig}" "${sums}"
 
