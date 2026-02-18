@@ -13,6 +13,10 @@ resource "dockhand_environment" "socket" {
   protocol        = "http"
   port            = 2375
   tls_skip_verify = false
+  # Optional mTLS inputs for TCP/TLS Docker API endpoints:
+  # ca_cert     = file("${path.module}/certs/ca.pem")
+  # client_cert = file("${path.module}/certs/client.pem")
+  # client_key  = file("${path.module}/certs/client-key.pem")
   icon            = "globe"
 
   collect_activity         = true
@@ -28,5 +32,8 @@ resource "dockhand_environment" "socket" {
 ## Notes
 
 - `socket_path` is required when `connection_type = "socket"`.
-- Additional environment fields returned by Dockhand that are not yet mapped are intentionally omitted.
-
+- mTLS fields are available:
+  - `ca_cert`
+  - `client_cert`
+  - `client_key`
+- Some Dockhand builds may not return cert/key bodies on read for security reasons. The provider preserves prior state values in that case.

@@ -38,6 +38,9 @@ type environmentModel struct {
 	Protocol       types.String `tfsdk:"protocol"`
 	SocketPath     types.String `tfsdk:"socket_path"`
 	TLSSkipVerify  types.Bool   `tfsdk:"tls_skip_verify"`
+	CACert         types.String `tfsdk:"ca_cert"`
+	ClientCert     types.String `tfsdk:"client_cert"`
+	ClientKey      types.String `tfsdk:"client_key"`
 	Icon           types.String `tfsdk:"icon"`
 
 	CollectActivity  types.Bool `tfsdk:"collect_activity"`
@@ -96,6 +99,24 @@ func (r *environmentResource) Schema(_ context.Context, _ resource.SchemaRequest
 			"tls_skip_verify": schema.BoolAttribute{
 				Optional: true,
 				Computed: true,
+			},
+			"ca_cert": schema.StringAttribute{
+				MarkdownDescription: "PEM-encoded CA certificate for mTLS-enabled Docker API endpoints.",
+				Optional:            true,
+				Computed:            true,
+				Sensitive:           true,
+			},
+			"client_cert": schema.StringAttribute{
+				MarkdownDescription: "PEM-encoded client certificate for mTLS-enabled Docker API endpoints.",
+				Optional:            true,
+				Computed:            true,
+				Sensitive:           true,
+			},
+			"client_key": schema.StringAttribute{
+				MarkdownDescription: "PEM-encoded client private key for mTLS-enabled Docker API endpoints.",
+				Optional:            true,
+				Computed:            true,
+				Sensitive:           true,
 			},
 			"icon": schema.StringAttribute{
 				Optional: true,
@@ -295,6 +316,15 @@ func buildEnvironmentPayload(plan environmentModel, prior environmentModel) (env
 	if v, ok := firstKnownBoolPtr(plan.TLSSkipVerify, prior.TLSSkipVerify); ok {
 		payload.TLSSkipVerify = &v
 	}
+	if v := firstKnownString(plan.CACert, prior.CACert); v != "" {
+		payload.CACert = &v
+	}
+	if v := firstKnownString(plan.ClientCert, prior.ClientCert); v != "" {
+		payload.ClientCert = &v
+	}
+	if v := firstKnownString(plan.ClientKey, prior.ClientKey); v != "" {
+		payload.ClientKey = &v
+	}
 	if v := firstKnownString(plan.Icon, prior.Icon); v != "" {
 		payload.Icon = &v
 	}
@@ -353,6 +383,27 @@ func modelFromEnvironmentResponse(prior environmentModel, in *environmentRespons
 		out.SocketPath = types.StringValue(*in.SocketPath)
 	} else {
 		out.SocketPath = types.StringNull()
+	}
+	if in.CACert != nil && *in.CACert != "" {
+		out.CACert = types.StringValue(*in.CACert)
+	} else if !prior.CACert.IsNull() && !prior.CACert.IsUnknown() {
+		out.CACert = prior.CACert
+	} else {
+		out.CACert = types.StringNull()
+	}
+	if in.ClientCert != nil && *in.ClientCert != "" {
+		out.ClientCert = types.StringValue(*in.ClientCert)
+	} else if !prior.ClientCert.IsNull() && !prior.ClientCert.IsUnknown() {
+		out.ClientCert = prior.ClientCert
+	} else {
+		out.ClientCert = types.StringNull()
+	}
+	if in.ClientKey != nil && *in.ClientKey != "" {
+		out.ClientKey = types.StringValue(*in.ClientKey)
+	} else if !prior.ClientKey.IsNull() && !prior.ClientKey.IsUnknown() {
+		out.ClientKey = prior.ClientKey
+	} else {
+		out.ClientKey = types.StringNull()
 	}
 	if in.Timezone != nil {
 		out.Timezone = types.StringValue(*in.Timezone)

@@ -72,9 +72,9 @@ Live verification artifacts:
 | `dockhand_notification` | Read | `GET /api/notifications/{id}` | `404` removes from state. | implemented |
 | `dockhand_notification` | Update | `PUT /api/notifications/{id}` | Updates config and event types. | partial |
 | `dockhand_notification` | Delete | `DELETE /api/notifications/{id}` | `404` treated as already deleted. | implemented |
-| `dockhand_environment` | Create | `POST /api/environments` | Supports Docker environment connection + collection settings. | partial |
+| `dockhand_environment` | Create | `POST /api/environments` | Supports Docker environment connection + collection settings, including mTLS cert/key fields (`ca_cert`, `client_cert`, `client_key`). | partial |
 | `dockhand_environment` | Read | `GET /api/environments/{id}` | `404` removes from state. | implemented |
-| `dockhand_environment` | Update | `PUT /api/environments/{id}` | Updates environment settings. | partial |
+| `dockhand_environment` | Update | `PUT /api/environments/{id}` | Updates environment settings, including mTLS cert/key fields. | partial |
 | `dockhand_environment` | Delete | `DELETE /api/environments/{id}` | `404` treated as already deleted. | implemented |
 | `dockhand_network` | Create | `POST /api/networks?env={env_id}` | Minimal create payload: name + driver (replace-only resource). | partial |
 | `dockhand_network` | Read | `GET /api/networks?env={env_id}` | Reads network list and matches by `id`. | partial |
