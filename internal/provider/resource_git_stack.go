@@ -371,14 +371,15 @@ func buildGitStackPayload(plan gitStackModel) (gitStackPayload, error) {
 		}
 	}
 
-	if webhookEnabled && !plan.WebhookSecret.IsNull() && !plan.WebhookSecret.IsUnknown() {
-		v := strings.TrimSpace(plan.WebhookSecret.ValueString())
-		if v != "" {
-			payload.WebhookSecret = &v
+	if webhookEnabled {
+		if !plan.WebhookSecret.IsNull() && !plan.WebhookSecret.IsUnknown() {
+			secret := strings.TrimSpace(plan.WebhookSecret.ValueString())
+			payload.WebhookSecret = &secret
+		} else if !webhookSecretAutoGenerate {
+			// Explicitly send empty secret when webhook is enabled and auto-generation is disabled.
+			empty := ""
+			payload.WebhookSecret = &empty
 		}
-	}
-	if webhookEnabled && payload.WebhookSecret == nil && !webhookSecretAutoGenerate {
-		return gitStackPayload{}, fmt.Errorf("webhook_secret is required when webhook_enabled=true unless webhook_secret_auto_generate=true")
 	}
 
 	envVars, err := parseGitStackEnvVarsJSON(plan.EnvVarsJSON)
@@ -574,7 +575,9 @@ func mergeGitStackState(preferred gitStackModel, remote gitStackModel) gitStackM
 		// Keep this unset unless explicitly configured in HCL.
 		// Dockhand may generate a secret server-side when webhook is enabled.
 		out.WebhookSecret = types.StringNull()
-	} else if (out.WebhookSecret.IsNull() || out.WebhookSecret.IsUnknown()) && !preferred.WebhookSecret.IsNull() && !preferred.WebhookSecret.IsUnknown() {
+	} else {
+		// Always prefer configured value (including empty string) to avoid
+		// server-generated secret values leaking into Terraform state.
 		out.WebhookSecret = preferred.WebhookSecret
 	}
 	if !preferred.WebhookSecretAutoGenerate.IsNull() && !preferred.WebhookSecretAutoGenerate.IsUnknown() {

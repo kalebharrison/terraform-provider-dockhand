@@ -1,13 +1,12 @@
 package provider
 
 import (
-	"strings"
 	"testing"
 
 	"github.com/hashicorp/terraform-plugin-framework/types"
 )
 
-func TestBuildGitStackPayloadWebhookRequiresSecretUnlessAutoGenerate(t *testing.T) {
+func TestBuildGitStackPayloadWebhookDisabledAutoGenerateSendsEmptySecret(t *testing.T) {
 	plan := gitStackModel{
 		StackName:                 types.StringValue("test-stack"),
 		ComposePath:               types.StringValue("docker-compose.yml"),
@@ -22,9 +21,12 @@ func TestBuildGitStackPayloadWebhookRequiresSecretUnlessAutoGenerate(t *testing.
 		Branch:                    types.StringValue("main"),
 	}
 
-	_, err := buildGitStackPayload(plan)
-	if err == nil || !strings.Contains(err.Error(), "webhook_secret is required") {
-		t.Fatalf("expected webhook_secret validation error, got: %v", err)
+	payload, err := buildGitStackPayload(plan)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if payload.WebhookSecret == nil || *payload.WebhookSecret != "" {
+		t.Fatalf("expected empty webhook secret payload when auto-generate is disabled")
 	}
 }
 
@@ -49,6 +51,40 @@ func TestBuildGitStackPayloadWebhookAllowsAutoGenerate(t *testing.T) {
 	}
 	if payload.WebhookSecret != nil {
 		t.Fatalf("expected webhook secret to remain nil when auto-generate is enabled")
+	}
+}
+
+func TestBuildGitStackPayloadWebhookExplicitSecret(t *testing.T) {
+	plan := gitStackModel{
+		StackName:                 types.StringValue("test-stack"),
+		ComposePath:               types.StringValue("docker-compose.yml"),
+		WebhookEnabled:            types.BoolValue(true),
+		WebhookSecretAutoGenerate: types.BoolValue(false),
+		WebhookSecret:             types.StringValue("custom-secret"),
+		AutoUpdateEnabled:         types.BoolValue(false),
+		AutoUpdateCron:            types.StringValue("0 3 * * *"),
+		DeployNow:                 types.BoolValue(false),
+		EnvVarsJSON:               types.StringValue("[]"),
+		URL:                       types.StringValue("https://example.com/repo.git"),
+		Branch:                    types.StringValue("main"),
+	}
+
+	payload, err := buildGitStackPayload(plan)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if payload.WebhookSecret == nil || *payload.WebhookSecret != "custom-secret" {
+		t.Fatalf("expected explicit webhook secret to be sent")
+	}
+}
+
+func TestMergeGitStackStateWebhookSecretExplicitEmptyWins(t *testing.T) {
+	preferred := gitStackModel{WebhookSecret: types.StringValue("")}
+	remote := gitStackModel{WebhookSecret: types.StringValue("server-generated")}
+
+	merged := mergeGitStackState(preferred, remote)
+	if merged.WebhookSecret.IsNull() || merged.WebhookSecret.ValueString() != "" {
+		t.Fatalf("expected explicit empty webhook_secret to win over server value")
 	}
 }
 
