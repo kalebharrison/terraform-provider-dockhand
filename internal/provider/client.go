@@ -294,6 +294,7 @@ type gitStackEnvVarPayload struct {
 
 type gitStackPayload struct {
 	StackName         string                  `json:"stackName"`
+	EnvironmentID     *int64                  `json:"environmentId,omitempty"`
 	RepositoryID      *int64                  `json:"repositoryId,omitempty"`
 	RepoName          *string                 `json:"repoName,omitempty"`
 	URL               *string                 `json:"url,omitempty"`

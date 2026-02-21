@@ -202,6 +202,10 @@ func (r *gitStackResource) Create(ctx context.Context, req resource.CreateReques
 		resp.Diagnostics.AddError("Invalid git stack configuration", err.Error())
 		return
 	}
+	if err := setGitStackPayloadEnvironment(&payload, env); err != nil {
+		resp.Diagnostics.AddError("Invalid environment", err.Error())
+		return
+	}
 
 	created, _, err := r.client.CreateGitStack(ctx, env, payload)
 	if err != nil {
@@ -265,6 +269,10 @@ func (r *gitStackResource) Update(ctx context.Context, req resource.UpdateReques
 	payload, err := buildGitStackPayload(plan)
 	if err != nil {
 		resp.Diagnostics.AddError("Invalid git stack configuration", err.Error())
+		return
+	}
+	if err := setGitStackPayloadEnvironment(&payload, env); err != nil {
+		resp.Diagnostics.AddError("Invalid environment", err.Error())
 		return
 	}
 
@@ -570,4 +578,21 @@ func mergeGitStackState(preferred gitStackModel, remote gitStackModel) gitStackM
 	}
 
 	return out
+}
+
+func setGitStackPayloadEnvironment(payload *gitStackPayload, env string) error {
+	if payload == nil {
+		return nil
+	}
+	value := strings.TrimSpace(env)
+	if value == "" {
+		payload.EnvironmentID = nil
+		return nil
+	}
+	parsed, err := strconv.ParseInt(value, 10, 64)
+	if err != nil {
+		return fmt.Errorf("env must be a numeric string: %w", err)
+	}
+	payload.EnvironmentID = &parsed
+	return nil
 }
