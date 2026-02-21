@@ -6,6 +6,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/hashicorp/terraform-plugin-framework/diag"
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
@@ -51,7 +52,11 @@ type environmentModel struct {
 
 	UpdateCheckEnabled    types.Bool `tfsdk:"update_check_enabled"`
 	UpdateCheckAutoUpdate types.Bool `tfsdk:"update_check_auto_update"`
+	UpdateCheckCron       types.String `tfsdk:"update_check_cron"`
+	UpdateCheckVulnCrit   types.String `tfsdk:"update_check_vulnerability_criteria"`
 	ImagePruneEnabled     types.Bool `tfsdk:"image_prune_enabled"`
+	ImagePruneCron        types.String `tfsdk:"image_prune_cron"`
+	ImagePruneMode        types.String `tfsdk:"image_prune_mode"`
 
 	CreatedAt types.String `tfsdk:"created_at"`
 	UpdatedAt types.String `tfsdk:"updated_at"`
@@ -146,9 +151,29 @@ func (r *environmentResource) Schema(_ context.Context, _ resource.SchemaRequest
 				Optional: true,
 				Computed: true,
 			},
+			"update_check_cron": schema.StringAttribute{
+				MarkdownDescription: "Cron schedule for environment update checks (Dockhand `/api/environments/{id}/update-check`).",
+				Optional:            true,
+				Computed:            true,
+			},
+			"update_check_vulnerability_criteria": schema.StringAttribute{
+				MarkdownDescription: "Vulnerability gating criteria for auto-updates (`never`, `critical`, etc.).",
+				Optional:            true,
+				Computed:            true,
+			},
 			"image_prune_enabled": schema.BoolAttribute{
 				Optional: true,
 				Computed: true,
+			},
+			"image_prune_cron": schema.StringAttribute{
+				MarkdownDescription: "Cron schedule for automatic image pruning (Dockhand `/api/environments/{id}/image-prune`).",
+				Optional:            true,
+				Computed:            true,
+			},
+			"image_prune_mode": schema.StringAttribute{
+				MarkdownDescription: "Image prune mode (`dangling` or `all`).",
+				Optional:            true,
+				Computed:            true,
 			},
 			"created_at": schema.StringAttribute{
 				Computed: true,
@@ -197,6 +222,8 @@ func (r *environmentResource) Create(ctx context.Context, req resource.CreateReq
 	}
 
 	state := modelFromEnvironmentResponse(plan, created)
+	state = r.applyEnvironmentAux(ctx, state, plan, state.ID.ValueString(), &resp.Diagnostics)
+	state = r.readEnvironmentAux(ctx, state, &resp.Diagnostics)
 	resp.Diagnostics.Append(resp.State.Set(ctx, &state)...)
 }
 
@@ -223,6 +250,7 @@ func (r *environmentResource) Read(ctx context.Context, req resource.ReadRequest
 	}
 
 	newState := modelFromEnvironmentResponse(state, env)
+	newState = r.readEnvironmentAux(ctx, newState, &resp.Diagnostics)
 	resp.Diagnostics.Append(resp.State.Set(ctx, &newState)...)
 }
 
@@ -259,6 +287,8 @@ func (r *environmentResource) Update(ctx context.Context, req resource.UpdateReq
 	}
 
 	newState := modelFromEnvironmentResponse(plan, updated)
+	newState = r.applyEnvironmentAux(ctx, newState, plan, id, &resp.Diagnostics)
+	newState = r.readEnvironmentAux(ctx, newState, &resp.Diagnostics)
 	resp.Diagnostics.Append(resp.State.Set(ctx, &newState)...)
 }
 
@@ -369,9 +399,28 @@ func modelFromEnvironmentResponse(prior environmentModel, in *environmentRespons
 		CollectActivity:       types.BoolValue(in.CollectActivity),
 		CollectMetrics:        types.BoolValue(in.CollectMetrics),
 		HighlightChanges:      types.BoolValue(in.HighlightChanges),
-		UpdateCheckEnabled:    types.BoolValue(in.UpdateCheckEnabled),
-		UpdateCheckAutoUpdate: types.BoolValue(in.UpdateCheckAutoUpdate),
-		ImagePruneEnabled:     types.BoolValue(in.ImagePruneEnabled),
+	}
+
+	if in.UpdateCheckEnabled != nil {
+		out.UpdateCheckEnabled = types.BoolValue(*in.UpdateCheckEnabled)
+	} else if !prior.UpdateCheckEnabled.IsNull() && !prior.UpdateCheckEnabled.IsUnknown() {
+		out.UpdateCheckEnabled = prior.UpdateCheckEnabled
+	} else {
+		out.UpdateCheckEnabled = types.BoolNull()
+	}
+	if in.UpdateCheckAutoUpdate != nil {
+		out.UpdateCheckAutoUpdate = types.BoolValue(*in.UpdateCheckAutoUpdate)
+	} else if !prior.UpdateCheckAutoUpdate.IsNull() && !prior.UpdateCheckAutoUpdate.IsUnknown() {
+		out.UpdateCheckAutoUpdate = prior.UpdateCheckAutoUpdate
+	} else {
+		out.UpdateCheckAutoUpdate = types.BoolNull()
+	}
+	if in.ImagePruneEnabled != nil {
+		out.ImagePruneEnabled = types.BoolValue(*in.ImagePruneEnabled)
+	} else if !prior.ImagePruneEnabled.IsNull() && !prior.ImagePruneEnabled.IsUnknown() {
+		out.ImagePruneEnabled = prior.ImagePruneEnabled
+	} else {
+		out.ImagePruneEnabled = types.BoolNull()
 	}
 
 	if in.Host != nil {
@@ -425,5 +474,126 @@ func modelFromEnvironmentResponse(prior environmentModel, in *environmentRespons
 		out.UpdatedAt = types.StringNull()
 	}
 
+	if !prior.UpdateCheckCron.IsNull() && !prior.UpdateCheckCron.IsUnknown() {
+		out.UpdateCheckCron = prior.UpdateCheckCron
+	} else {
+		out.UpdateCheckCron = types.StringNull()
+	}
+	if !prior.UpdateCheckVulnCrit.IsNull() && !prior.UpdateCheckVulnCrit.IsUnknown() {
+		out.UpdateCheckVulnCrit = prior.UpdateCheckVulnCrit
+	} else {
+		out.UpdateCheckVulnCrit = types.StringNull()
+	}
+	if !prior.ImagePruneCron.IsNull() && !prior.ImagePruneCron.IsUnknown() {
+		out.ImagePruneCron = prior.ImagePruneCron
+	} else {
+		out.ImagePruneCron = types.StringNull()
+	}
+	if !prior.ImagePruneMode.IsNull() && !prior.ImagePruneMode.IsUnknown() {
+		out.ImagePruneMode = prior.ImagePruneMode
+	} else {
+		out.ImagePruneMode = types.StringNull()
+	}
+
 	return out
+}
+
+func (r *environmentResource) applyEnvironmentAux(ctx context.Context, current environmentModel, plan environmentModel, id string, diags *diag.Diagnostics) environmentModel {
+	if r.client == nil || id == "" {
+		return current
+	}
+
+	// Timezone
+	tz := strings.TrimSpace(firstKnownString(plan.Timezone, current.Timezone))
+	if tz == "" {
+		tz = "UTC"
+	}
+	if _, err := r.client.SetEnvironmentTimezone(ctx, id, tz); err != nil {
+		diags.AddWarning("Failed to set environment timezone", err.Error())
+	} else {
+		current.Timezone = types.StringValue(tz)
+	}
+
+	// Update-check settings
+	updateEnabled, _ := firstKnownBoolPtr(plan.UpdateCheckEnabled, current.UpdateCheckEnabled)
+	updateAuto, _ := firstKnownBoolPtr(plan.UpdateCheckAutoUpdate, current.UpdateCheckAutoUpdate)
+	updateCron := strings.TrimSpace(firstKnownString(plan.UpdateCheckCron, current.UpdateCheckCron))
+	if updateCron == "" {
+		updateCron = "0 4 * * *"
+	}
+	updateVuln := strings.TrimSpace(firstKnownString(plan.UpdateCheckVulnCrit, current.UpdateCheckVulnCrit))
+	if updateVuln == "" {
+		updateVuln = "never"
+	}
+	upPayload := environmentUpdateCheckPayload{
+		Enabled:               updateEnabled,
+		Cron:                  updateCron,
+		AutoUpdate:            updateAuto,
+		VulnerabilityCriteria: updateVuln,
+	}
+	if _, err := r.client.SetEnvironmentUpdateCheck(ctx, id, upPayload); err != nil {
+		diags.AddWarning("Failed to set environment update-check settings", err.Error())
+	}
+
+	// Image prune settings
+	pruneEnabled, pruneEnabledKnown := firstKnownBoolPtr(plan.ImagePruneEnabled, current.ImagePruneEnabled)
+	if !pruneEnabledKnown {
+		pruneEnabled = false
+	}
+	pruneCron := strings.TrimSpace(firstKnownString(plan.ImagePruneCron, current.ImagePruneCron))
+	if pruneCron == "" {
+		pruneCron = "0 3 * * 0"
+	}
+	pruneMode := strings.TrimSpace(firstKnownString(plan.ImagePruneMode, current.ImagePruneMode))
+	if pruneMode == "" {
+		pruneMode = "dangling"
+	}
+	prPayload := environmentImagePrunePayload{
+		Enabled:        pruneEnabled,
+		CronExpression: pruneCron,
+		PruneMode:      pruneMode,
+	}
+	if _, err := r.client.SetEnvironmentImagePrune(ctx, id, prPayload); err != nil {
+		diags.AddWarning("Failed to set environment image-prune settings", err.Error())
+	}
+
+	return current
+}
+
+func (r *environmentResource) readEnvironmentAux(ctx context.Context, current environmentModel, diags *diag.Diagnostics) environmentModel {
+	if r.client == nil || current.ID.IsNull() || current.ID.IsUnknown() {
+		return current
+	}
+	id := current.ID.ValueString()
+	if id == "" {
+		return current
+	}
+
+	tzResp, _, err := r.client.GetEnvironmentTimezone(ctx, id)
+	if err != nil {
+		diags.AddWarning("Failed to read environment timezone", err.Error())
+	} else if tzResp != nil && strings.TrimSpace(tzResp.Timezone) != "" {
+		current.Timezone = types.StringValue(strings.TrimSpace(tzResp.Timezone))
+	}
+
+	upResp, _, err := r.client.GetEnvironmentUpdateCheck(ctx, id)
+	if err != nil {
+		diags.AddWarning("Failed to read environment update-check settings", err.Error())
+	} else if upResp != nil && upResp.Settings != nil {
+		current.UpdateCheckEnabled = types.BoolValue(upResp.Settings.Enabled)
+		current.UpdateCheckAutoUpdate = types.BoolValue(upResp.Settings.AutoUpdate)
+		current.UpdateCheckCron = types.StringValue(upResp.Settings.Cron)
+		current.UpdateCheckVulnCrit = types.StringValue(upResp.Settings.VulnerabilityCriteria)
+	}
+
+	prResp, _, err := r.client.GetEnvironmentImagePrune(ctx, id)
+	if err != nil {
+		diags.AddWarning("Failed to read environment image-prune settings", err.Error())
+	} else if prResp != nil && prResp.Settings != nil {
+		current.ImagePruneEnabled = types.BoolValue(prResp.Settings.Enabled)
+		current.ImagePruneCron = types.StringValue(prResp.Settings.CronExpression)
+		current.ImagePruneMode = types.StringValue(prResp.Settings.PruneMode)
+	}
+
+	return current
 }

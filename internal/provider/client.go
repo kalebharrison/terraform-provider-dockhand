@@ -400,12 +400,56 @@ type environmentResponse struct {
 	CollectMetrics        bool     `json:"collectMetrics"`
 	HighlightChanges      bool     `json:"highlightChanges"`
 	Timezone              *string  `json:"timezone"`
-	UpdateCheckEnabled    bool     `json:"updateCheckEnabled"`
-	UpdateCheckAutoUpdate bool     `json:"updateCheckAutoUpdate"`
-	ImagePruneEnabled     bool     `json:"imagePruneEnabled"`
+	UpdateCheckEnabled    *bool    `json:"updateCheckEnabled"`
+	UpdateCheckAutoUpdate *bool    `json:"updateCheckAutoUpdate"`
+	ImagePruneEnabled     *bool    `json:"imagePruneEnabled"`
 	CreatedAt             *string  `json:"createdAt"`
 	UpdatedAt             *string  `json:"updatedAt"`
 	Labels                []string `json:"labels"`
+}
+
+type environmentTimezoneResponse struct {
+	Timezone string `json:"timezone"`
+}
+
+type environmentTimezonePayload struct {
+	Timezone string `json:"timezone"`
+}
+
+type environmentUpdateCheckSettings struct {
+	Enabled               bool   `json:"enabled"`
+	Cron                  string `json:"cron"`
+	AutoUpdate            bool   `json:"autoUpdate"`
+	VulnerabilityCriteria string `json:"vulnerabilityCriteria"`
+}
+
+type environmentUpdateCheckResponse struct {
+	Settings *environmentUpdateCheckSettings `json:"settings"`
+}
+
+type environmentUpdateCheckPayload struct {
+	Enabled               bool   `json:"enabled"`
+	Cron                  string `json:"cron"`
+	AutoUpdate            bool   `json:"autoUpdate"`
+	VulnerabilityCriteria string `json:"vulnerabilityCriteria"`
+}
+
+type environmentImagePruneSettings struct {
+	Enabled        bool           `json:"enabled"`
+	CronExpression string         `json:"cronExpression"`
+	PruneMode      string         `json:"pruneMode"`
+	LastPruned     *string        `json:"lastPruned"`
+	LastResult     map[string]any `json:"lastResult"`
+}
+
+type environmentImagePruneResponse struct {
+	Settings *environmentImagePruneSettings `json:"settings"`
+}
+
+type environmentImagePrunePayload struct {
+	Enabled        bool   `json:"enabled"`
+	CronExpression string `json:"cronExpression"`
+	PruneMode      string `json:"pruneMode"`
 }
 
 type networkPayload struct {
@@ -956,6 +1000,46 @@ func (c *Client) UpdateEnvironment(ctx context.Context, id string, payload envir
 
 func (c *Client) DeleteEnvironment(ctx context.Context, id string) (int, error) {
 	return c.doJSONWithStatus(ctx, http.MethodDelete, "/api/environments/"+url.PathEscape(id), nil, nil, nil)
+}
+
+func (c *Client) GetEnvironmentTimezone(ctx context.Context, id string) (*environmentTimezoneResponse, int, error) {
+	var out environmentTimezoneResponse
+	status, err := c.doJSONWithStatus(ctx, http.MethodGet, "/api/environments/"+url.PathEscape(id)+"/timezone", nil, nil, &out)
+	if err != nil {
+		return nil, status, err
+	}
+	return &out, status, nil
+}
+
+func (c *Client) SetEnvironmentTimezone(ctx context.Context, id string, timezone string) (int, error) {
+	payload := environmentTimezonePayload{Timezone: timezone}
+	return c.doJSONWithStatus(ctx, http.MethodPost, "/api/environments/"+url.PathEscape(id)+"/timezone", nil, payload, nil)
+}
+
+func (c *Client) GetEnvironmentUpdateCheck(ctx context.Context, id string) (*environmentUpdateCheckResponse, int, error) {
+	var out environmentUpdateCheckResponse
+	status, err := c.doJSONWithStatus(ctx, http.MethodGet, "/api/environments/"+url.PathEscape(id)+"/update-check", nil, nil, &out)
+	if err != nil {
+		return nil, status, err
+	}
+	return &out, status, nil
+}
+
+func (c *Client) SetEnvironmentUpdateCheck(ctx context.Context, id string, payload environmentUpdateCheckPayload) (int, error) {
+	return c.doJSONWithStatus(ctx, http.MethodPost, "/api/environments/"+url.PathEscape(id)+"/update-check", nil, payload, nil)
+}
+
+func (c *Client) GetEnvironmentImagePrune(ctx context.Context, id string) (*environmentImagePruneResponse, int, error) {
+	var out environmentImagePruneResponse
+	status, err := c.doJSONWithStatus(ctx, http.MethodGet, "/api/environments/"+url.PathEscape(id)+"/image-prune", nil, nil, &out)
+	if err != nil {
+		return nil, status, err
+	}
+	return &out, status, nil
+}
+
+func (c *Client) SetEnvironmentImagePrune(ctx context.Context, id string, payload environmentImagePrunePayload) (int, error) {
+	return c.doJSONWithStatus(ctx, http.MethodPost, "/api/environments/"+url.PathEscape(id)+"/image-prune", nil, payload, nil)
 }
 
 func (c *Client) ListNetworks(ctx context.Context, env string) ([]networkResponse, int, error) {

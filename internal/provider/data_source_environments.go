@@ -151,9 +151,9 @@ func (d *environmentsDataSource) Read(ctx context.Context, req datasource.ReadRe
 			CollectMetrics:        types.BoolValue(item.CollectMetrics),
 			HighlightChanges:      types.BoolValue(item.HighlightChanges),
 			Timezone:              stringValueOrNull(item.Timezone),
-			UpdateCheckEnabled:    types.BoolValue(item.UpdateCheckEnabled),
-			UpdateCheckAutoUpdate: types.BoolValue(item.UpdateCheckAutoUpdate),
-			ImagePruneEnabled:     types.BoolValue(item.ImagePruneEnabled),
+			UpdateCheckEnabled:    boolPtrValueOrNull(item.UpdateCheckEnabled),
+			UpdateCheckAutoUpdate: boolPtrValueOrNull(item.UpdateCheckAutoUpdate),
+			ImagePruneEnabled:     boolPtrValueOrNull(item.ImagePruneEnabled),
 			CreatedAt:             stringValueOrNull(item.CreatedAt),
 			UpdatedAt:             stringValueOrNull(item.UpdatedAt),
 		})
@@ -173,4 +173,11 @@ func (d *environmentsDataSource) Read(ctx context.Context, req datasource.ReadRe
 	data.Names = namesVal
 	data.IDs = idsVal
 	resp.Diagnostics.Append(resp.State.Set(ctx, &data)...)
+}
+
+func boolPtrValueOrNull(v *bool) types.Bool {
+	if v == nil {
+		return types.BoolNull()
+	}
+	return types.BoolValue(*v)
 }
