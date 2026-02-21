@@ -554,7 +554,11 @@ func mergeGitStackState(preferred gitStackModel, remote gitStackModel) gitStackM
 	if (out.AutoUpdateCron.IsNull() || out.AutoUpdateCron.IsUnknown()) && !preferred.AutoUpdateCron.IsNull() && !preferred.AutoUpdateCron.IsUnknown() {
 		out.AutoUpdateCron = preferred.AutoUpdateCron
 	}
-	if (out.WebhookSecret.IsNull() || out.WebhookSecret.IsUnknown()) && !preferred.WebhookSecret.IsNull() && !preferred.WebhookSecret.IsUnknown() {
+	if preferred.WebhookSecret.IsNull() || preferred.WebhookSecret.IsUnknown() {
+		// Keep this unset unless explicitly configured in HCL.
+		// Dockhand may generate a secret server-side when webhook is enabled.
+		out.WebhookSecret = types.StringNull()
+	} else if (out.WebhookSecret.IsNull() || out.WebhookSecret.IsUnknown()) && !preferred.WebhookSecret.IsNull() && !preferred.WebhookSecret.IsUnknown() {
 		out.WebhookSecret = preferred.WebhookSecret
 	}
 	if (out.CredentialID.IsNull() || out.CredentialID.IsUnknown()) && !preferred.CredentialID.IsNull() && !preferred.CredentialID.IsUnknown() {
