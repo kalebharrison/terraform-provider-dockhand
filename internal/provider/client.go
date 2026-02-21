@@ -370,9 +370,9 @@ type environmentPayload struct {
 	Protocol              *string `json:"protocol,omitempty"`
 	SocketPath            *string `json:"socketPath,omitempty"`
 	TLSSkipVerify         *bool   `json:"tlsSkipVerify,omitempty"`
-	CACert                *string `json:"caCert,omitempty"`
-	ClientCert            *string `json:"clientCert,omitempty"`
-	ClientKey             *string `json:"clientKey,omitempty"`
+	CACert                *string `json:"tlsCa,omitempty"`
+	ClientCert            *string `json:"tlsCert,omitempty"`
+	ClientKey             *string `json:"tlsKey,omitempty"`
 	Icon                  *string `json:"icon,omitempty"`
 	CollectActivity       *bool   `json:"collectActivity,omitempty"`
 	CollectMetrics        *bool   `json:"collectMetrics,omitempty"`
@@ -392,9 +392,9 @@ type environmentResponse struct {
 	Protocol              string   `json:"protocol"`
 	SocketPath            *string  `json:"socketPath"`
 	TLSSkipVerify         bool     `json:"tlsSkipVerify"`
-	CACert                *string  `json:"caCert"`
-	ClientCert            *string  `json:"clientCert"`
-	ClientKey             *string  `json:"clientKey"`
+	CACert                *string  `json:"tlsCa"`
+	ClientCert            *string  `json:"tlsCert"`
+	ClientKey             *string  `json:"tlsKey"`
 	Icon                  string   `json:"icon"`
 	CollectActivity       bool     `json:"collectActivity"`
 	CollectMetrics        bool     `json:"collectMetrics"`

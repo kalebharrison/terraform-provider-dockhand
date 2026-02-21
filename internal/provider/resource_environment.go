@@ -384,24 +384,24 @@ func modelFromEnvironmentResponse(prior environmentModel, in *environmentRespons
 	} else {
 		out.SocketPath = types.StringNull()
 	}
-	if in.CACert != nil && *in.CACert != "" {
-		out.CACert = types.StringValue(*in.CACert)
-	} else if !prior.CACert.IsNull() && !prior.CACert.IsUnknown() {
+	if !prior.CACert.IsNull() && !prior.CACert.IsUnknown() {
 		out.CACert = prior.CACert
+	} else if in.CACert != nil && *in.CACert != "" {
+		out.CACert = types.StringValue(*in.CACert)
 	} else {
 		out.CACert = types.StringNull()
 	}
-	if in.ClientCert != nil && *in.ClientCert != "" {
-		out.ClientCert = types.StringValue(*in.ClientCert)
-	} else if !prior.ClientCert.IsNull() && !prior.ClientCert.IsUnknown() {
+	if !prior.ClientCert.IsNull() && !prior.ClientCert.IsUnknown() {
 		out.ClientCert = prior.ClientCert
+	} else if in.ClientCert != nil && *in.ClientCert != "" {
+		out.ClientCert = types.StringValue(*in.ClientCert)
 	} else {
 		out.ClientCert = types.StringNull()
 	}
-	if in.ClientKey != nil && *in.ClientKey != "" {
-		out.ClientKey = types.StringValue(*in.ClientKey)
-	} else if !prior.ClientKey.IsNull() && !prior.ClientKey.IsUnknown() {
+	if !prior.ClientKey.IsNull() && !prior.ClientKey.IsUnknown() {
 		out.ClientKey = prior.ClientKey
+	} else if in.ClientKey != nil && *in.ClientKey != "" {
+		out.ClientKey = types.StringValue(*in.ClientKey)
 	} else {
 		out.ClientKey = types.StringNull()
 	}

@@ -127,6 +127,7 @@ Live verification artifacts:
 | `/api/stacks/{name}/env` | broader non-secret env var editing semantics | partial |
 | `/api/volumes` | advanced volume operations (`clone`, `browse`, import/export) | partial |
 | `/api/networks` | advanced network operations (`connect`, inspect details as separate surface) | partial |
+| environment vulnerability scanner selection | `dockhand_environment` scanner enable/selector fields | planned (UI shows scanner selection, but tested API responses/payload probes did not expose a confirmed writable contract for scanner choice) |
 | `/api/configs` | config management resource/data source | planned (verified not present on tested instance; `404`) |
 | `/api/backups` | backup resource/data source | planned (verified not present on tested instance; `404`) |
 | license-tier auth endpoints (LDAP/AD/roles) | auth enterprise resources/data sources | planned |

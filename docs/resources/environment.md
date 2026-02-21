@@ -36,4 +36,5 @@ resource "dockhand_environment" "socket" {
   - `ca_cert`
   - `client_cert`
   - `client_key`
+- Known gap: environment-level vulnerability scanner selection (for example choosing Grype vs Trivy in the UI) is not yet exposed, because a stable scanner-selection API contract has not been confirmed from tested endpoints.
 - Some Dockhand builds may not return cert/key bodies on read for security reasons. The provider preserves prior state values in that case.
