@@ -32,31 +32,32 @@ type gitStackResource struct {
 }
 
 type gitStackModel struct {
-	ID                types.String `tfsdk:"id"`
-	Env               types.String `tfsdk:"env"`
-	StackName         types.String `tfsdk:"stack_name"`
-	RepositoryID      types.String `tfsdk:"repository_id"`
-	RepoName          types.String `tfsdk:"repo_name"`
-	URL               types.String `tfsdk:"url"`
-	Branch            types.String `tfsdk:"branch"`
-	CredentialID      types.String `tfsdk:"credential_id"`
-	ComposePath       types.String `tfsdk:"compose_path"`
-	EnvFilePath       types.String `tfsdk:"env_file_path"`
-	AutoUpdateEnabled types.Bool   `tfsdk:"auto_update_enabled"`
-	AutoUpdateCron    types.String `tfsdk:"auto_update_cron"`
-	WebhookEnabled    types.Bool   `tfsdk:"webhook_enabled"`
-	WebhookSecret     types.String `tfsdk:"webhook_secret"`
-	DeployNow         types.Bool   `tfsdk:"deploy_now"`
-	EnvVarsJSON       types.String `tfsdk:"env_vars_json"`
-	LastSync          types.String `tfsdk:"last_sync"`
-	LastCommit        types.String `tfsdk:"last_commit"`
-	SyncStatus        types.String `tfsdk:"sync_status"`
-	SyncError         types.String `tfsdk:"sync_error"`
-	CreatedAt         types.String `tfsdk:"created_at"`
-	UpdatedAt         types.String `tfsdk:"updated_at"`
-	RepositoryName    types.String `tfsdk:"repository_name"`
-	RepositoryURL     types.String `tfsdk:"repository_url"`
-	RepositoryBranch  types.String `tfsdk:"repository_branch"`
+	ID                        types.String `tfsdk:"id"`
+	Env                       types.String `tfsdk:"env"`
+	StackName                 types.String `tfsdk:"stack_name"`
+	RepositoryID              types.String `tfsdk:"repository_id"`
+	RepoName                  types.String `tfsdk:"repo_name"`
+	URL                       types.String `tfsdk:"url"`
+	Branch                    types.String `tfsdk:"branch"`
+	CredentialID              types.String `tfsdk:"credential_id"`
+	ComposePath               types.String `tfsdk:"compose_path"`
+	EnvFilePath               types.String `tfsdk:"env_file_path"`
+	AutoUpdateEnabled         types.Bool   `tfsdk:"auto_update_enabled"`
+	AutoUpdateCron            types.String `tfsdk:"auto_update_cron"`
+	WebhookEnabled            types.Bool   `tfsdk:"webhook_enabled"`
+	WebhookSecretAutoGenerate types.Bool   `tfsdk:"webhook_secret_auto_generate"`
+	WebhookSecret             types.String `tfsdk:"webhook_secret"`
+	DeployNow                 types.Bool   `tfsdk:"deploy_now"`
+	EnvVarsJSON               types.String `tfsdk:"env_vars_json"`
+	LastSync                  types.String `tfsdk:"last_sync"`
+	LastCommit                types.String `tfsdk:"last_commit"`
+	SyncStatus                types.String `tfsdk:"sync_status"`
+	SyncError                 types.String `tfsdk:"sync_error"`
+	CreatedAt                 types.String `tfsdk:"created_at"`
+	UpdatedAt                 types.String `tfsdk:"updated_at"`
+	RepositoryName            types.String `tfsdk:"repository_name"`
+	RepositoryURL             types.String `tfsdk:"repository_url"`
+	RepositoryBranch          types.String `tfsdk:"repository_branch"`
 }
 
 func (r *gitStackResource) Metadata(_ context.Context, req resource.MetadataRequest, resp *resource.MetadataResponse) {
@@ -136,6 +137,12 @@ func (r *gitStackResource) Schema(_ context.Context, _ resource.SchemaRequest, r
 				Optional: true,
 				Computed: true,
 				Default:  booldefault.StaticBool(false),
+			},
+			"webhook_secret_auto_generate": schema.BoolAttribute{
+				MarkdownDescription: "When `true` and `webhook_enabled=true`, allow Dockhand to auto-generate a webhook secret if `webhook_secret` is not provided.",
+				Optional:            true,
+				Computed:            true,
+				Default:             booldefault.StaticBool(false),
 			},
 			"webhook_secret": schema.StringAttribute{
 				Optional:  true,
@@ -338,6 +345,11 @@ func buildGitStackPayload(plan gitStackModel) (gitStackPayload, error) {
 		webhookEnabled = plan.WebhookEnabled.ValueBool()
 	}
 
+	webhookSecretAutoGenerate := false
+	if !plan.WebhookSecretAutoGenerate.IsNull() && !plan.WebhookSecretAutoGenerate.IsUnknown() {
+		webhookSecretAutoGenerate = plan.WebhookSecretAutoGenerate.ValueBool()
+	}
+
 	deployNow := false
 	if !plan.DeployNow.IsNull() && !plan.DeployNow.IsUnknown() {
 		deployNow = plan.DeployNow.ValueBool()
@@ -364,6 +376,9 @@ func buildGitStackPayload(plan gitStackModel) (gitStackPayload, error) {
 		if v != "" {
 			payload.WebhookSecret = &v
 		}
+	}
+	if webhookEnabled && payload.WebhookSecret == nil && !webhookSecretAutoGenerate {
+		return gitStackPayload{}, fmt.Errorf("webhook_secret is required when webhook_enabled=true unless webhook_secret_auto_generate=true")
 	}
 
 	envVars, err := parseGitStackEnvVarsJSON(plan.EnvVarsJSON)
@@ -441,11 +456,12 @@ func parseGitStackEnvVarsJSON(raw types.String) ([]gitStackEnvVarPayload, error)
 
 func modelFromGitStackResponse(in *gitStackResponse) gitStackModel {
 	out := gitStackModel{
-		ID:                types.StringValue(fmt.Sprintf("%d", in.ID)),
-		StackName:         types.StringValue(in.StackName),
-		AutoUpdateEnabled: types.BoolValue(in.AutoUpdate),
-		WebhookEnabled:    types.BoolValue(in.WebhookEnabled),
-		EnvVarsJSON:       types.StringValue("[]"),
+		ID:                        types.StringValue(fmt.Sprintf("%d", in.ID)),
+		StackName:                 types.StringValue(in.StackName),
+		AutoUpdateEnabled:         types.BoolValue(in.AutoUpdate),
+		WebhookEnabled:            types.BoolValue(in.WebhookEnabled),
+		WebhookSecretAutoGenerate: types.BoolValue(false),
+		EnvVarsJSON:               types.StringValue("[]"),
 	}
 
 	if in.EnvironmentID != nil {
@@ -560,6 +576,9 @@ func mergeGitStackState(preferred gitStackModel, remote gitStackModel) gitStackM
 		out.WebhookSecret = types.StringNull()
 	} else if (out.WebhookSecret.IsNull() || out.WebhookSecret.IsUnknown()) && !preferred.WebhookSecret.IsNull() && !preferred.WebhookSecret.IsUnknown() {
 		out.WebhookSecret = preferred.WebhookSecret
+	}
+	if !preferred.WebhookSecretAutoGenerate.IsNull() && !preferred.WebhookSecretAutoGenerate.IsUnknown() {
+		out.WebhookSecretAutoGenerate = preferred.WebhookSecretAutoGenerate
 	}
 	if (out.CredentialID.IsNull() || out.CredentialID.IsUnknown()) && !preferred.CredentialID.IsNull() && !preferred.CredentialID.IsUnknown() {
 		out.CredentialID = preferred.CredentialID
