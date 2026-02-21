@@ -29,6 +29,10 @@ resource "dockhand_environment" "socket" {
   image_prune_enabled      = false
   image_prune_cron         = "0 3 * * 0"
   image_prune_mode         = "dangling"
+  vulnerability_scanning_enabled = true
+  vulnerability_scanner          = "both" # one of: grype, trivy, both
+  ensure_grype_installed         = true
+  ensure_trivy_installed         = true
   timezone                 = "UTC"
 }
 ```
@@ -46,5 +50,15 @@ resource "dockhand_environment" "socket" {
 - Image-prune scheduling fields are available:
   - `image_prune_cron`
   - `image_prune_mode`
-- Known gap: environment-level vulnerability scanner selection (for example choosing Grype vs Trivy in the UI) is not yet exposed, because a stable scanner-selection API contract has not been confirmed from tested endpoints.
+- Vulnerability-scanner fields are available:
+  - `vulnerability_scanning_enabled`
+  - `vulnerability_scanner` (`grype`, `trivy`, or `both`)
+  - `ensure_grype_installed`
+  - `ensure_trivy_installed`
+  - computed scanner status:
+    - `grype_installed`
+    - `trivy_installed`
+    - `grype_version`
+    - `trivy_version`
+- Scanner image installation uses Dockhand image pulls (`anchore/grype:latest` / `aquasec/trivy:latest`) and fails if the target environment cannot reach its Docker/image sources.
 - Some Dockhand builds may not return cert/key bodies on read for security reasons. The provider preserves prior state values in that case.

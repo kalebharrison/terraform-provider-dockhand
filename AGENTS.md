@@ -24,6 +24,7 @@ Repository guidance for coding agents working on `terraform-provider-dockhand`.
   - Resource: `dockhand_git_stack_env_file`
   - Resource: `dockhand_config_set`
   - Resource: `dockhand_environment`
+  - Resource: `dockhand_environment_scanner_action`
   - Resource: `dockhand_network`
   - Resource: `dockhand_network_connection_action`
   - Resource: `dockhand_volume`

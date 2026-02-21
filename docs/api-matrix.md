@@ -78,6 +78,8 @@ Live verification artifacts:
 | `dockhand_environment` | Update-check settings | `GET/POST /api/environments/{id}/update-check` | Manages `update_check_enabled`, `update_check_auto_update`, `update_check_cron`, and `update_check_vulnerability_criteria`. | implemented |
 | `dockhand_environment` | Image-prune settings | `GET/POST /api/environments/{id}/image-prune` | Manages `image_prune_enabled`, `image_prune_cron`, and `image_prune_mode`. | implemented |
 | `dockhand_environment` | Timezone settings | `GET/POST /api/environments/{id}/timezone` | Manages environment timezone (`timezone`). | implemented |
+| `dockhand_environment` | Vulnerability scanner settings | `GET/POST /api/settings/scanner?env={env_id}` | Manages scanner enable/selection per environment and exposes scanner availability/version status. Optional install enforcement pulls scanner images when missing. | implemented |
+| `dockhand_environment_scanner_action` | Scanner install/remove/update-check actions | `POST /api/images/pull?env={env_id}`, `DELETE /api/settings/scanner?removeImages=true&scanner={name}&env={env_id}`, `GET /api/settings/scanner?checkUpdates=true&env={env_id}` | One-shot scanner operations for install/remove/update-check workflows. | implemented |
 | `dockhand_environment` | Delete | `DELETE /api/environments/{id}` | `404` treated as already deleted. | implemented |
 | `dockhand_network` | Create | `POST /api/networks?env={env_id}` | Minimal create payload: name + driver (replace-only resource). | partial |
 | `dockhand_network` | Read | `GET /api/networks?env={env_id}` | Reads network list and matches by `id`. | partial |
@@ -130,7 +132,6 @@ Live verification artifacts:
 | `/api/stacks/{name}/env` | broader non-secret env var editing semantics | partial |
 | `/api/volumes` | advanced volume operations (`clone`, `browse`, import/export) | partial |
 | `/api/networks` | advanced network operations (`connect`, inspect details as separate surface) | partial |
-| environment vulnerability scanner selection | `dockhand_environment` scanner enable/selector fields | planned (UI shows scanner selection, but tested API responses/payload probes did not expose a confirmed writable contract for scanner choice) |
 | `/api/configs` | config management resource/data source | planned (verified not present on tested instance; `404`) |
 | `/api/backups` | backup resource/data source | planned (verified not present on tested instance; `404`) |
 | license-tier auth endpoints (LDAP/AD/roles) | auth enterprise resources/data sources | planned |

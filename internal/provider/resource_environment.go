@@ -50,13 +50,21 @@ type environmentModel struct {
 
 	Timezone types.String `tfsdk:"timezone"`
 
-	UpdateCheckEnabled    types.Bool `tfsdk:"update_check_enabled"`
-	UpdateCheckAutoUpdate types.Bool `tfsdk:"update_check_auto_update"`
+	UpdateCheckEnabled    types.Bool   `tfsdk:"update_check_enabled"`
+	UpdateCheckAutoUpdate types.Bool   `tfsdk:"update_check_auto_update"`
 	UpdateCheckCron       types.String `tfsdk:"update_check_cron"`
 	UpdateCheckVulnCrit   types.String `tfsdk:"update_check_vulnerability_criteria"`
-	ImagePruneEnabled     types.Bool `tfsdk:"image_prune_enabled"`
+	ImagePruneEnabled     types.Bool   `tfsdk:"image_prune_enabled"`
 	ImagePruneCron        types.String `tfsdk:"image_prune_cron"`
 	ImagePruneMode        types.String `tfsdk:"image_prune_mode"`
+	VulnScanEnabled       types.Bool   `tfsdk:"vulnerability_scanning_enabled"`
+	VulnScanner           types.String `tfsdk:"vulnerability_scanner"`
+	EnsureGrypeInstalled  types.Bool   `tfsdk:"ensure_grype_installed"`
+	EnsureTrivyInstalled  types.Bool   `tfsdk:"ensure_trivy_installed"`
+	GrypeInstalled        types.Bool   `tfsdk:"grype_installed"`
+	TrivyInstalled        types.Bool   `tfsdk:"trivy_installed"`
+	GrypeVersion          types.String `tfsdk:"grype_version"`
+	TrivyVersion          types.String `tfsdk:"trivy_version"`
 
 	CreatedAt types.String `tfsdk:"created_at"`
 	UpdatedAt types.String `tfsdk:"updated_at"`
@@ -173,6 +181,42 @@ func (r *environmentResource) Schema(_ context.Context, _ resource.SchemaRequest
 			"image_prune_mode": schema.StringAttribute{
 				MarkdownDescription: "Image prune mode (`dangling` or `all`).",
 				Optional:            true,
+				Computed:            true,
+			},
+			"vulnerability_scanning_enabled": schema.BoolAttribute{
+				MarkdownDescription: "Enable vulnerability scanning for this environment (Dockhand `/api/settings/scanner` with env scope).",
+				Optional:            true,
+				Computed:            true,
+			},
+			"vulnerability_scanner": schema.StringAttribute{
+				MarkdownDescription: "Scanner selection for this environment: `grype`, `trivy`, or `both`.",
+				Optional:            true,
+				Computed:            true,
+			},
+			"ensure_grype_installed": schema.BoolAttribute{
+				MarkdownDescription: "If true, ensures Grype scanner image is present by pulling `anchore/grype:latest` when missing.",
+				Optional:            true,
+				Computed:            true,
+			},
+			"ensure_trivy_installed": schema.BoolAttribute{
+				MarkdownDescription: "If true, ensures Trivy scanner image is present by pulling `aquasec/trivy:latest` when missing.",
+				Optional:            true,
+				Computed:            true,
+			},
+			"grype_installed": schema.BoolAttribute{
+				MarkdownDescription: "Whether Grype is currently available for this environment.",
+				Computed:            true,
+			},
+			"trivy_installed": schema.BoolAttribute{
+				MarkdownDescription: "Whether Trivy is currently available for this environment.",
+				Computed:            true,
+			},
+			"grype_version": schema.StringAttribute{
+				MarkdownDescription: "Reported Grype version when available.",
+				Computed:            true,
+			},
+			"trivy_version": schema.StringAttribute{
+				MarkdownDescription: "Reported Trivy version when available.",
 				Computed:            true,
 			},
 			"created_at": schema.StringAttribute{
@@ -389,16 +433,16 @@ func buildEnvironmentPayload(plan environmentModel, prior environmentModel) (env
 
 func modelFromEnvironmentResponse(prior environmentModel, in *environmentResponse) environmentModel {
 	out := environmentModel{
-		ID:                    types.StringValue(strconv.FormatInt(in.ID, 10)),
-		Name:                  types.StringValue(in.Name),
-		ConnectionType:        types.StringValue(in.ConnectionType),
-		Port:                  types.Int64Value(in.Port),
-		Protocol:              types.StringValue(in.Protocol),
-		TLSSkipVerify:         types.BoolValue(in.TLSSkipVerify),
-		Icon:                  types.StringValue(in.Icon),
-		CollectActivity:       types.BoolValue(in.CollectActivity),
-		CollectMetrics:        types.BoolValue(in.CollectMetrics),
-		HighlightChanges:      types.BoolValue(in.HighlightChanges),
+		ID:               types.StringValue(strconv.FormatInt(in.ID, 10)),
+		Name:             types.StringValue(in.Name),
+		ConnectionType:   types.StringValue(in.ConnectionType),
+		Port:             types.Int64Value(in.Port),
+		Protocol:         types.StringValue(in.Protocol),
+		TLSSkipVerify:    types.BoolValue(in.TLSSkipVerify),
+		Icon:             types.StringValue(in.Icon),
+		CollectActivity:  types.BoolValue(in.CollectActivity),
+		CollectMetrics:   types.BoolValue(in.CollectMetrics),
+		HighlightChanges: types.BoolValue(in.HighlightChanges),
 	}
 
 	if in.UpdateCheckEnabled != nil {
@@ -494,6 +538,30 @@ func modelFromEnvironmentResponse(prior environmentModel, in *environmentRespons
 	} else {
 		out.ImagePruneMode = types.StringNull()
 	}
+	if !prior.VulnScanEnabled.IsNull() && !prior.VulnScanEnabled.IsUnknown() {
+		out.VulnScanEnabled = prior.VulnScanEnabled
+	} else {
+		out.VulnScanEnabled = types.BoolNull()
+	}
+	if !prior.VulnScanner.IsNull() && !prior.VulnScanner.IsUnknown() {
+		out.VulnScanner = prior.VulnScanner
+	} else {
+		out.VulnScanner = types.StringNull()
+	}
+	if !prior.EnsureGrypeInstalled.IsNull() && !prior.EnsureGrypeInstalled.IsUnknown() {
+		out.EnsureGrypeInstalled = prior.EnsureGrypeInstalled
+	} else {
+		out.EnsureGrypeInstalled = types.BoolNull()
+	}
+	if !prior.EnsureTrivyInstalled.IsNull() && !prior.EnsureTrivyInstalled.IsUnknown() {
+		out.EnsureTrivyInstalled = prior.EnsureTrivyInstalled
+	} else {
+		out.EnsureTrivyInstalled = types.BoolNull()
+	}
+	out.GrypeInstalled = types.BoolNull()
+	out.TrivyInstalled = types.BoolNull()
+	out.GrypeVersion = types.StringNull()
+	out.TrivyVersion = types.StringNull()
 
 	return out
 }
@@ -557,6 +625,47 @@ func (r *environmentResource) applyEnvironmentAux(ctx context.Context, current e
 		diags.AddWarning("Failed to set environment image-prune settings", err.Error())
 	}
 
+	// Vulnerability scanner settings (environment-scoped).
+	scanEnabled, scanEnabledKnown := firstKnownBoolPtr(plan.VulnScanEnabled, current.VulnScanEnabled)
+	if !scanEnabledKnown {
+		scanEnabled = false
+	}
+	scanner := strings.ToLower(strings.TrimSpace(firstKnownString(plan.VulnScanner, current.VulnScanner)))
+	if scanner == "" {
+		scanner = "both"
+	}
+	switch scanner {
+	case "grype", "trivy", "both", "none":
+	default:
+		scanner = "both"
+	}
+	if !scanEnabled {
+		scanner = "none"
+	}
+	if _, err := r.client.SetScannerSettings(ctx, id, scanner); err != nil {
+		diags.AddWarning("Failed to set environment scanner settings", err.Error())
+	}
+
+	ensureGrype, _ := firstKnownBoolPtr(plan.EnsureGrypeInstalled, current.EnsureGrypeInstalled)
+	ensureTrivy, _ := firstKnownBoolPtr(plan.EnsureTrivyInstalled, current.EnsureTrivyInstalled)
+	if ensureGrype || ensureTrivy {
+		scanState, _, err := r.client.GetScannerSettings(ctx, id, false)
+		if err != nil {
+			diags.AddWarning("Failed to read scanner availability before install checks", err.Error())
+			return current
+		}
+		if ensureGrype && !scannerAvailability(scanState, "grype") {
+			if _, err := r.client.PullImage(ctx, id, "anchore/grype:latest", false); err != nil {
+				diags.AddWarning("Failed to install Grype scanner image", err.Error())
+			}
+		}
+		if ensureTrivy && !scannerAvailability(scanState, "trivy") {
+			if _, err := r.client.PullImage(ctx, id, "aquasec/trivy:latest", false); err != nil {
+				diags.AddWarning("Failed to install Trivy scanner image", err.Error())
+			}
+		}
+	}
+
 	return current
 }
 
@@ -595,5 +704,63 @@ func (r *environmentResource) readEnvironmentAux(ctx context.Context, current en
 		current.ImagePruneMode = types.StringValue(prResp.Settings.PruneMode)
 	}
 
+	scannerSettingsResp, _, err := r.client.GetScannerSettings(ctx, id, true)
+	if err != nil {
+		diags.AddWarning("Failed to read environment scanner settings", err.Error())
+	} else if scannerSettingsResp != nil && scannerSettingsResp.Settings != nil {
+		scanner := strings.ToLower(strings.TrimSpace(scannerSettingsResp.Settings.Scanner))
+		if scanner == "" {
+			scanner = "none"
+		}
+		current.VulnScanEnabled = types.BoolValue(scanner != "none")
+		if scanner == "none" {
+			current.VulnScanner = types.StringValue("both")
+		} else {
+			current.VulnScanner = types.StringValue(scanner)
+		}
+	}
+
+	scannerFullResp, _, err := r.client.GetScannerSettings(ctx, id, false)
+	if err != nil {
+		diags.AddWarning("Failed to read scanner availability", err.Error())
+	} else if scannerFullResp != nil {
+		current.GrypeInstalled = types.BoolValue(scannerAvailability(scannerFullResp, "grype"))
+		current.TrivyInstalled = types.BoolValue(scannerAvailability(scannerFullResp, "trivy"))
+		grypeVersion := scannerVersion(scannerFullResp, "grype")
+		if grypeVersion == "" {
+			current.GrypeVersion = types.StringNull()
+		} else {
+			current.GrypeVersion = types.StringValue(grypeVersion)
+		}
+		trivyVersion := scannerVersion(scannerFullResp, "trivy")
+		if trivyVersion == "" {
+			current.TrivyVersion = types.StringNull()
+		} else {
+			current.TrivyVersion = types.StringValue(trivyVersion)
+		}
+	}
+
 	return current
+}
+
+func scannerAvailability(resp *scannerSettingsResponse, key string) bool {
+	if resp == nil || resp.Availability == nil {
+		return false
+	}
+	v, ok := resp.Availability[key]
+	return ok && v
+}
+
+func scannerVersion(resp *scannerSettingsResponse, key string) string {
+	if resp == nil || resp.Versions == nil {
+		return ""
+	}
+	raw, ok := resp.Versions[key]
+	if !ok || raw == nil {
+		return ""
+	}
+	if s, ok := raw.(string); ok {
+		return strings.TrimSpace(s)
+	}
+	return strings.TrimSpace(fmt.Sprintf("%v", raw))
 }

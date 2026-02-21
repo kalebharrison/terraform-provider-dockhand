@@ -452,6 +452,33 @@ type environmentImagePrunePayload struct {
 	PruneMode      string `json:"pruneMode"`
 }
 
+type scannerSettingsInner struct {
+	Scanner string `json:"scanner"`
+}
+
+type scannerSettingsResponse struct {
+	Settings     *scannerSettingsInner `json:"settings"`
+	Availability map[string]bool       `json:"availability"`
+	Versions     map[string]any        `json:"versions"`
+}
+
+type scannerSettingsPayload struct {
+	Scanner string `json:"scanner"`
+	EnvID   int64  `json:"envId"`
+}
+
+type scannerUpdateInfo struct {
+	HasUpdate bool `json:"hasUpdate"`
+}
+
+type scannerCheckUpdatesResponse struct {
+	Updates map[string]scannerUpdateInfo `json:"updates"`
+}
+
+type simpleSuccessResponse struct {
+	Success bool `json:"success"`
+}
+
 type networkPayload struct {
 	Name       string            `json:"name"`
 	Driver     string            `json:"driver"`
@@ -1042,6 +1069,75 @@ func (c *Client) SetEnvironmentImagePrune(ctx context.Context, id string, payloa
 	return c.doJSONWithStatus(ctx, http.MethodPost, "/api/environments/"+url.PathEscape(id)+"/image-prune", nil, payload, nil)
 }
 
+func (c *Client) GetScannerSettings(ctx context.Context, envID string, settingsOnly bool) (*scannerSettingsResponse, int, error) {
+	query := map[string]string{}
+	if settingsOnly {
+		query["settingsOnly"] = "true"
+	}
+	if resolvedEnv := c.resolveEnv(envID); resolvedEnv != "" {
+		query["env"] = resolvedEnv
+	}
+
+	var out scannerSettingsResponse
+	status, err := c.doJSONWithStatus(ctx, http.MethodGet, "/api/settings/scanner", query, nil, &out)
+	if err != nil {
+		return nil, status, err
+	}
+	return &out, status, nil
+}
+
+func (c *Client) SetScannerSettings(ctx context.Context, envID string, scanner string) (int, error) {
+	parsedEnvID, err := strconv.ParseInt(strings.TrimSpace(envID), 10, 64)
+	if err != nil {
+		return 0, fmt.Errorf("invalid environment id %q for scanner settings: %w", envID, err)
+	}
+
+	payload := scannerSettingsPayload{
+		Scanner: scanner,
+		EnvID:   parsedEnvID,
+	}
+
+	return c.doJSONWithStatus(ctx, http.MethodPost, "/api/settings/scanner", nil, payload, nil)
+}
+
+func (c *Client) RemoveScannerImage(ctx context.Context, envID string, scanner string) (bool, int, error) {
+	scanner = strings.ToLower(strings.TrimSpace(scanner))
+	if scanner != "grype" && scanner != "trivy" {
+		return false, 0, fmt.Errorf("invalid scanner %q: expected grype or trivy", scanner)
+	}
+
+	query := map[string]string{
+		"removeImages": "true",
+		"scanner":      scanner,
+	}
+	if resolvedEnv := c.resolveEnv(envID); resolvedEnv != "" {
+		query["env"] = resolvedEnv
+	}
+
+	var out simpleSuccessResponse
+	status, err := c.doJSONWithStatus(ctx, http.MethodDelete, "/api/settings/scanner", query, nil, &out)
+	if err != nil {
+		return false, status, err
+	}
+	return out.Success, status, nil
+}
+
+func (c *Client) CheckScannerUpdates(ctx context.Context, envID string) (*scannerCheckUpdatesResponse, int, error) {
+	query := map[string]string{
+		"checkUpdates": "true",
+	}
+	if resolvedEnv := c.resolveEnv(envID); resolvedEnv != "" {
+		query["env"] = resolvedEnv
+	}
+
+	var out scannerCheckUpdatesResponse
+	status, err := c.doJSONWithStatus(ctx, http.MethodGet, "/api/settings/scanner", query, nil, &out)
+	if err != nil {
+		return nil, status, err
+	}
+	return &out, status, nil
+}
+
 func (c *Client) ListNetworks(ctx context.Context, env string) ([]networkResponse, int, error) {
 	query := map[string]string{}
 	if resolvedEnv := c.resolveEnv(env); resolvedEnv != "" {
@@ -1200,7 +1296,57 @@ func (c *Client) PullImage(ctx context.Context, env string, image string, scanAf
 		Image:         image,
 		ScanAfterPull: scanAfterPull,
 	}
-	return c.doJSONWithStatus(ctx, http.MethodPost, "/api/images/pull", query, payload, nil)
+
+	data, err := json.Marshal(payload)
+	if err != nil {
+		return 0, err
+	}
+
+	ref := &url.URL{Path: "/api/images/pull"}
+	if len(query) > 0 {
+		values := url.Values{}
+		for k, v := range query {
+			if v != "" {
+				values.Set(k, v)
+			}
+		}
+		ref.RawQuery = values.Encode()
+	}
+	fullURL := c.baseURL.ResolveReference(ref).String()
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, fullURL, bytes.NewReader(data))
+	if err != nil {
+		return 0, err
+	}
+	req.Header.Set("Accept", "application/json")
+	req.Header.Set("Content-Type", "application/json")
+	if c.sessionCookie != "" {
+		req.Header.Set("Cookie", c.sessionCookie)
+	}
+
+	res, err := c.httpClient.Do(req)
+	if err != nil {
+		return 0, err
+	}
+	defer res.Body.Close()
+
+	body, err := io.ReadAll(io.LimitReader(res.Body, 10<<20)) // 10 MiB max stream capture
+	if err != nil {
+		return res.StatusCode, err
+	}
+
+	if res.StatusCode < 200 || res.StatusCode > 299 {
+		if len(body) == 0 {
+			return res.StatusCode, fmt.Errorf("dockhand api returned status %d", res.StatusCode)
+		}
+		return res.StatusCode, fmt.Errorf("dockhand api returned status %d: %s", res.StatusCode, strings.TrimSpace(string(body)))
+	}
+
+	if msg := imagePullStreamError(body); msg != "" {
+		return res.StatusCode, fmt.Errorf("dockhand image pull reported error: %s", msg)
+	}
+
+	return res.StatusCode, nil
 }
 
 func (c *Client) DeleteImage(ctx context.Context, env string, id string) (int, error) {
@@ -2061,6 +2207,56 @@ func sleepBackoff(ctx context.Context, attempt int) error {
 	case <-t.C:
 		return nil
 	}
+}
+
+func imagePullStreamError(body []byte) string {
+	if len(body) == 0 {
+		return ""
+	}
+
+	lines := bytes.Split(body, []byte{'\n'})
+	for _, line := range lines {
+		line = bytes.TrimSpace(line)
+		if len(line) == 0 {
+			continue
+		}
+
+		var obj map[string]any
+		if err := json.Unmarshal(line, &obj); err != nil {
+			continue
+		}
+
+		if status, ok := obj["status"].(string); ok && strings.EqualFold(strings.TrimSpace(status), "error") {
+			if msg := imagePullErrorMessage(obj); msg != "" {
+				return msg
+			}
+			return "unknown pull error"
+		}
+
+		if msg := imagePullErrorMessage(obj); msg != "" {
+			return msg
+		}
+	}
+
+	return ""
+}
+
+func imagePullErrorMessage(obj map[string]any) string {
+	if obj == nil {
+		return ""
+	}
+
+	if msg, ok := obj["error"].(string); ok && strings.TrimSpace(msg) != "" {
+		return strings.TrimSpace(msg)
+	}
+
+	if detail, ok := obj["errorDetail"].(map[string]any); ok {
+		if msg, ok := detail["message"].(string); ok && strings.TrimSpace(msg) != "" {
+			return strings.TrimSpace(msg)
+		}
+	}
+
+	return ""
 }
 
 func mapsToStacks(input []map[string]any) []stackResponse {

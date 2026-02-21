@@ -30,6 +30,7 @@ provider "dockhand" {
 - `dockhand_config_set`
 - `dockhand_notification`
 - `dockhand_environment`
+- `dockhand_environment_scanner_action`
 - `dockhand_network`
 - `dockhand_network_connection_action`
 - `dockhand_volume`
