@@ -19,6 +19,7 @@ Repository guidance for coding agents working on `terraform-provider-dockhand`.
   - Resource: `dockhand_registry`
   - Resource: `dockhand_git_credential`
   - Resource: `dockhand_git_repository`
+  - Resource: `dockhand_git_stack`
   - Resource: `dockhand_git_stack_webhook_action`
   - Resource: `dockhand_git_stack_deploy_action`
   - Resource: `dockhand_git_stack_env_file`

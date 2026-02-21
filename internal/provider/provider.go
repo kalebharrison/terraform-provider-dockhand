@@ -206,6 +206,7 @@ func (p *dockhandProvider) Resources(_ context.Context) []func() resource.Resour
 		NewRegistryResource,
 		NewGitCredentialResource,
 		NewGitRepositoryResource,
+		NewGitStackResource,
 		NewGitStackWebhookActionResource,
 		NewGitStackDeployActionResource,
 		NewGitStackEnvFileResource,

@@ -60,6 +60,7 @@ Live verification artifacts:
 | `dockhand_git_repository` | Read | `GET /api/git/repositories/{id}` | `404` removes from state. | implemented |
 | `dockhand_git_repository` | Update | `PUT /api/git/repositories/{id}` | Updates repo integration settings. | partial |
 | `dockhand_git_repository` | Delete | `DELETE /api/git/repositories/{id}` | `404` treated as already deleted. | implemented |
+| `dockhand_git_stack` | Create/Read/Update/Delete | `GET/POST/PUT/DELETE /api/git/stacks?env={env_id}` | Manages deployed Git-backed stacks (stack name + repo + compose path) in a target environment. | implemented |
 | `dockhand_git_stack_webhook_action` | Trigger webhook | `POST /api/git/stacks/{id}/webhook` | One-shot trigger for git stack deploy/sync webhook flow. | implemented |
 | `dockhand_git_stack_deploy_action` | Trigger deploy | `POST /api/git/stacks/{id}/deploy-stream` | One-shot deploy request for git-managed stacks. | implemented |
 | `dockhand_git_stack_env_file` | Read available env-file paths | `GET /api/git/stacks/{id}/env-files` | Reads env-file path inventory for a git-managed stack. | implemented |

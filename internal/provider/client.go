@@ -286,6 +286,58 @@ type gitRepositoryResponse struct {
 	UpdatedAt          *string `json:"updatedAt"`
 }
 
+type gitStackEnvVarPayload struct {
+	Key      string `json:"key"`
+	Value    string `json:"value"`
+	IsSecret bool   `json:"isSecret"`
+}
+
+type gitStackPayload struct {
+	StackName         string                  `json:"stackName"`
+	RepositoryID      *int64                  `json:"repositoryId,omitempty"`
+	RepoName          *string                 `json:"repoName,omitempty"`
+	URL               *string                 `json:"url,omitempty"`
+	Branch            *string                 `json:"branch,omitempty"`
+	CredentialID      *int64                  `json:"credentialId,omitempty"`
+	ComposePath       string                  `json:"composePath"`
+	EnvFilePath       *string                 `json:"envFilePath,omitempty"`
+	AutoUpdateEnabled bool                    `json:"autoUpdateEnabled"`
+	AutoUpdateCron    string                  `json:"autoUpdateCron"`
+	WebhookEnabled    bool                    `json:"webhookEnabled"`
+	WebhookSecret     *string                 `json:"webhookSecret,omitempty"`
+	DeployNow         bool                    `json:"deployNow"`
+	EnvVars           []gitStackEnvVarPayload `json:"envVars,omitempty"`
+}
+
+type gitStackRepositoryResponse struct {
+	ID           int64   `json:"id"`
+	Name         string  `json:"name"`
+	URL          string  `json:"url"`
+	Branch       *string `json:"branch"`
+	CredentialID *int64  `json:"credentialId"`
+}
+
+type gitStackResponse struct {
+	ID                 int64                       `json:"id"`
+	StackName          string                      `json:"stackName"`
+	EnvironmentID      *int64                      `json:"environmentId"`
+	RepositoryID       *int64                      `json:"repositoryId"`
+	ComposePath        *string                     `json:"composePath"`
+	EnvFilePath        *string                     `json:"envFilePath"`
+	AutoUpdate         bool                        `json:"autoUpdate"`
+	AutoUpdateSchedule *string                     `json:"autoUpdateSchedule"`
+	AutoUpdateCron     *string                     `json:"autoUpdateCron"`
+	WebhookEnabled     bool                        `json:"webhookEnabled"`
+	WebhookSecret      *string                     `json:"webhookSecret"`
+	LastSync           *string                     `json:"lastSync"`
+	LastCommit         *string                     `json:"lastCommit"`
+	SyncStatus         *string                     `json:"syncStatus"`
+	SyncError          *string                     `json:"syncError"`
+	CreatedAt          *string                     `json:"createdAt"`
+	UpdatedAt          *string                     `json:"updatedAt"`
+	Repository         *gitStackRepositoryResponse `json:"repository"`
+}
+
 type stackEnvVariable struct {
 	Key      string `json:"key"`
 	Value    string `json:"value"`
@@ -878,6 +930,69 @@ func (c *Client) UpdateGitRepository(ctx context.Context, id string, payload git
 
 func (c *Client) DeleteGitRepository(ctx context.Context, id string) (int, error) {
 	return c.doJSONWithStatus(ctx, http.MethodDelete, "/api/git/repositories/"+url.PathEscape(id), nil, nil, nil)
+}
+
+func (c *Client) ListGitStacks(ctx context.Context, env string) ([]gitStackResponse, int, error) {
+	query := map[string]string{}
+	if resolvedEnv := c.resolveEnv(env); resolvedEnv != "" {
+		query["env"] = resolvedEnv
+	}
+
+	var out []gitStackResponse
+	status, err := c.doJSONWithStatus(ctx, http.MethodGet, "/api/git/stacks", query, nil, &out)
+	if err != nil {
+		return nil, status, err
+	}
+	return out, status, nil
+}
+
+func (c *Client) GetGitStackByID(ctx context.Context, env string, id string) (*gitStackResponse, int, error) {
+	items, status, err := c.ListGitStacks(ctx, env)
+	if err != nil {
+		return nil, status, err
+	}
+	for i := range items {
+		if fmt.Sprintf("%d", items[i].ID) == strings.TrimSpace(id) {
+			return &items[i], status, nil
+		}
+	}
+	return nil, status, nil
+}
+
+func (c *Client) CreateGitStack(ctx context.Context, env string, payload gitStackPayload) (*gitStackResponse, int, error) {
+	query := map[string]string{}
+	if resolvedEnv := c.resolveEnv(env); resolvedEnv != "" {
+		query["env"] = resolvedEnv
+	}
+
+	var out gitStackResponse
+	status, err := c.doJSONWithStatus(ctx, http.MethodPost, "/api/git/stacks", query, payload, &out)
+	if err != nil {
+		return nil, status, err
+	}
+	return &out, status, nil
+}
+
+func (c *Client) UpdateGitStack(ctx context.Context, env string, id string, payload gitStackPayload) (*gitStackResponse, int, error) {
+	query := map[string]string{}
+	if resolvedEnv := c.resolveEnv(env); resolvedEnv != "" {
+		query["env"] = resolvedEnv
+	}
+
+	var out gitStackResponse
+	status, err := c.doJSONWithStatus(ctx, http.MethodPut, "/api/git/stacks/"+url.PathEscape(id), query, payload, &out)
+	if err != nil {
+		return nil, status, err
+	}
+	return &out, status, nil
+}
+
+func (c *Client) DeleteGitStack(ctx context.Context, env string, id string) (int, error) {
+	query := map[string]string{}
+	if resolvedEnv := c.resolveEnv(env); resolvedEnv != "" {
+		query["env"] = resolvedEnv
+	}
+	return c.doJSONWithStatus(ctx, http.MethodDelete, "/api/git/stacks/"+url.PathEscape(id), query, nil, nil)
 }
 
 func (c *Client) TriggerGitStackWebhook(ctx context.Context, id string) (int, error) {

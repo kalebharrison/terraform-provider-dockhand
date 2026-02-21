@@ -24,6 +24,7 @@ provider "dockhand" {
 - `dockhand_registry`
 - `dockhand_git_credential`
 - `dockhand_git_repository`
+- `dockhand_git_stack`
 - `dockhand_git_stack_webhook_action`
 - `dockhand_git_stack_deploy_action`
 - `dockhand_git_stack_env_file`
