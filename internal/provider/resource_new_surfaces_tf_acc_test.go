@@ -178,6 +178,49 @@ func TestAccGitStackEnvFileResourceTerraform(t *testing.T) {
 	})
 }
 
+func TestAccGitRepositoryEnvironmentIDNoDriftTerraform(t *testing.T) {
+	endpoint, username, password := testAccEnv(t)
+	defaultEnv := testAccDefaultEnv()
+	testEnvID := strings.TrimSpace(os.Getenv("DOCKHAND_TEST_GIT_REPO_ENV_ID"))
+	if testEnvID == "" {
+		t.Skip("acceptance test requires DOCKHAND_TEST_GIT_REPO_ENV_ID")
+	}
+
+	t.Setenv("DOCKHAND_ENDPOINT", endpoint)
+	t.Setenv("DOCKHAND_USERNAME", username)
+	t.Setenv("DOCKHAND_PASSWORD", password)
+	t.Setenv("DOCKHAND_DEFAULT_ENV", defaultEnv)
+
+	suffix := strings.ToLower(time.Now().UTC().Format("20060102150405"))
+	repoName := "tf-acc-git-repo-" + suffix
+	repoURL := "https://github.com/docker-library/hello-world.git"
+
+	resource.Test(t, resource.TestCase{
+		ProtoV6ProviderFactories: testAccProviderFactories(),
+		Steps: []resource.TestStep{
+			{
+				Config: testAccGitRepositoryConfig(repoName, repoURL, "main", testEnvID),
+				Check: resource.ComposeTestCheckFunc(
+					resource.TestCheckResourceAttr("dockhand_git_repository.test", "name", repoName),
+					resource.TestCheckResourceAttr("dockhand_git_repository.test", "environment_id", testEnvID),
+					resource.TestCheckResourceAttrSet("dockhand_git_repository.test", "id"),
+				),
+			},
+			{
+				ResourceName:            "dockhand_git_repository.test",
+				ImportState:             true,
+				ImportStateVerify:       true,
+				ImportStateVerifyIgnore: []string{"webhook_secret", "last_sync", "last_commit", "sync_status", "sync_error", "created_at", "updated_at"},
+			},
+			{
+				Config:             testAccGitRepositoryConfig(repoName, repoURL, "main", testEnvID),
+				PlanOnly:           true,
+				ExpectNonEmptyPlan: false,
+			},
+		},
+	})
+}
+
 func testAccContainerDirectoryConfig(env string, containerID string, path string) string {
 	return fmt.Sprintf(`
 provider "dockhand" {}
@@ -268,4 +311,17 @@ resource "dockhand_git_stack_env_file" "test" {
   trigger  = %q
 }
 `, stackID, path, trigger)
+}
+
+func testAccGitRepositoryConfig(name string, url string, branch string, environmentID string) string {
+	return fmt.Sprintf(`
+provider "dockhand" {}
+
+resource "dockhand_git_repository" "test" {
+  name           = %q
+  url            = %q
+  branch         = %q
+  environment_id = %q
+}
+`, name, url, branch, environmentID)
 }

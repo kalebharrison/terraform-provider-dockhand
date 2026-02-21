@@ -7,6 +7,8 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/hashicorp/terraform-plugin-framework/attr"
+	"github.com/hashicorp/terraform-plugin-framework/diag"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
@@ -34,11 +36,19 @@ type stackEnvVariableModel struct {
 }
 
 type stackEnvResourceModel struct {
-	ID              types.String            `tfsdk:"id"`
-	Env             types.String            `tfsdk:"env"`
-	StackName       types.String            `tfsdk:"stack_name"`
-	RawContent      types.String            `tfsdk:"raw_content"`
-	SecretVariables []stackEnvVariableModel `tfsdk:"secret_variables"`
+	ID              types.String `tfsdk:"id"`
+	Env             types.String `tfsdk:"env"`
+	StackName       types.String `tfsdk:"stack_name"`
+	RawContent      types.String `tfsdk:"raw_content"`
+	SecretVariables types.List   `tfsdk:"secret_variables"`
+}
+
+var stackEnvVariableObjectType = types.ObjectType{
+	AttrTypes: map[string]attr.Type{
+		"key":       types.StringType,
+		"value":     types.StringType,
+		"is_secret": types.BoolType,
+	},
 }
 
 func (r *stackEnvResource) Metadata(_ context.Context, req resource.MetadataRequest, resp *resource.MetadataResponse) {
@@ -150,6 +160,21 @@ func expandStackEnvVars(items []stackEnvVariable) []stackEnvVariableModel {
 	return normalizeStackEnvVars(out)
 }
 
+func stackEnvVarsFromList(ctx context.Context, list types.List) ([]stackEnvVariableModel, diag.Diagnostics) {
+	if list.IsNull() || list.IsUnknown() {
+		return nil, nil
+	}
+	var out []stackEnvVariableModel
+	diags := list.ElementsAs(ctx, &out, false)
+	return out, diags
+}
+
+func stackEnvVarsToList(ctx context.Context, items []stackEnvVariableModel) (types.List, diag.Diagnostics) {
+	norm := normalizeStackEnvVars(items)
+	list, diags := types.ListValueFrom(ctx, stackEnvVariableObjectType, norm)
+	return list, diags
+}
+
 func mergeMaskedSecretValues(previous []stackEnvVariableModel, current []stackEnvVariableModel) []stackEnvVariableModel {
 	prevByKey := make(map[string]string, len(previous))
 	for _, it := range previous {
@@ -218,14 +243,24 @@ func (r *stackEnvResource) Create(ctx context.Context, req resource.CreateReques
 		raw = plan.RawContent.ValueString()
 	}
 
-	if _, err := r.upsert(ctx, env, stackName, raw, plan.SecretVariables); err != nil {
+	planVars, diags := stackEnvVarsFromList(ctx, plan.SecretVariables)
+	resp.Diagnostics.Append(diags...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+
+	if _, err := r.upsert(ctx, env, stackName, raw, planVars); err != nil {
 		resp.Diagnostics.AddError("Error updating stack env", err.Error())
 		return
 	}
 
 	plan.ID = types.StringValue(fmt.Sprintf("%s:%s", env, stackName))
 	plan.RawContent = types.StringValue(raw)
-	plan.SecretVariables = normalizeStackEnvVars(plan.SecretVariables)
+	plan.SecretVariables, diags = stackEnvVarsToList(ctx, planVars)
+	resp.Diagnostics.Append(diags...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
 	resp.Diagnostics.Append(resp.State.Set(ctx, &plan)...)
 }
 
@@ -269,7 +304,19 @@ func (r *stackEnvResource) Read(ctx context.Context, req resource.ReadRequest, r
 	}
 
 	state.RawContent = types.StringValue(raw)
-	state.SecretVariables = mergeMaskedSecretValues(state.SecretVariables, expandStackEnvVars(vars))
+	prevVars, diags := stackEnvVarsFromList(ctx, state.SecretVariables)
+	resp.Diagnostics.Append(diags...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+
+	mergedVars := mergeMaskedSecretValues(prevVars, expandStackEnvVars(vars))
+	state.SecretVariables, diags = stackEnvVarsToList(ctx, mergedVars)
+	resp.Diagnostics.Append(diags...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+
 	resp.Diagnostics.Append(resp.State.Set(ctx, &state)...)
 }
 
@@ -290,14 +337,24 @@ func (r *stackEnvResource) Update(ctx context.Context, req resource.UpdateReques
 		raw = plan.RawContent.ValueString()
 	}
 
-	if _, err := r.upsert(ctx, plan.Env.ValueString(), plan.StackName.ValueString(), raw, plan.SecretVariables); err != nil {
+	planVars, diags := stackEnvVarsFromList(ctx, plan.SecretVariables)
+	resp.Diagnostics.Append(diags...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+
+	if _, err := r.upsert(ctx, plan.Env.ValueString(), plan.StackName.ValueString(), raw, planVars); err != nil {
 		resp.Diagnostics.AddError("Error updating stack env", err.Error())
 		return
 	}
 
 	plan.ID = types.StringValue(fmt.Sprintf("%s:%s", plan.Env.ValueString(), plan.StackName.ValueString()))
 	plan.RawContent = types.StringValue(raw)
-	plan.SecretVariables = normalizeStackEnvVars(plan.SecretVariables)
+	plan.SecretVariables, diags = stackEnvVarsToList(ctx, planVars)
+	resp.Diagnostics.Append(diags...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
 	resp.Diagnostics.Append(resp.State.Set(ctx, &plan)...)
 }
 

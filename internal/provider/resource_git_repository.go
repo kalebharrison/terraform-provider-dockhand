@@ -182,7 +182,7 @@ func (r *gitRepositoryResource) Create(ctx context.Context, req resource.CreateR
 		return
 	}
 
-	state := modelFromGitRepositoryResponse(created)
+	state := mergeGitRepositoryState(plan, modelFromGitRepositoryResponse(created))
 	resp.Diagnostics.Append(resp.State.Set(ctx, &state)...)
 }
 
@@ -208,7 +208,7 @@ func (r *gitRepositoryResource) Read(ctx context.Context, req resource.ReadReque
 		return
 	}
 
-	newState := modelFromGitRepositoryResponse(repo)
+	newState := mergeGitRepositoryState(state, modelFromGitRepositoryResponse(repo))
 	resp.Diagnostics.Append(resp.State.Set(ctx, &newState)...)
 }
 
@@ -244,7 +244,7 @@ func (r *gitRepositoryResource) Update(ctx context.Context, req resource.UpdateR
 		return
 	}
 
-	newState := modelFromGitRepositoryResponse(updated)
+	newState := mergeGitRepositoryState(plan, modelFromGitRepositoryResponse(updated))
 	resp.Diagnostics.Append(resp.State.Set(ctx, &newState)...)
 }
 
@@ -399,6 +399,16 @@ func modelFromGitRepositoryResponse(in *gitRepositoryResponse) gitRepositoryMode
 		out.UpdatedAt = types.StringValue(*in.UpdatedAt)
 	} else {
 		out.UpdatedAt = types.StringNull()
+	}
+
+	return out
+}
+
+func mergeGitRepositoryState(preferred gitRepositoryModel, remote gitRepositoryModel) gitRepositoryModel {
+	out := remote
+
+	if (out.EnvironmentID.IsNull() || out.EnvironmentID.IsUnknown()) && !preferred.EnvironmentID.IsNull() && !preferred.EnvironmentID.IsUnknown() {
+		out.EnvironmentID = preferred.EnvironmentID
 	}
 
 	return out
