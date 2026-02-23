@@ -78,6 +78,33 @@ func TestBuildGitStackPayloadWebhookExplicitSecret(t *testing.T) {
 	}
 }
 
+func TestBuildGitStackPayloadSetsBothAutoUpdateKeys(t *testing.T) {
+	plan := gitStackModel{
+		StackName:                 types.StringValue("test-stack"),
+		ComposePath:               types.StringValue("docker-compose.yml"),
+		WebhookEnabled:            types.BoolValue(false),
+		WebhookSecretAutoGenerate: types.BoolValue(false),
+		WebhookSecret:             types.StringNull(),
+		AutoUpdateEnabled:         types.BoolValue(true),
+		AutoUpdateCron:            types.StringValue("15 6 * * *"),
+		DeployNow:                 types.BoolValue(false),
+		EnvVarsJSON:               types.StringValue("[]"),
+		URL:                       types.StringValue("https://example.com/repo.git"),
+		Branch:                    types.StringValue("main"),
+	}
+
+	payload, err := buildGitStackPayload(plan)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !payload.AutoUpdateEnabled {
+		t.Fatalf("expected AutoUpdateEnabled true in payload")
+	}
+	if payload.AutoUpdate == nil || !*payload.AutoUpdate {
+		t.Fatalf("expected AutoUpdate pointer to be true in payload")
+	}
+}
+
 func TestMergeGitStackStateWebhookSecretExplicitEmptyWins(t *testing.T) {
 	preferred := gitStackModel{WebhookSecret: types.StringValue("")}
 	remote := gitStackModel{WebhookSecret: types.StringValue("server-generated")}
@@ -113,5 +140,42 @@ func TestMergeGitStackStateWebhookSecretConfiguredInConfig(t *testing.T) {
 	merged := mergeGitStackState(preferred, remote)
 	if merged.WebhookSecret.IsNull() || merged.WebhookSecret.ValueString() != "from-config" {
 		t.Fatalf("expected webhook_secret to preserve configured value, got null=%v value=%q", merged.WebhookSecret.IsNull(), merged.WebhookSecret.ValueString())
+	}
+}
+
+func TestModelFromGitStackResponsePrefersAutoUpdateEnabled(t *testing.T) {
+	falseVal := false
+	resp := &gitStackResponse{
+		ID:                1,
+		StackName:         "test-stack",
+		AutoUpdate:        true,
+		AutoUpdateEnabled: &falseVal,
+		WebhookEnabled:    false,
+	}
+
+	model := modelFromGitStackResponse(resp)
+	if model.AutoUpdateEnabled.IsNull() || model.AutoUpdateEnabled.IsUnknown() {
+		t.Fatalf("expected AutoUpdateEnabled to be set")
+	}
+	if model.AutoUpdateEnabled.ValueBool() {
+		t.Fatalf("expected AutoUpdateEnabled=false when explicit autoUpdateEnabled is false")
+	}
+}
+
+func TestModelFromGitStackResponseFallsBackToAutoUpdate(t *testing.T) {
+	resp := &gitStackResponse{
+		ID:                1,
+		StackName:         "test-stack",
+		AutoUpdate:        true,
+		AutoUpdateEnabled: nil,
+		WebhookEnabled:    false,
+	}
+
+	model := modelFromGitStackResponse(resp)
+	if model.AutoUpdateEnabled.IsNull() || model.AutoUpdateEnabled.IsUnknown() {
+		t.Fatalf("expected AutoUpdateEnabled to be set")
+	}
+	if !model.AutoUpdateEnabled.ValueBool() {
+		t.Fatalf("expected AutoUpdateEnabled=true when falling back to autoUpdate")
 	}
 }

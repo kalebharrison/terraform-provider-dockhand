@@ -303,6 +303,7 @@ type gitStackPayload struct {
 	ComposePath       string                  `json:"composePath"`
 	EnvFilePath       *string                 `json:"envFilePath,omitempty"`
 	AutoUpdateEnabled bool                    `json:"autoUpdateEnabled"`
+	AutoUpdate        *bool                   `json:"autoUpdate,omitempty"`
 	AutoUpdateCron    string                  `json:"autoUpdateCron"`
 	WebhookEnabled    bool                    `json:"webhookEnabled"`
 	WebhookSecret     *string                 `json:"webhookSecret,omitempty"`
@@ -326,6 +327,7 @@ type gitStackResponse struct {
 	ComposePath        *string                     `json:"composePath"`
 	EnvFilePath        *string                     `json:"envFilePath"`
 	AutoUpdate         bool                        `json:"autoUpdate"`
+	AutoUpdateEnabled  *bool                       `json:"autoUpdateEnabled"`
 	AutoUpdateSchedule *string                     `json:"autoUpdateSchedule"`
 	AutoUpdateCron     *string                     `json:"autoUpdateCron"`
 	WebhookEnabled     bool                        `json:"webhookEnabled"`

@@ -363,6 +363,8 @@ func buildGitStackPayload(plan gitStackModel) (gitStackPayload, error) {
 		WebhookEnabled:    webhookEnabled,
 		DeployNow:         deployNow,
 	}
+	// Support Dockhand API variants that use either autoUpdateEnabled or autoUpdate.
+	payload.AutoUpdate = &autoUpdateEnabled
 
 	if !plan.EnvFilePath.IsNull() && !plan.EnvFilePath.IsUnknown() {
 		v := strings.TrimSpace(plan.EnvFilePath.ValueString())
@@ -456,10 +458,15 @@ func parseGitStackEnvVarsJSON(raw types.String) ([]gitStackEnvVarPayload, error)
 }
 
 func modelFromGitStackResponse(in *gitStackResponse) gitStackModel {
+	autoUpdateEnabled := in.AutoUpdate
+	if in.AutoUpdateEnabled != nil {
+		autoUpdateEnabled = *in.AutoUpdateEnabled
+	}
+
 	out := gitStackModel{
 		ID:                        types.StringValue(fmt.Sprintf("%d", in.ID)),
 		StackName:                 types.StringValue(in.StackName),
-		AutoUpdateEnabled:         types.BoolValue(in.AutoUpdate),
+		AutoUpdateEnabled:         types.BoolValue(autoUpdateEnabled),
 		WebhookEnabled:            types.BoolValue(in.WebhookEnabled),
 		WebhookSecretAutoGenerate: types.BoolValue(false),
 		EnvVarsJSON:               types.StringValue("[]"),
