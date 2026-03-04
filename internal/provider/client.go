@@ -420,6 +420,7 @@ type notificationResponse struct {
 type environmentPayload struct {
 	Name                  string  `json:"name"`
 	ConnectionType        string  `json:"connectionType"`
+	HawserToken           *string `json:"hawserToken,omitempty"`
 	Host                  *string `json:"host,omitempty"`
 	Port                  *int64  `json:"port,omitempty"`
 	Protocol              *string `json:"protocol,omitempty"`
@@ -442,6 +443,7 @@ type environmentResponse struct {
 	ID                    int64    `json:"id"`
 	Name                  string   `json:"name"`
 	ConnectionType        string   `json:"connectionType"`
+	HawserToken           *string  `json:"hawserToken"`
 	Host                  *string  `json:"host"`
 	Port                  int64    `json:"port"`
 	Protocol              string   `json:"protocol"`

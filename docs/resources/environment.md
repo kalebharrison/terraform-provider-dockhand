@@ -35,11 +35,18 @@ resource "dockhand_environment" "socket" {
   ensure_trivy_installed         = true
   timezone                 = "UTC"
 }
+
+resource "dockhand_environment" "agent" {
+  name            = "edge-agent01"
+  connection_type = "agent"
+  agent_token     = var.edge_agent_token
+}
 ```
 
 ## Notes
 
 - `socket_path` is required when `connection_type = "socket"`.
+- `agent_token` is available for `connection_type = "agent"` and maps to Dockhand `hawserToken`.
 - mTLS fields are available:
   - `ca_cert`
   - `client_cert`

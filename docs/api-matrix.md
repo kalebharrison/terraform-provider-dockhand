@@ -73,9 +73,9 @@ Live verification artifacts:
 | `dockhand_notification` | Read | `GET /api/notifications/{id}` | `404` removes from state. | implemented |
 | `dockhand_notification` | Update | `PUT /api/notifications/{id}` | Updates config and event types. | partial |
 | `dockhand_notification` | Delete | `DELETE /api/notifications/{id}` | `404` treated as already deleted. | implemented |
-| `dockhand_environment` | Create | `POST /api/environments` | Supports Docker environment connection + collection settings, including mTLS cert/key fields (`ca_cert`, `client_cert`, `client_key`). | partial |
+| `dockhand_environment` | Create | `POST /api/environments` | Supports Docker environment connection + collection settings, including mTLS cert/key fields (`ca_cert`, `client_cert`, `client_key`) and agent enrollment token (`agent_token` -> `hawserToken`). | partial |
 | `dockhand_environment` | Read | `GET /api/environments/{id}` | `404` removes from state. | implemented |
-| `dockhand_environment` | Update | `PUT /api/environments/{id}` | Updates environment settings, including mTLS cert/key fields. | partial |
+| `dockhand_environment` | Update | `PUT /api/environments/{id}` | Updates environment settings, including mTLS cert/key fields and agent enrollment token (`agent_token`). | partial |
 | `dockhand_environment` | Update-check settings | `GET/POST /api/environments/{id}/update-check` | Manages `update_check_enabled`, `update_check_auto_update`, `update_check_cron`, and `update_check_vulnerability_criteria`. | implemented |
 | `dockhand_environment` | Image-prune settings | `GET/POST /api/environments/{id}/image-prune` | Manages `image_prune_enabled`, `image_prune_cron`, and `image_prune_mode`. | implemented |
 | `dockhand_environment` | Timezone settings | `GET/POST /api/environments/{id}/timezone` | Manages environment timezone (`timezone`). | implemented |

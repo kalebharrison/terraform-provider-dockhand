@@ -34,6 +34,7 @@ type environmentModel struct {
 
 	Name           types.String `tfsdk:"name"`
 	ConnectionType types.String `tfsdk:"connection_type"`
+	AgentToken     types.String `tfsdk:"agent_token"`
 	Host           types.String `tfsdk:"host"`
 	Port           types.Int64  `tfsdk:"port"`
 	Protocol       types.String `tfsdk:"protocol"`
@@ -92,6 +93,12 @@ func (r *environmentResource) Schema(_ context.Context, _ resource.SchemaRequest
 				MarkdownDescription: "Environment connection type. Example: `socket`.",
 				Optional:            true,
 				Computed:            true,
+			},
+			"agent_token": schema.StringAttribute{
+				MarkdownDescription: "Agent enrollment token for `connection_type = \"agent\"`. Maps to Dockhand `hawserToken`.",
+				Optional:            true,
+				Computed:            true,
+				Sensitive:           true,
 			},
 			"host": schema.StringAttribute{
 				Optional: true,
@@ -387,6 +394,11 @@ func buildEnvironmentPayload(plan environmentModel, prior environmentModel) (env
 	if v := firstKnownString(plan.SocketPath, prior.SocketPath); v != "" {
 		payload.SocketPath = &v
 	}
+	if connectionType == "agent" {
+		if v := firstKnownString(plan.AgentToken, prior.AgentToken); v != "" {
+			payload.HawserToken = &v
+		}
+	}
 	if v, ok := firstKnownBoolPtr(plan.TLSSkipVerify, prior.TLSSkipVerify); ok {
 		payload.TLSSkipVerify = &v
 	}
@@ -476,6 +488,17 @@ func modelFromEnvironmentResponse(prior environmentModel, in *environmentRespons
 		out.SocketPath = types.StringValue(*in.SocketPath)
 	} else {
 		out.SocketPath = types.StringNull()
+	}
+	if in.ConnectionType == "agent" {
+		if !prior.AgentToken.IsNull() && !prior.AgentToken.IsUnknown() {
+			out.AgentToken = prior.AgentToken
+		} else if in.HawserToken != nil && *in.HawserToken != "" {
+			out.AgentToken = types.StringValue(*in.HawserToken)
+		} else {
+			out.AgentToken = types.StringNull()
+		}
+	} else {
+		out.AgentToken = types.StringNull()
 	}
 	if !prior.CACert.IsNull() && !prior.CACert.IsUnknown() {
 		out.CACert = prior.CACert
