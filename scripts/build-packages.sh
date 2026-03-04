@@ -10,6 +10,7 @@ Usage: build-packages.sh --version X.Y.Z [--out-dir DIR]
 
 Outputs (in out-dir, default: ./dist-local):
   terraform-provider-dockhand_<version>_<os>_<arch>.zip
+  terraform-provider-dockhand_<version>_manifest.json
   terraform-provider-dockhand_<version>_SHA256SUMS
 TXT
 }
@@ -70,6 +71,15 @@ platforms=(
   "windows/amd64"
 )
 
+manifest_src="${repo_root}/terraform-registry-manifest.json"
+manifest_name="terraform-provider-dockhand_${version}_manifest.json"
+manifest_dst="${out_dir}/${manifest_name}"
+if [[ ! -f "${manifest_src}" ]]; then
+  echo "missing ${manifest_src}" >&2
+  exit 2
+fi
+cp "${manifest_src}" "${manifest_dst}"
+
 sum_file="${out_dir}/terraform-provider-dockhand_${version}_SHA256SUMS"
 rm -f "${sum_file}"
 
@@ -105,5 +115,12 @@ for p in "${platforms[@]}"; do
     (cd "${out_dir}" && sha256sum "${zip_name}" >> "${sum_file}")
   fi
 done
+
+# Add manifest checksum (required for release asset integrity verification).
+if command -v shasum >/dev/null 2>&1; then
+  (cd "${out_dir}" && shasum -a 256 "${manifest_name}" >> "${sum_file}")
+else
+  (cd "${out_dir}" && sha256sum "${manifest_name}" >> "${sum_file}")
+fi
 
 echo "Wrote packages to: ${out_dir}" >&2

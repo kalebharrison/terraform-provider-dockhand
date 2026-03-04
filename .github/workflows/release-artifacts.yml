@@ -62,27 +62,37 @@ jobs:
             echo "Missing secret: GPG_PRIVATE_KEY" >&2
             exit 2
           fi
-          if [[ -z "${{ secrets.GPG_PASSPHRASE }}" ]]; then
-            echo "Missing secret: GPG_PASSPHRASE" >&2
-            exit 2
-          fi
 
-      - name: Import GPG key
+      - name: Import GPG key (passphrase)
+        if: ${{ secrets.GPG_PASSPHRASE != '' }}
         uses: crazy-max/ghaction-import-gpg@v6
         with:
           gpg_private_key: ${{ secrets.GPG_PRIVATE_KEY }}
           passphrase: ${{ secrets.GPG_PASSPHRASE }}
 
+      - name: Import GPG key (no passphrase)
+        if: ${{ secrets.GPG_PASSPHRASE == '' }}
+        uses: crazy-max/ghaction-import-gpg@v6
+        with:
+          gpg_private_key: ${{ secrets.GPG_PRIVATE_KEY }}
+
       - name: Sign checksums
         shell: bash
+        env:
+          GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
         run: |
           set -euo pipefail
           sums="dist-local/terraform-provider-dockhand_${{ steps.ver.outputs.version }}_SHA256SUMS"
           sig="${sums}.sig"
           # Terraform Registry expects a binary detached signature (not ASCII-armored).
-          gpg --batch --yes --detach-sign --pinentry-mode loopback \
-            --passphrase "${{ secrets.GPG_PASSPHRASE }}" \
-            --output "${sig}" "${sums}"
+          if [[ -n "${GPG_PASSPHRASE}" ]]; then
+            gpg --batch --yes --detach-sign --pinentry-mode loopback \
+              --passphrase "${GPG_PASSPHRASE}" \
+              --output "${sig}" "${sums}"
+          else
+            gpg --batch --yes --detach-sign \
+              --output "${sig}" "${sums}"
+          fi
 
       - name: Publish GitHub Release
         uses: softprops/action-gh-release@v2
@@ -92,5 +102,6 @@ jobs:
           generate_release_notes: true
           files: |
             dist-local/terraform-provider-dockhand_${{ steps.ver.outputs.version }}_*.zip
+            dist-local/terraform-provider-dockhand_${{ steps.ver.outputs.version }}_manifest.json
             dist-local/terraform-provider-dockhand_${{ steps.ver.outputs.version }}_SHA256SUMS
             dist-local/terraform-provider-dockhand_${{ steps.ver.outputs.version }}_SHA256SUMS.sig
