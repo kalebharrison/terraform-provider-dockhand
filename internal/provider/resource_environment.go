@@ -90,12 +90,12 @@ func (r *environmentResource) Schema(_ context.Context, _ resource.SchemaRequest
 				Required: true,
 			},
 			"connection_type": schema.StringAttribute{
-				MarkdownDescription: "Environment connection type. Example: `socket`.",
+				MarkdownDescription: "Environment connection type. Example: `socket`. `agent` is mapped to Dockhand `hawser-edge`.",
 				Optional:            true,
 				Computed:            true,
 			},
 			"agent_token": schema.StringAttribute{
-				MarkdownDescription: "Agent enrollment token for `connection_type = \"agent\"`. Maps to Dockhand `hawserToken`.",
+				MarkdownDescription: "Agent enrollment token for `connection_type = \"agent\"`. Provisioned through Dockhand Hawser token API.",
 				Optional:            true,
 				Computed:            true,
 				Sensitive:           true,
@@ -273,6 +273,7 @@ func (r *environmentResource) Create(ctx context.Context, req resource.CreateReq
 	}
 
 	state := modelFromEnvironmentResponse(plan, created)
+	state = r.applyEnvironmentAgentToken(ctx, state, plan, environmentModel{}, &resp.Diagnostics)
 	state = r.applyEnvironmentAux(ctx, state, plan, state.ID.ValueString(), &resp.Diagnostics)
 	state = r.readEnvironmentAux(ctx, state, &resp.Diagnostics)
 	resp.Diagnostics.Append(resp.State.Set(ctx, &state)...)
@@ -338,6 +339,7 @@ func (r *environmentResource) Update(ctx context.Context, req resource.UpdateReq
 	}
 
 	newState := modelFromEnvironmentResponse(plan, updated)
+	newState = r.applyEnvironmentAgentToken(ctx, newState, plan, state, &resp.Diagnostics)
 	newState = r.applyEnvironmentAux(ctx, newState, plan, id, &resp.Diagnostics)
 	newState = r.readEnvironmentAux(ctx, newState, &resp.Diagnostics)
 	resp.Diagnostics.Append(resp.State.Set(ctx, &newState)...)
@@ -376,10 +378,11 @@ func buildEnvironmentPayload(plan environmentModel, prior environmentModel) (env
 	if connectionType == "" {
 		connectionType = "socket"
 	}
+	apiConnectionType := normalizeEnvironmentConnectionTypeForAPI(connectionType)
 
 	payload := environmentPayload{
 		Name:           name,
-		ConnectionType: connectionType,
+		ConnectionType: apiConnectionType,
 	}
 
 	if v := firstKnownString(plan.Host, prior.Host); v != "" {
@@ -394,7 +397,7 @@ func buildEnvironmentPayload(plan environmentModel, prior environmentModel) (env
 	if v := firstKnownString(plan.SocketPath, prior.SocketPath); v != "" {
 		payload.SocketPath = &v
 	}
-	if connectionType == "agent" {
+	if isAgentConnectionType(connectionType) {
 		if v := firstKnownString(plan.AgentToken, prior.AgentToken); v != "" {
 			payload.HawserToken = &v
 		}
@@ -436,7 +439,7 @@ func buildEnvironmentPayload(plan environmentModel, prior environmentModel) (env
 		payload.ImagePruneEnabled = &v
 	}
 
-	if connectionType == "socket" && payload.SocketPath == nil {
+	if strings.TrimSpace(connectionType) == "socket" && payload.SocketPath == nil {
 		return environmentPayload{}, fmt.Errorf("socket_path is required when connection_type is \"socket\"")
 	}
 
@@ -444,10 +447,12 @@ func buildEnvironmentPayload(plan environmentModel, prior environmentModel) (env
 }
 
 func modelFromEnvironmentResponse(prior environmentModel, in *environmentResponse) environmentModel {
+	stateConnectionType := normalizeEnvironmentConnectionTypeForState(in.ConnectionType)
+
 	out := environmentModel{
 		ID:               types.StringValue(strconv.FormatInt(in.ID, 10)),
 		Name:             types.StringValue(in.Name),
-		ConnectionType:   types.StringValue(in.ConnectionType),
+		ConnectionType:   types.StringValue(stateConnectionType),
 		Port:             types.Int64Value(in.Port),
 		Protocol:         types.StringValue(in.Protocol),
 		TLSSkipVerify:    types.BoolValue(in.TLSSkipVerify),
@@ -489,7 +494,7 @@ func modelFromEnvironmentResponse(prior environmentModel, in *environmentRespons
 	} else {
 		out.SocketPath = types.StringNull()
 	}
-	if in.ConnectionType == "agent" {
+	if isAgentConnectionType(stateConnectionType) {
 		if !prior.AgentToken.IsNull() && !prior.AgentToken.IsUnknown() {
 			out.AgentToken = prior.AgentToken
 		} else if in.HawserToken != nil && *in.HawserToken != "" {
@@ -587,6 +592,109 @@ func modelFromEnvironmentResponse(prior environmentModel, in *environmentRespons
 	out.TrivyVersion = types.StringNull()
 
 	return out
+}
+
+func normalizeEnvironmentConnectionTypeForAPI(connectionType string) string {
+	switch strings.ToLower(strings.TrimSpace(connectionType)) {
+	case "agent":
+		return "hawser-edge"
+	default:
+		return strings.TrimSpace(connectionType)
+	}
+}
+
+func normalizeEnvironmentConnectionTypeForState(connectionType string) string {
+	v := strings.ToLower(strings.TrimSpace(connectionType))
+	switch v {
+	case "hawser-edge", "hawser-standard":
+		return "agent"
+	default:
+		return strings.TrimSpace(connectionType)
+	}
+}
+
+func isAgentConnectionType(connectionType string) bool {
+	return strings.EqualFold(strings.TrimSpace(connectionType), "agent")
+}
+
+func shouldProvisionAgentToken(plan environmentModel, prior environmentModel) bool {
+	planTokenKnown := !plan.AgentToken.IsNull() && !plan.AgentToken.IsUnknown()
+	if !planTokenKnown {
+		return false
+	}
+	planToken := strings.TrimSpace(plan.AgentToken.ValueString())
+	if planToken == "" {
+		return false
+	}
+
+	if prior.ID.IsNull() || prior.ID.IsUnknown() || strings.TrimSpace(prior.ID.ValueString()) == "" {
+		return true
+	}
+
+	priorType := normalizeEnvironmentConnectionTypeForState(firstKnownString(prior.ConnectionType, types.StringNull()))
+	if !isAgentConnectionType(priorType) {
+		return true
+	}
+
+	if prior.AgentToken.IsNull() || prior.AgentToken.IsUnknown() {
+		return true
+	}
+
+	return strings.TrimSpace(prior.AgentToken.ValueString()) != planToken
+}
+
+func (r *environmentResource) applyEnvironmentAgentToken(
+	ctx context.Context,
+	current environmentModel,
+	plan environmentModel,
+	prior environmentModel,
+	diags *diag.Diagnostics,
+) environmentModel {
+	if r.client == nil || current.ID.IsNull() || current.ID.IsUnknown() {
+		return current
+	}
+
+	connectionType := normalizeEnvironmentConnectionTypeForState(firstKnownString(plan.ConnectionType, current.ConnectionType))
+	if !isAgentConnectionType(connectionType) {
+		return current
+	}
+
+	if !shouldProvisionAgentToken(plan, prior) {
+		return current
+	}
+
+	token := strings.TrimSpace(plan.AgentToken.ValueString())
+	if token == "" {
+		return current
+	}
+
+	envID, err := strconv.ParseInt(strings.TrimSpace(current.ID.ValueString()), 10, 64)
+	if err != nil {
+		diags.AddWarning("Failed to prepare Hawser token provisioning", fmt.Sprintf("Could not parse environment id %q: %v", current.ID.ValueString(), err))
+		return current
+	}
+
+	envName := strings.TrimSpace(firstKnownString(plan.Name, current.Name))
+	if envName == "" {
+		envName = fmt.Sprintf("environment-%d", envID)
+	}
+	tokenName := fmt.Sprintf("terraform-%s", envName)
+
+	_, status, err := r.client.CreateHawserToken(ctx, tokenName, envID, token)
+	if err != nil {
+		if status == 404 {
+			diags.AddWarning(
+				"Hawser token API unavailable",
+				"Dockhand did not expose /api/hawser/tokens; falling back to legacy environment hawserToken behavior.",
+			)
+			return current
+		}
+		diags.AddWarning("Failed to provision Hawser token", err.Error())
+		return current
+	}
+
+	current.AgentToken = types.StringValue(token)
+	return current
 }
 
 func (r *environmentResource) applyEnvironmentAux(ctx context.Context, current environmentModel, plan environmentModel, id string, diags *diag.Diagnostics) environmentModel {

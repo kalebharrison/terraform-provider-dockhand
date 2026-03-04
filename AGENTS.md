@@ -168,6 +168,7 @@ Avoid testing by building local zips for release validation.
   - `DELETE /api/containers/{id}/files/delete`
   - `GET /api/activity`
   - `GET /api/hawser/connect`
+  - `POST /api/hawser/tokens`
   - `POST /api/git/stacks/{id}/webhook`
   - `POST /api/git/stacks/{id}/deploy-stream`
   - `GET /api/git/stacks/{id}/env-files`

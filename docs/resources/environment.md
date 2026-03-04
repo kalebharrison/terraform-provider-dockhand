@@ -46,7 +46,8 @@ resource "dockhand_environment" "agent" {
 ## Notes
 
 - `socket_path` is required when `connection_type = "socket"`.
-- `agent_token` is available for `connection_type = "agent"` and maps to Dockhand `hawserToken`.
+- `connection_type = "agent"` maps to Dockhand `hawser-edge`.
+- `agent_token` for `connection_type = "agent"` is provisioned through Dockhand `/api/hawser/tokens` with the configured raw token.
 - mTLS fields are available:
   - `ca_cert`
   - `client_cert`

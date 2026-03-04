@@ -465,6 +465,18 @@ type environmentResponse struct {
 	Labels                []string `json:"labels"`
 }
 
+type hawserTokenPayload struct {
+	Name          string  `json:"name"`
+	EnvironmentID int64   `json:"environmentId"`
+	RawToken      *string `json:"rawToken,omitempty"`
+}
+
+type hawserTokenResponse struct {
+	Token   string `json:"token"`
+	TokenID int64  `json:"tokenId"`
+	Message string `json:"message"`
+}
+
 type environmentTimezoneResponse struct {
 	Timezone string `json:"timezone"`
 }
@@ -1147,6 +1159,23 @@ func (c *Client) UpdateEnvironment(ctx context.Context, id string, payload envir
 
 func (c *Client) DeleteEnvironment(ctx context.Context, id string) (int, error) {
 	return c.doJSONWithStatus(ctx, http.MethodDelete, "/api/environments/"+url.PathEscape(id), nil, nil, nil)
+}
+
+func (c *Client) CreateHawserToken(ctx context.Context, name string, environmentID int64, rawToken string) (*hawserTokenResponse, int, error) {
+	payload := hawserTokenPayload{
+		Name:          strings.TrimSpace(name),
+		EnvironmentID: environmentID,
+	}
+	if t := strings.TrimSpace(rawToken); t != "" {
+		payload.RawToken = &t
+	}
+
+	var out hawserTokenResponse
+	status, err := c.doJSONWithStatus(ctx, http.MethodPost, "/api/hawser/tokens", nil, payload, &out)
+	if err != nil {
+		return nil, status, err
+	}
+	return &out, status, nil
 }
 
 func (c *Client) GetEnvironmentTimezone(ctx context.Context, id string) (*environmentTimezoneResponse, int, error) {
