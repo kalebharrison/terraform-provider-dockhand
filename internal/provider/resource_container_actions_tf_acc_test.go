@@ -22,7 +22,9 @@ func TestAccContainerRenameActionTerraform(t *testing.T) {
 	t.Setenv("DOCKHAND_DEFAULT_ENV", defaultEnv)
 
 	suffix := strings.ToLower(time.Now().UTC().Format("20060102150405"))
-	containerName := "tf-acc-rename-" + suffix
+	originalName := "tf-acc-rename-src-" + suffix
+	renamedNameA := "tf-acc-rename-a-" + suffix
+	renamedNameB := "tf-acc-rename-b-" + suffix
 	imageName := "busybox:1.36.1"
 
 	resource.Test(t, resource.TestCase{
@@ -31,15 +33,16 @@ func TestAccContainerRenameActionTerraform(t *testing.T) {
 		},
 		Steps: []resource.TestStep{
 			{
-				Config: testAccContainerRenameActionConfig(defaultEnv, imageName, containerName, "acc-run-1"),
+				Config: testAccContainerRenameActionConfig(defaultEnv, imageName, originalName, renamedNameA, "acc-run-1"),
 				Check: resource.ComposeTestCheckFunc(
-					resource.TestCheckResourceAttr("dockhand_container_rename_action.test", "name", containerName),
+					resource.TestCheckResourceAttr("dockhand_container_rename_action.test", "name", renamedNameA),
 					resource.TestCheckResourceAttrSet("dockhand_container_rename_action.test", "id"),
 				),
 			},
 			{
-				Config: testAccContainerRenameActionConfig(defaultEnv, imageName, containerName, "acc-run-2"),
+				Config: testAccContainerRenameActionConfig(defaultEnv, imageName, originalName, renamedNameB, "acc-run-2"),
 				Check: resource.ComposeTestCheckFunc(
+					resource.TestCheckResourceAttr("dockhand_container_rename_action.test", "name", renamedNameB),
 					resource.TestCheckResourceAttr("dockhand_container_rename_action.test", "trigger", "acc-run-2"),
 				),
 			},
@@ -75,7 +78,7 @@ func TestAccContainerUpdateActionTerraform(t *testing.T) {
 	})
 }
 
-func testAccContainerRenameActionConfig(env string, imageName string, containerName string, trigger string) string {
+func testAccContainerRenameActionConfig(env string, imageName string, originalName string, renamedName string, trigger string) string {
 	return fmt.Sprintf(`
 provider "dockhand" {}
 
@@ -98,7 +101,7 @@ resource "dockhand_container_rename_action" "test" {
   name         = %q
   trigger      = %q
 }
-`, env, imageName, env, containerName, env, containerName, trigger)
+`, env, imageName, env, originalName, env, renamedName, trigger)
 }
 
 func testAccContainerUpdateActionConfig(env string, containerID string, trigger string) string {
