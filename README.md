@@ -234,10 +234,15 @@ export DOCKHAND_TEST_GIT_STACK_ID="12"
 export DOCKHAND_TEST_GIT_STACK_ENV_PATH="stacks/app/.env"
 # - Requires a resolvable host name for Docker-in-Docker direct environment tests:
 export DOCKHAND_TEST_DIND_HOST="dind"
+# - Requires an active Hawser edge agent token for agent-environment connectivity tests:
+export DOCKHAND_TEST_AGENT_TOKEN="ci-agent-token"
 go test -v ./internal/provider -run 'TestAcc(ContainerFileDirectoryResourceTerraform|ContainerProcessesDataSourceTerraform|StackActionDownTerraform|StackEnvResourceTerraform|GitStackEnvFileResourceTerraform)'
 
 # Direct environment connectivity acceptance test (Dockhand -> DinD):
 go test -v ./internal/provider -run 'TestAccEnvironmentResourceDirectDinDTerraform'
+
+# Agent-token + Hawser connectivity acceptance test:
+go test -v ./internal/provider -run 'TestAccEnvironmentResourceAgentTokenTerraform'
 ```
 
 GitHub Actions acceptance workflow:
@@ -248,6 +253,7 @@ GitHub Actions acceptance workflow:
   - `docker:27-dind`
 - Bootstraps first admin credentials for the ephemeral Dockhand instance.
 - Creates a dedicated direct environment (`ci-dind`) targeting the DinD container.
+- Launches a Hawser edge agent inside DinD with a generated token.
 - Runs targeted acceptance tests, including environment connectivity coverage.
 
 ## Release

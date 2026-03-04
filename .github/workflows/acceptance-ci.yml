@@ -24,6 +24,7 @@ jobs:
     env:
       DOCKHAND_IMAGE: fnsys/dockhand:latest
       DIND_IMAGE: docker:27-dind
+      HAWSER_IMAGE: ghcr.io/finsys/hawser:latest
       DOCKHAND_TEST_ENDPOINT: http://127.0.0.1:13001
       DOCKHAND_TEST_USERNAME: tfacc
       DOCKHAND_TEST_PASSWORD: tfaccpass123!
@@ -49,6 +50,7 @@ jobs:
           docker network create dockhand-ci
           docker run -d --name dind --network dockhand-ci --privileged \
             -e DOCKER_TLS_CERTDIR= \
+            -p 23750:2375 \
             "${DIND_IMAGE}" \
             --host=tcp://0.0.0.0:2375 \
             --host=unix:///var/run/docker.sock
@@ -165,6 +167,22 @@ jobs:
           echo "DOCKHAND_TEST_DEFAULT_ENV=${existing_id}" >> "${GITHUB_ENV}"
           echo "Using DOCKHAND_TEST_DEFAULT_ENV=${existing_id}"
 
+      - name: Start Hawser edge agent in DinD
+        shell: bash
+        run: |
+          set -euo pipefail
+          agent_token="ci-agent-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          echo "DOCKHAND_TEST_AGENT_TOKEN=${agent_token}" >> "${GITHUB_ENV}"
+          echo "DOCKHAND_TEST_AGENT_NAME=ci-hawser" >> "${GITHUB_ENV}"
+
+          docker --host tcp://127.0.0.1:23750 run -d --name hawser --restart unless-stopped \
+            --add-host=host.docker.internal:host-gateway \
+            -v /var/run/docker.sock:/var/run/docker.sock \
+            -e DOCKHAND_SERVER_URL="ws://host.docker.internal:13001/api/hawser/connect" \
+            -e TOKEN="${agent_token}" \
+            -e AGENT_NAME="ci-hawser" \
+            "${HAWSER_IMAGE}"
+
       - name: Run targeted acceptance tests
         env:
           TF_ACC: "1"
@@ -173,7 +191,7 @@ jobs:
           set -euo pipefail
           GOCACHE="$PWD/.cache/go-build" \
           GOMODCACHE="$PWD/.cache/gomod" \
-          go test -v ./internal/provider -run 'TestAcc(UserResourceTerraform|ContainerRenameActionTerraform|ContainerUpdateActionTerraform|EnvironmentResourceDirectDinDTerraform)'
+          go test -v ./internal/provider -run 'TestAcc(UserResourceTerraform|ContainerRenameActionTerraform|ContainerUpdateActionTerraform|EnvironmentResourceDirectDinDTerraform|EnvironmentResourceAgentTokenTerraform)'
 
       - name: Dockhand logs (failure)
         if: failure()
@@ -181,10 +199,12 @@ jobs:
         run: |
           docker logs dockhand || true
           docker logs dind || true
+          docker --host tcp://127.0.0.1:23750 logs hawser || true
 
       - name: Cleanup containers
         if: always()
         shell: bash
         run: |
+          docker --host tcp://127.0.0.1:23750 rm -f hawser >/dev/null 2>&1 || true
           docker rm -f dockhand dind >/dev/null 2>&1 || true
           docker network rm dockhand-ci >/dev/null 2>&1 || true
