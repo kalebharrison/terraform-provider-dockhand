@@ -190,8 +190,17 @@ jobs:
         run: |
           set -euo pipefail
           agent_token="ci-agent-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          dockhand_ip="$(docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' dockhand)"
+          if [[ -z "${dockhand_ip}" ]]; then
+            echo "Could not resolve Dockhand container IP." >&2
+            docker inspect dockhand || true
+            exit 1
+          fi
+          dockhand_ws_url="ws://${dockhand_ip}:3000/api/hawser/connect"
+
           echo "DOCKHAND_TEST_AGENT_TOKEN=${agent_token}" >> "${GITHUB_ENV}"
           echo "DOCKHAND_TEST_AGENT_NAME=ci-hawser" >> "${GITHUB_ENV}"
+          echo "DOCKHAND_TEST_HAWSER_SERVER_URL=${dockhand_ws_url}" >> "${GITHUB_ENV}"
 
           for i in $(seq 1 20); do
             if docker --host tcp://127.0.0.1:23750 info >/dev/null 2>&1; then
@@ -204,9 +213,8 @@ jobs:
             docker --host tcp://127.0.0.1:23750 rm -f hawser >/dev/null 2>&1 || true
 
             if docker --host tcp://127.0.0.1:23750 run -d --name hawser --restart unless-stopped \
-              --add-host=host.docker.internal:host-gateway \
               -v /var/run/docker.sock:/var/run/docker.sock \
-              -e DOCKHAND_SERVER_URL="ws://host.docker.internal:13001/api/hawser/connect" \
+              -e DOCKHAND_SERVER_URL="${dockhand_ws_url}" \
               -e TOKEN="${agent_token}" \
               -e AGENT_NAME="ci-hawser" \
               "${HAWSER_IMAGE}"; then
