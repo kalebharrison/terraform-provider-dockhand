@@ -232,8 +232,23 @@ export DOCKHAND_TEST_FILE_CONTAINER_ID="existing-container-id"
 # - Requires a git-managed stack id and an env-file path in that stack repo:
 export DOCKHAND_TEST_GIT_STACK_ID="12"
 export DOCKHAND_TEST_GIT_STACK_ENV_PATH="stacks/app/.env"
+# - Requires a resolvable host name for Docker-in-Docker direct environment tests:
+export DOCKHAND_TEST_DIND_HOST="dind"
 go test -v ./internal/provider -run 'TestAcc(ContainerFileDirectoryResourceTerraform|ContainerProcessesDataSourceTerraform|StackActionDownTerraform|StackEnvResourceTerraform|GitStackEnvFileResourceTerraform)'
+
+# Direct environment connectivity acceptance test (Dockhand -> DinD):
+go test -v ./internal/provider -run 'TestAccEnvironmentResourceDirectDinDTerraform'
 ```
+
+GitHub Actions acceptance workflow:
+
+- Workflow: `.github/workflows/acceptance-ci.yml`
+- Spins up:
+  - `fnsys/dockhand:latest`
+  - `docker:27-dind`
+- Bootstraps first admin credentials for the ephemeral Dockhand instance.
+- Creates a dedicated direct environment (`ci-dind`) targeting the DinD container.
+- Runs targeted acceptance tests, including environment connectivity coverage.
 
 ## Release
 
