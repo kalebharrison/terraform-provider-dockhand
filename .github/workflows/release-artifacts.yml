@@ -17,6 +17,9 @@ jobs:
   release:
     name: Build Zips And Publish Release
     runs-on: ubuntu-latest
+    env:
+      GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
+      HAS_GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE != '' }}
 
     steps:
       - name: Checkout
@@ -64,22 +67,20 @@ jobs:
           fi
 
       - name: Import GPG key (passphrase)
-        if: ${{ secrets.GPG_PASSPHRASE != '' }}
+        if: ${{ env.HAS_GPG_PASSPHRASE == 'true' }}
         uses: crazy-max/ghaction-import-gpg@v6
         with:
           gpg_private_key: ${{ secrets.GPG_PRIVATE_KEY }}
-          passphrase: ${{ secrets.GPG_PASSPHRASE }}
+          passphrase: ${{ env.GPG_PASSPHRASE }}
 
       - name: Import GPG key (no passphrase)
-        if: ${{ secrets.GPG_PASSPHRASE == '' }}
+        if: ${{ env.HAS_GPG_PASSPHRASE != 'true' }}
         uses: crazy-max/ghaction-import-gpg@v6
         with:
           gpg_private_key: ${{ secrets.GPG_PRIVATE_KEY }}
 
       - name: Sign checksums
         shell: bash
-        env:
-          GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
         run: |
           set -euo pipefail
           sums="dist-local/terraform-provider-dockhand_${{ steps.ver.outputs.version }}_SHA256SUMS"
