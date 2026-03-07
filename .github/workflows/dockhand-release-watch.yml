@@ -158,7 +158,7 @@ jobs:
 
   persist_state:
     name: Persist Last Tested Tag
-    if: needs.discover.outputs.should_run == 'true' && needs.discover.outputs.reason == 'new_tag' && needs.validate.result == 'success' && secrets.WATCH_STATE_TOKEN != ''
+    if: needs.discover.outputs.should_run == 'true' && needs.discover.outputs.reason == 'new_tag' && needs.validate.result == 'success'
     needs: [discover, validate]
     runs-on: ubuntu-latest
     steps:
@@ -169,6 +169,10 @@ jobs:
           TAG: ${{ needs.discover.outputs.tag }}
         run: |
           set -euo pipefail
+          if [[ -z "${GH_TOKEN}" ]]; then
+            echo "Skipping state persist: secret \`WATCH_STATE_TOKEN\` is not configured." >> "${GITHUB_STEP_SUMMARY}"
+            exit 0
+          fi
 
           if gh api "repos/${GITHUB_REPOSITORY}/actions/variables/DOCKHAND_RELEASE_WATCH_LAST_TAG" >/dev/null 2>&1; then
             gh api --method PATCH "repos/${GITHUB_REPOSITORY}/actions/variables/DOCKHAND_RELEASE_WATCH_LAST_TAG" \
@@ -181,16 +185,6 @@ jobs:
           fi
 
           echo "Stored DOCKHAND_RELEASE_WATCH_LAST_TAG=${TAG}" >> "${GITHUB_STEP_SUMMARY}"
-
-  state_skip:
-    name: Skip State Persist (No Token)
-    if: needs.discover.outputs.should_run == 'true' && needs.discover.outputs.reason == 'new_tag' && needs.validate.result == 'success' && secrets.WATCH_STATE_TOKEN == ''
-    needs: [discover, validate]
-    runs-on: ubuntu-latest
-    steps:
-      - name: Summary
-        run: |
-          echo "Skipping state persist: secret \`WATCH_STATE_TOKEN\` is not configured." >> "${GITHUB_STEP_SUMMARY}"
 
   report_failure:
     name: Report Compatibility Failure
