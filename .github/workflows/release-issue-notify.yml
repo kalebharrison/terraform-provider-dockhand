@@ -1,8 +1,15 @@
 name: Release Issue Notify
 
 on:
-  release:
-    types: [published]
+  workflow_run:
+    workflows: ["Release Artifacts"]
+    types: [completed]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Release tag to process (for example: v0.1.48)"
+        required: true
+        type: string
 
 permissions:
   contents: read
@@ -12,6 +19,9 @@ permissions:
 jobs:
   notify:
     name: Comment released issues
+    if: |
+      github.event_name == 'workflow_dispatch' ||
+      (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success')
     runs-on: ubuntu-latest
     steps:
       - name: Comment linked issues with release version
@@ -20,10 +30,45 @@ jobs:
           script: |
             const owner = context.repo.owner;
             const repo = context.repo.repo;
-            const release = context.payload.release;
-            const body = release.body || "";
-            const tag = release.tag_name;
-            const releaseUrl = release.html_url;
+            let tag = "";
+            let releaseUrl = "";
+            let body = "";
+
+            if (context.eventName === "workflow_dispatch") {
+              tag = (core.getInput("tag") || "").trim();
+            } else if (context.eventName === "workflow_run") {
+              const wr = context.payload.workflow_run;
+              tag = (wr?.head_branch || "").trim();
+            }
+
+            if (!tag) {
+              core.setFailed("Could not determine release tag.");
+              return;
+            }
+
+            if (!tag.startsWith("v")) {
+              core.info(`Skipping non-tag workflow head branch: ${tag}`);
+              return;
+            }
+
+            let release;
+            try {
+              const relResp = await github.rest.repos.getReleaseByTag({
+                owner,
+                repo,
+                tag,
+              });
+              release = relResp.data;
+            } catch (error) {
+              if (error.status === 404) {
+                core.info(`No GitHub release found for tag ${tag}; skipping.`);
+                return;
+              }
+              throw error;
+            }
+
+            body = release.body || "";
+            releaseUrl = release.html_url || "";
 
             // GitHub generated notes include PR references like #123.
             const prRefRegex = /#(\d+)/g;
