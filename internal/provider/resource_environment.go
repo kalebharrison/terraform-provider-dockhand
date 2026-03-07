@@ -614,7 +614,12 @@ func normalizeEnvironmentConnectionTypeForState(connectionType string) string {
 }
 
 func isAgentConnectionType(connectionType string) bool {
-	return strings.EqualFold(strings.TrimSpace(connectionType), "agent")
+	switch strings.ToLower(strings.TrimSpace(connectionType)) {
+	case "agent", "agent-standard", "agent-edge", "hawser-standard", "hawser-edge":
+		return true
+	default:
+		return false
+	}
 }
 
 func shouldProvisionAgentToken(plan environmentModel, prior environmentModel) bool {
