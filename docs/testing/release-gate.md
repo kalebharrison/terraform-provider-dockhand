@@ -18,7 +18,8 @@ Before creating `vX.Y.Z`:
 1. Ensure no open `compatibility` issues for current Dockhand release.
 2. Confirm `TestAcceptanceManifestCoverage` passes.
 3. Confirm endpoint probe report is clean for current Dockhand target.
-4. Cut signed tag:
+4. Confirm latest `Dockhand Release Watch` run produced compatibility artifacts (`endpoint-probe.*`, `webui-api-endpoints.txt`, `webui-endpoint-gap-audit.md`, `docs-reference-*`, `private-endpoint-probe.*`).
+5. Cut signed tag:
 
 ```bash
 git tag -s vX.Y.Z -m "Release vX.Y.Z"
@@ -31,3 +32,12 @@ git push origin vX.Y.Z
 - Enforces parity between provider surface area and acceptance coverage metadata.
 - Improves supply-chain confidence through signed tags and release provenance.
 
+## Release Watch Behavior
+
+- Workflow: `.github/workflows/dockhand-release-watch.yml`
+- Poll cadence: every 6 hours.
+- New-tag detection: compares latest discovered Dockhand tag to repo variable `DOCKHAND_RELEASE_WATCH_LAST_TAG`.
+- Only runs full validation when a new tag is discovered (or manual override via `workflow_dispatch` input).
+- On success, updates `DOCKHAND_RELEASE_WATCH_LAST_TAG`.
+- Includes docs-reference drift audit from `https://dockhand.pro/manual/#api-reference`.
+- Includes a targeted authenticated private endpoint probe (`GET /api/environments` by default).

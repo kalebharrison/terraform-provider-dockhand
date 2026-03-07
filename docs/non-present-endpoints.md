@@ -4,7 +4,7 @@ This file tracks API endpoints that are not currently available on the tested Do
 
 ## Last Verified
 
-- Date: February 15, 2026
+- Date: March 7, 2026
 - Probe: `scripts/endpoint-probe.py` (safe mode)
 - Report: `docs/reports/endpoint-probe.md`
 

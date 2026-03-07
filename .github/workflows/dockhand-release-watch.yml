@@ -10,6 +10,7 @@ on:
         required: false
 
 permissions:
+  actions: write
   contents: read
   issues: write
 
@@ -20,6 +21,9 @@ jobs:
     outputs:
       image: ${{ steps.pick.outputs.image }}
       tag: ${{ steps.pick.outputs.tag }}
+      last_tag: ${{ steps.state.outputs.last_tag }}
+      should_run: ${{ steps.state.outputs.should_run }}
+      reason: ${{ steps.state.outputs.reason }}
     steps:
       - name: Resolve image tag
         id: pick
@@ -40,12 +44,40 @@ jobs:
           echo "tag=${tag}" >> "${GITHUB_OUTPUT}"
           echo "image=fnsys/dockhand:${tag}" >> "${GITHUB_OUTPUT}"
 
+      - name: Resolve watch state
+        id: state
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+
+          tag="${{ steps.pick.outputs.tag }}"
+          last_tag="$(gh api "repos/${GITHUB_REPOSITORY}/actions/variables/DOCKHAND_RELEASE_WATCH_LAST_TAG" --jq '.value' 2>/dev/null || true)"
+          should_run="true"
+          reason="new_tag"
+
+          if [[ -n "${{ inputs.image_tag }}" ]]; then
+            should_run="true"
+            reason="manual_override"
+          elif [[ -n "${last_tag}" && "${tag}" == "${last_tag}" ]]; then
+            should_run="false"
+            reason="unchanged_tag"
+          fi
+
+          echo "last_tag=${last_tag}" >> "${GITHUB_OUTPUT}"
+          echo "should_run=${should_run}" >> "${GITHUB_OUTPUT}"
+          echo "reason=${reason}" >> "${GITHUB_OUTPUT}"
+
       - name: Summary
         run: |
-          echo "Testing Dockhand image: \`${{ steps.pick.outputs.image }}\`" >> "${GITHUB_STEP_SUMMARY}"
+          echo "Latest detected Dockhand image: \`${{ steps.pick.outputs.image }}\`" >> "${GITHUB_STEP_SUMMARY}"
+          echo "Last tested tag: \`${{ steps.state.outputs.last_tag || 'none' }}\`" >> "${GITHUB_STEP_SUMMARY}"
+          echo "Run required: \`${{ steps.state.outputs.should_run }}\` (\`${{ steps.state.outputs.reason }}\`)" >> "${GITHUB_STEP_SUMMARY}"
 
   validate:
     name: Validate Provider Against Dockhand Release
+    if: needs.discover.outputs.should_run == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 75
     needs: discover
@@ -53,6 +85,14 @@ jobs:
       DOCKHAND_IMAGE: ${{ needs.discover.outputs.image }}
       TEST_REGEX: "TestAcc"
       RUN_ENDPOINT_PROBE: "true"
+      RUN_WEBUI_AUDIT: "true"
+      RUN_DOCS_REFERENCE_AUDIT: "true"
+      RUN_PRIVATE_ENDPOINT_PROBE: "true"
+      WEBUI_AUDIT_OUT_DIR: ${{ github.workspace }}/.compat-reports
+      DOCS_AUDIT_OUT_DIR: ${{ github.workspace }}/.compat-reports
+      PRIVATE_PROBE_OUT_DIR: ${{ github.workspace }}/.compat-reports
+      PRIVATE_ENDPOINT_METHOD: "GET"
+      PRIVATE_ENDPOINT_PATH: "/api/environments"
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -78,14 +118,73 @@ jobs:
           set -euo pipefail
           ./scripts/run-acceptance-harness.sh
 
+      - name: Collect compatibility reports
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts
+          cp docs/reports/endpoint-probe.csv artifacts/endpoint-probe.csv || true
+          cp docs/reports/endpoint-probe.md artifacts/endpoint-probe.md || true
+          cp "${WEBUI_AUDIT_OUT_DIR}/webui-api-endpoints.txt" artifacts/webui-api-endpoints.txt || true
+          cp "${WEBUI_AUDIT_OUT_DIR}/webui-endpoint-gap-audit.md" artifacts/webui-endpoint-gap-audit.md || true
+          cp "${DOCS_AUDIT_OUT_DIR}/docs-reference-api-endpoints.txt" artifacts/docs-reference-api-endpoints.txt || true
+          cp "${DOCS_AUDIT_OUT_DIR}/docs-reference-gap-audit.md" artifacts/docs-reference-gap-audit.md || true
+          cp "${PRIVATE_PROBE_OUT_DIR}/private-endpoint-probe.json" artifacts/private-endpoint-probe.json || true
+          cp "${PRIVATE_PROBE_OUT_DIR}/private-endpoint-probe.md" artifacts/private-endpoint-probe.md || true
+
+      - name: Upload compatibility reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: dockhand-compatibility-${{ needs.discover.outputs.tag }}-${{ github.run_id }}
+          path: artifacts
+          if-no-files-found: warn
+
       - name: Success summary
         if: success()
         run: |
           echo "Dockhand compatibility validation passed for \`${{ needs.discover.outputs.image }}\`." >> "${GITHUB_STEP_SUMMARY}"
 
+  mark_skip:
+    name: Skip (No New Dockhand Tag)
+    if: needs.discover.outputs.should_run != 'true'
+    needs: discover
+    runs-on: ubuntu-latest
+    steps:
+      - name: Skip summary
+        run: |
+          echo "Skipping validation: tag \`${{ needs.discover.outputs.tag }}\` already tested (\`${{ needs.discover.outputs.last_tag || 'none' }}\`)." >> "${GITHUB_STEP_SUMMARY}"
+
+  persist_state:
+    name: Persist Last Tested Tag
+    if: needs.discover.outputs.should_run == 'true' && needs.validate.result == 'success'
+    needs: [discover, validate]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Update repository watch variable
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ needs.discover.outputs.tag }}
+        run: |
+          set -euo pipefail
+
+          if gh api "repos/${GITHUB_REPOSITORY}/actions/variables/DOCKHAND_RELEASE_WATCH_LAST_TAG" >/dev/null 2>&1; then
+            gh api --method PATCH "repos/${GITHUB_REPOSITORY}/actions/variables/DOCKHAND_RELEASE_WATCH_LAST_TAG" \
+              -F name='DOCKHAND_RELEASE_WATCH_LAST_TAG' \
+              -F value="${TAG}" >/dev/null
+          else
+            gh api --method POST "repos/${GITHUB_REPOSITORY}/actions/variables" \
+              -F name='DOCKHAND_RELEASE_WATCH_LAST_TAG' \
+              -F value="${TAG}" >/dev/null
+          fi
+
+          echo "Stored DOCKHAND_RELEASE_WATCH_LAST_TAG=${TAG}" >> "${GITHUB_STEP_SUMMARY}"
+
   report_failure:
     name: Report Compatibility Failure
-    if: failure()
+    if: needs.discover.outputs.should_run == 'true' && needs.validate.result == 'failure'
     needs: [discover, validate]
     runs-on: ubuntu-latest
     steps:

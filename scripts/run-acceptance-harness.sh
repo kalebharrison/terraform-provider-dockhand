@@ -9,6 +9,9 @@ DIND_IMAGE="${DIND_IMAGE:-docker:27-dind}"
 HAWSER_IMAGE="${HAWSER_IMAGE:-ghcr.io/finsys/hawser:latest}"
 TEST_REGEX="${TEST_REGEX:-TestAcc}"
 RUN_ENDPOINT_PROBE="${RUN_ENDPOINT_PROBE:-true}"
+RUN_WEBUI_AUDIT="${RUN_WEBUI_AUDIT:-false}"
+RUN_DOCS_REFERENCE_AUDIT="${RUN_DOCS_REFERENCE_AUDIT:-false}"
+RUN_PRIVATE_ENDPOINT_PROBE="${RUN_PRIVATE_ENDPOINT_PROBE:-false}"
 DOCKHAND_TEST_ENDPOINT="${DOCKHAND_TEST_ENDPOINT:-http://127.0.0.1:13001}"
 DOCKHAND_TEST_USERNAME="${DOCKHAND_TEST_USERNAME:-tfacc}"
 DOCKHAND_TEST_PASSWORD="${DOCKHAND_TEST_PASSWORD:-tfaccpass123!}"
@@ -169,6 +172,21 @@ go test -v ./internal/provider -run "${TEST_REGEX}"
 if [[ "${RUN_ENDPOINT_PROBE}" == "true" ]]; then
   echo "Running endpoint compatibility probe"
   DOCKHAND_PROBE_ALLOW_MUTATION=false /usr/bin/python3 scripts/endpoint-probe.py
+fi
+
+if [[ "${RUN_WEBUI_AUDIT}" == "true" ]]; then
+  echo "Running WebUI endpoint audit"
+  DOCKHAND_ENDPOINT="${DOCKHAND_TEST_ENDPOINT}" /usr/bin/python3 scripts/webui-endpoint-audit.py
+fi
+
+if [[ "${RUN_DOCS_REFERENCE_AUDIT}" == "true" ]]; then
+  echo "Running docs-reference endpoint audit"
+  /usr/bin/python3 scripts/docs-reference-audit.py
+fi
+
+if [[ "${RUN_PRIVATE_ENDPOINT_PROBE}" == "true" ]]; then
+  echo "Running private endpoint probe"
+  /usr/bin/python3 scripts/private-endpoint-probe.py
 fi
 
 echo "Acceptance harness completed successfully"

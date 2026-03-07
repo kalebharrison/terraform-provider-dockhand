@@ -5,7 +5,9 @@ Source: [Dockhand Manual API Reference](https://dockhand.pro/manual/#api-referen
 Live verification artifacts:
 
 - Endpoint probe script: `scripts/endpoint-probe.py`
-- Latest safe probe report: `docs/reports/endpoint-probe.md` (February 15, 2026)
+- Latest safe probe report: `docs/reports/endpoint-probe.md` (March 7, 2026)
+- Latest WebUI endpoint inventory: `docs/reports/webui-api-endpoints.txt` (March 7, 2026)
+- Latest WebUI/provider gap audit: `docs/reports/webui-endpoint-gap-audit.md` (March 7, 2026)
 - Non-present backlog: `docs/non-present-endpoints.md`
 
 ## Status Legend
@@ -133,16 +135,22 @@ Live verification artifacts:
 | `/api/stacks/{name}/env` | broader non-secret env var editing semantics | partial |
 | `/api/volumes` | advanced volume operations (`clone`, `browse`, import/export) | partial |
 | `/api/networks` | advanced network operations (`connect`, inspect details as separate surface) | partial |
+| `/api/batch` + `/api/jobs/{jobId}` | generic async job action + job status data source (`run-and-poll`) | planned |
+| `/api/environments/test` + `/api/environments/detect-socket` | environment connectivity validation action | planned |
+| `/api/notifications/test` | notification test-send one-shot action | planned |
+| `/api/registry/*` (`search`,`tags`,`catalog`,`image`) | registry catalog/search data sources | planned |
+| `/api/prune/*` | explicit cleanup action resources | planned |
 | `/api/configs` | config management resource/data source | planned (verified not present on tested instance; `404`) |
 | `/api/backups` | backup resource/data source | planned (verified not present on tested instance; `404`) |
 | license-tier auth endpoints (LDAP/AD/roles) | auth enterprise resources/data sources | planned |
 
-## Probe Follow-Up (February 15, 2026)
+## Probe Follow-Up (March 7, 2026)
 
 - Not present on tested instance:
   - `GET /api/configs`
   - `GET /api/backups`
 - Unverified or unexpected on parameterized routes (fixture-dependent):
+  - `GET /api/config-sets/{id}` (`unverified_no_fixture`)
   - `GET /api/notifications/{id}` (`unverified_no_fixture`)
   - `GET /api/git/stacks/{id}/env-files` (`unverified_no_fixture`)
   - `PUT /api/users/{id}` (`unexpected_404` in safe placeholder probe)
@@ -151,6 +159,18 @@ Live verification artifacts:
   - `DELETE /api/environments/{id}` (`unexpected_404` in safe placeholder probe)
   - `POST /api/git/stacks/{id}/deploy-stream` (`unexpected_404` in safe placeholder probe)
   - `POST /api/git/stacks/{id}/env-files` (`unexpected_404` in safe placeholder probe)
+
+## WebUI Gap Follow-Up (March 7, 2026)
+
+- Recursive WebUI bundle crawl (`/login` entrypoint) discovered `112` raw route strings (`93` normalized unique endpoint shapes).
+- Compared against provider API client surface, `59` normalized endpoint shapes are currently not mapped by provider resources/data sources/actions.
+- Highest value additions for Terraform workflows:
+  - async execution support via `/api/batch` + `/api/jobs/{jobId}`
+  - environment connectivity validation action via `/api/environments/test`
+  - notification smoke-test action via `/api/notifications/test`
+  - registry catalog/search data sources via `/api/registry/*`
+  - prune action resources via `/api/prune/*`
+- Known likely-non-Terraform/UI-only endpoints are documented in `docs/reports/webui-endpoint-gap-audit.md` and should not block provider feature parity work.
 
 ## Open Contract Questions
 
