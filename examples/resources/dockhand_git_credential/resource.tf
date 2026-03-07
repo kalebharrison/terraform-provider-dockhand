@@ -1,6 +1,6 @@
 resource "dockhand_git_credential" "example" {
-  name      = "github-token"
-  auth_type = "password"
-  username  = "x-access-token"
-  password  = "replace-with-token"
+  name      = "github-ssh"
+  auth_type = "ssh"
+  username  = "git"
+  ssh_key   = "replace-with-private-key-material"
 }
