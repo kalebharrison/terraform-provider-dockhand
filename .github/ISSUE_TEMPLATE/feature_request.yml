@@ -1,0 +1,38 @@
+name: Feature request
+description: Propose a new resource/data source/behavior
+title: "[Feature]: "
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem statement
+      description: What problem are you trying to solve?
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed solution
+      description: What should the provider do?
+    validations:
+      required: true
+  - type: textarea
+    id: api
+    attributes:
+      label: Dockhand API endpoints
+      description: If known, list relevant endpoints/payloads
+      placeholder: |
+        GET /api/...
+        POST /api/...
+  - type: textarea
+    id: hcl
+    attributes:
+      label: Desired Terraform UX
+      description: Example HCL for the feature
+      render: hcl
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: Workarounds or other options evaluated

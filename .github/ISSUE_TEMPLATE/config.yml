@@ -1,0 +1,5 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Questions and support
+    url: https://github.com/kalebharrison/terraform-provider-dockhand#readme
+    about: Check docs and usage guidance before filing a new issue.
