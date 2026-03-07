@@ -1,0 +1,58 @@
+name: Acceptance Full
+
+on:
+  schedule:
+    - cron: "43 2 * * *"
+  workflow_dispatch:
+    inputs:
+      dockhand_image:
+        description: "Dockhand image (for example: fnsys/dockhand:latest)"
+        required: false
+        default: "fnsys/dockhand:latest"
+      test_regex:
+        description: "Go test regex for acceptance run"
+        required: false
+        default: "TestAcc"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: acceptance-full-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  full:
+    name: Full Recursive Acceptance
+    runs-on: ubuntu-latest
+    timeout-minutes: 70
+    env:
+      DOCKHAND_IMAGE: ${{ inputs.dockhand_image || 'fnsys/dockhand:latest' }}
+      TEST_REGEX: ${{ inputs.test_regex || 'TestAcc' }}
+      RUN_ENDPOINT_PROBE: "true"
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          check-latest: true
+          cache: true
+
+      - name: Validate acceptance manifest parity
+        shell: bash
+        run: |
+          set -euo pipefail
+          GOCACHE="$PWD/.cache/go-build" \
+          GOMODCACHE="$PWD/.cache/gomod" \
+          go test ./internal/provider -run TestAcceptanceManifestCoverage
+
+      - name: Run full acceptance harness
+        shell: bash
+        run: |
+          set -euo pipefail
+          ./scripts/run-acceptance-harness.sh
+

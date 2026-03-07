@@ -1,0 +1,18 @@
+version: "2"
+
+run:
+  timeout: 5m
+
+linters:
+  default: standard
+  enable:
+    - gocritic
+    - gosec
+    - unconvert
+    - unparam
+    - misspell
+
+issues:
+  max-same-issues: 0
+  max-issues-per-linter: 0
+

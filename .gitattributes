@@ -1,0 +1,15 @@
+* text=auto eol=lf
+
+# Binary assets
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.pdf binary
+*.zip binary
+
+# Generated release artifacts
+dist/** linguist-generated=true
+dist-local/** linguist-generated=true
+

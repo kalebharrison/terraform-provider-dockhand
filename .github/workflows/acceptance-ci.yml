@@ -225,6 +225,14 @@ jobs:
           docker logs dind || true
           exit 1
 
+      - name: Validate acceptance manifest parity
+        shell: bash
+        run: |
+          set -euo pipefail
+          GOCACHE="$PWD/.cache/go-build" \
+          GOMODCACHE="$PWD/.cache/gomod" \
+          go test ./internal/provider -run TestAcceptanceManifestCoverage
+
       - name: Run targeted acceptance tests
         env:
           TF_ACC: "1"

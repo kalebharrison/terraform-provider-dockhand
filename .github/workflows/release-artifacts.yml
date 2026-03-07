@@ -12,6 +12,8 @@ on:
 
 permissions:
   contents: write
+  id-token: write
+  attestations: write
 
 jobs:
   release:
@@ -57,6 +59,15 @@ jobs:
         run: |
           ./scripts/build-packages.sh --version "${{ steps.ver.outputs.version }}" --out-dir dist-local
 
+      - name: Install syft
+        uses: anchore/sbom-action/download-syft@v0
+
+      - name: Generate SBOM (SPDX JSON)
+        shell: bash
+        run: |
+          set -euo pipefail
+          syft dir:. -o "spdx-json=dist-local/terraform-provider-dockhand_${{ steps.ver.outputs.version }}_SBOM.spdx.json"
+
       - name: Verify signing secrets are present
         shell: bash
         run: |
@@ -95,6 +106,16 @@ jobs:
               --output "${sig}" "${sums}"
           fi
 
+      - name: Attest build provenance
+        uses: actions/attest-build-provenance@v2
+        with:
+          subject-path: |
+            dist-local/terraform-provider-dockhand_${{ steps.ver.outputs.version }}_*.zip
+            dist-local/terraform-provider-dockhand_${{ steps.ver.outputs.version }}_manifest.json
+            dist-local/terraform-provider-dockhand_${{ steps.ver.outputs.version }}_SHA256SUMS
+            dist-local/terraform-provider-dockhand_${{ steps.ver.outputs.version }}_SHA256SUMS.sig
+            dist-local/terraform-provider-dockhand_${{ steps.ver.outputs.version }}_SBOM.spdx.json
+
       - name: Publish GitHub Release
         uses: softprops/action-gh-release@v2
         with:
@@ -106,3 +127,4 @@ jobs:
             dist-local/terraform-provider-dockhand_${{ steps.ver.outputs.version }}_manifest.json
             dist-local/terraform-provider-dockhand_${{ steps.ver.outputs.version }}_SHA256SUMS
             dist-local/terraform-provider-dockhand_${{ steps.ver.outputs.version }}_SHA256SUMS.sig
+            dist-local/terraform-provider-dockhand_${{ steps.ver.outputs.version }}_SBOM.spdx.json

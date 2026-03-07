@@ -1,0 +1,21 @@
+{
+  "version": 1,
+  "dockhand_targets": [
+    {
+      "image": "fnsys/dockhand:latest",
+      "workflow": "Acceptance Full",
+      "cadence": "daily"
+    },
+    {
+      "image": "fnsys/dockhand:<latest_release_tag>",
+      "workflow": "Dockhand Release Watch",
+      "cadence": "every_6_hours"
+    }
+  ],
+  "provider_validation": {
+    "test_regex": "TestAcc",
+    "manifest_guard_test": "TestAcceptanceManifestCoverage",
+    "endpoint_probe_script": "scripts/endpoint-probe.py"
+  }
+}
+
