@@ -25,6 +25,25 @@ func TestBuildEnvironmentPayloadIncludesAgentTokenForAgentConnection(t *testing.
 	}
 }
 
+func TestBuildEnvironmentPayloadIncludesAgentTokenForAgentStandardConnection(t *testing.T) {
+	plan := environmentModel{
+		Name:           types.StringValue("agent-standard-env"),
+		ConnectionType: types.StringValue("agent-standard"),
+		AgentToken:     types.StringValue("agent-token-std"),
+	}
+
+	payload, err := buildEnvironmentPayload(plan, environmentModel{})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if payload.HawserToken == nil || *payload.HawserToken != "agent-token-std" {
+		t.Fatalf("expected hawserToken in payload for agent-standard connection")
+	}
+	if payload.ConnectionType != "agent-standard" {
+		t.Fatalf("expected agent-standard connection type to be preserved, got %q", payload.ConnectionType)
+	}
+}
+
 func TestBuildEnvironmentPayloadDoesNotIncludeAgentTokenForNonAgentConnection(t *testing.T) {
 	plan := environmentModel{
 		Name:           types.StringValue("direct-env"),
@@ -57,6 +76,25 @@ func TestModelFromEnvironmentResponsePreservesPriorAgentTokenWhenRedacted(t *tes
 	}
 	if out.AgentToken.IsNull() || out.AgentToken.ValueString() != "configured-token" {
 		t.Fatalf("expected prior agent_token to be preserved when API omits token")
+	}
+}
+
+func TestModelFromEnvironmentResponsePreservesPriorAgentTokenForAgentStandard(t *testing.T) {
+	prior := environmentModel{
+		AgentToken: types.StringValue("configured-token"),
+	}
+	resp := &environmentResponse{
+		ID:             14,
+		Name:           "agent-std-env",
+		ConnectionType: "agent-standard",
+	}
+
+	out := modelFromEnvironmentResponse(prior, resp)
+	if out.ConnectionType.IsNull() || out.ConnectionType.ValueString() != "agent-standard" {
+		t.Fatalf("expected agent-standard connection type to be preserved in state")
+	}
+	if out.AgentToken.IsNull() || out.AgentToken.ValueString() != "configured-token" {
+		t.Fatalf("expected prior agent_token to be preserved for agent-standard connection")
 	}
 }
 
@@ -104,5 +142,28 @@ func TestShouldProvisionAgentTokenCreateAndChangeOnly(t *testing.T) {
 	}
 	if !shouldProvisionAgentToken(changedPlan, prior) {
 		t.Fatalf("expected changed token to reprovision")
+	}
+}
+
+func TestShouldProvisionAgentTokenForAgentStandard(t *testing.T) {
+	createPlan := environmentModel{
+		ConnectionType: types.StringValue("agent-standard"),
+		AgentToken:     types.StringValue("token-a"),
+	}
+	if !shouldProvisionAgentToken(createPlan, environmentModel{}) {
+		t.Fatalf("expected create flow to provision agent token for agent-standard")
+	}
+
+	prior := environmentModel{
+		ID:             types.StringValue("7"),
+		ConnectionType: types.StringValue("agent-standard"),
+		AgentToken:     types.StringValue("token-a"),
+	}
+	samePlan := environmentModel{
+		ConnectionType: types.StringValue("agent-standard"),
+		AgentToken:     types.StringValue("token-a"),
+	}
+	if shouldProvisionAgentToken(samePlan, prior) {
+		t.Fatalf("expected unchanged token to skip reprovision for agent-standard")
 	}
 }
