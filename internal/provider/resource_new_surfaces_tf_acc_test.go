@@ -3,6 +3,7 @@ package provider
 import (
 	"fmt"
 	"os"
+	"regexp"
 	"strings"
 	"testing"
 	"time"
@@ -260,6 +261,47 @@ func TestAccBatchActionAndJobDataSourceTerraform(t *testing.T) {
 	})
 }
 
+func TestAccBatchActionNoWaitTerraform(t *testing.T) {
+	endpoint, username, password := testAccEnv(t)
+	defaultEnv := testAccDefaultEnv()
+
+	t.Setenv("DOCKHAND_ENDPOINT", endpoint)
+	t.Setenv("DOCKHAND_USERNAME", username)
+	t.Setenv("DOCKHAND_PASSWORD", password)
+	t.Setenv("DOCKHAND_DEFAULT_ENV", defaultEnv)
+
+	suffix := strings.ToLower(time.Now().UTC().Format("20060102150405"))
+	missingContainerID := "tf-acc-no-wait-missing-container-" + suffix
+
+	resource.Test(t, resource.TestCase{
+		ProtoV6ProviderFactories: testAccProviderFactories(),
+		Steps: []resource.TestStep{
+			{
+				Config: testAccBatchActionNoWaitConfig(defaultEnv, missingContainerID, "acc-no-wait-1"),
+				Check: resource.ComposeTestCheckFunc(
+					resource.TestCheckResourceAttr("dockhand_batch_action.test", "entity_type", "containers"),
+					resource.TestCheckResourceAttr("dockhand_batch_action.test", "operation", "restart"),
+					resource.TestCheckResourceAttr("dockhand_batch_action.test", "wait_for_completion", "false"),
+					resource.TestCheckResourceAttrSet("dockhand_batch_action.test", "job_id"),
+					resource.TestMatchResourceAttr("dockhand_batch_action.test", "job_status", regexp.MustCompile("(?i)^(submitted|queued|pending|running|processing|done|failed|error|cancelled|canceled)$")),
+					resource.TestCheckResourceAttrSet("dockhand_batch_action.test", "result_json"),
+					resource.TestCheckResourceAttrSet("dockhand_batch_action.test", "lines_json"),
+					resource.TestCheckResourceAttrSet("data.dockhand_job.test", "id"),
+					resource.TestMatchResourceAttr("data.dockhand_job.test", "status", regexp.MustCompile("(?i)^(queued|pending|running|processing|done|failed|error|cancelled|canceled)$")),
+				),
+			},
+			{
+				Config: testAccBatchActionNoWaitConfig(defaultEnv, missingContainerID, "acc-no-wait-2"),
+				Check: resource.ComposeTestCheckFunc(
+					resource.TestCheckResourceAttr("dockhand_batch_action.test", "trigger", "acc-no-wait-2"),
+					resource.TestCheckResourceAttrSet("dockhand_batch_action.test", "job_id"),
+					resource.TestCheckResourceAttrSet("data.dockhand_job.test", "id"),
+				),
+			},
+		},
+	})
+}
+
 func testAccContainerDirectoryConfig(env string, containerID string, path string) string {
 	return fmt.Sprintf(`
 provider "dockhand" {}
@@ -377,6 +419,25 @@ resource "dockhand_batch_action" "test" {
   wait_for_completion = true
   timeout_seconds     = 30
   poll_interval_ms    = 500
+  trigger             = %q
+}
+
+data "dockhand_job" "test" {
+  job_id = dockhand_batch_action.test.job_id
+}
+	`, env, containerID, trigger)
+}
+
+func testAccBatchActionNoWaitConfig(env string, containerID string, trigger string) string {
+	return fmt.Sprintf(`
+provider "dockhand" {}
+
+resource "dockhand_batch_action" "test" {
+  env                 = %q
+  entity_type         = "containers"
+  operation           = "restart"
+  item_ids            = [%q]
+  wait_for_completion = false
   trigger             = %q
 }
 

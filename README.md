@@ -27,6 +27,7 @@ This provider currently includes:
 - Resource: `dockhand_container_action`
 - Resource: `dockhand_schedule`
 - Resource: `dockhand_schedule_run_action`
+- Resource: `dockhand_batch_action`
 - Resource: `dockhand_stack_env`
 - Resource: `dockhand_stack_scan_action`
 - Resource: `dockhand_stack_adopt_action`
@@ -65,6 +66,7 @@ This provider currently includes:
 - Data source: `dockhand_networks`
 - Data source: `dockhand_volumes`
 - Data source: `dockhand_images`
+- Data source: `dockhand_job`
 - HTTP client wiring against:
   - `POST /api/auth/login` (session-based auth)
   - `GET /api/auth/session` (session check)
@@ -96,6 +98,8 @@ This provider currently includes:
   - `POST /api/schedules/{type}/{id}/run`
   - `POST /api/schedules/system/{id}/toggle`
   - `POST /api/schedules/{type}/{id}/toggle`
+  - `POST /api/batch`
+  - `GET /api/jobs/{id}`
 
 If your Dockhand API differs, update `internal/provider/client.go`.
 
@@ -246,7 +250,7 @@ export DOCKHAND_TEST_GIT_STACK_ENV_PATH="stacks/app/.env"
 export DOCKHAND_TEST_DIND_HOST="dind"
 # - Requires an active Hawser edge agent token for agent-environment connectivity tests:
 export DOCKHAND_TEST_AGENT_TOKEN="ci-agent-token"
-go test -v ./internal/provider -run 'TestAcc(ContainerFileDirectoryResourceTerraform|ContainerProcessesDataSourceTerraform|StackActionDownTerraform|StackEnvResourceTerraform|GitStackEnvFileResourceTerraform)'
+  go test -v ./internal/provider -run 'TestAcc(ContainerFileDirectoryResourceTerraform|ContainerProcessesDataSourceTerraform|StackActionDownTerraform|StackEnvResourceTerraform|GitStackEnvFileResourceTerraform|BatchActionAndJobDataSourceTerraform|BatchActionNoWaitTerraform)'
 
 # Direct environment connectivity acceptance test (Dockhand -> DinD):
 go test -v ./internal/provider -run 'TestAccEnvironmentResourceDirectDinDTerraform'
