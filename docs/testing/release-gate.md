@@ -38,6 +38,6 @@ git push origin vX.Y.Z
 - Poll cadence: every 6 hours.
 - New-tag detection: compares latest discovered Dockhand tag to repo variable `DOCKHAND_RELEASE_WATCH_LAST_TAG`.
 - Only runs full validation when a new tag is discovered (or manual override via `workflow_dispatch` input).
-- On success, updates `DOCKHAND_RELEASE_WATCH_LAST_TAG`.
+- On success, updates `DOCKHAND_RELEASE_WATCH_LAST_TAG` only when repository secret `WATCH_STATE_TOKEN` is configured (token must allow updating repo Actions variables).
 - Includes docs-reference drift audit from `https://dockhand.pro/manual/#api-reference`.
 - Includes a targeted authenticated private endpoint probe (`GET /api/environments` by default).

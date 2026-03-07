@@ -48,7 +48,7 @@ jobs:
         id: state
         shell: bash
         env:
-          GH_TOKEN: ${{ github.token }}
+          GH_TOKEN: ${{ secrets.WATCH_STATE_TOKEN != '' && secrets.WATCH_STATE_TOKEN || github.token }}
         run: |
           set -euo pipefail
 
@@ -158,14 +158,14 @@ jobs:
 
   persist_state:
     name: Persist Last Tested Tag
-    if: needs.discover.outputs.should_run == 'true' && needs.validate.result == 'success'
+    if: needs.discover.outputs.should_run == 'true' && needs.discover.outputs.reason == 'new_tag' && needs.validate.result == 'success' && secrets.WATCH_STATE_TOKEN != ''
     needs: [discover, validate]
     runs-on: ubuntu-latest
     steps:
       - name: Update repository watch variable
         shell: bash
         env:
-          GH_TOKEN: ${{ github.token }}
+          GH_TOKEN: ${{ secrets.WATCH_STATE_TOKEN }}
           TAG: ${{ needs.discover.outputs.tag }}
         run: |
           set -euo pipefail
@@ -181,6 +181,16 @@ jobs:
           fi
 
           echo "Stored DOCKHAND_RELEASE_WATCH_LAST_TAG=${TAG}" >> "${GITHUB_STEP_SUMMARY}"
+
+  state_skip:
+    name: Skip State Persist (No Token)
+    if: needs.discover.outputs.should_run == 'true' && needs.discover.outputs.reason == 'new_tag' && needs.validate.result == 'success' && secrets.WATCH_STATE_TOKEN == ''
+    needs: [discover, validate]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Summary
+        run: |
+          echo "Skipping state persist: secret \`WATCH_STATE_TOKEN\` is not configured." >> "${GITHUB_STEP_SUMMARY}"
 
   report_failure:
     name: Report Compatibility Failure
