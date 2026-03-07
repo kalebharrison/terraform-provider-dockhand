@@ -14,6 +14,7 @@ This provider currently includes:
 - Resource: `dockhand_registry`
 - Resource: `dockhand_git_credential`
 - Resource: `dockhand_git_repository`
+- Resource: `dockhand_git_stack`
 - Resource: `dockhand_git_stack_webhook_action`
 - Resource: `dockhand_git_stack_deploy_action`
 - Resource: `dockhand_git_stack_env_file`
@@ -35,6 +36,7 @@ This provider currently includes:
 - Resource: `dockhand_license`
 - Resource: `dockhand_notification`
 - Resource: `dockhand_environment`
+- Resource: `dockhand_environment_scanner_action`
 - Resource: `dockhand_network_connection_action`
 - Resource: `dockhand_volume_clone_action`
 - Resource: `dockhand_image_push_action`
