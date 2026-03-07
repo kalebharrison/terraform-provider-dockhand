@@ -109,6 +109,7 @@ Live verification artifacts:
 | `dockhand_schedule` | Read | `GET /api/schedules` | Resolves existing schedule by `type` + `schedule_id`. | partial |
 | `dockhand_schedule` | Update state | `POST /api/schedules/system/{id}/toggle` or `POST /api/schedules/{type}/{id}/toggle` | Manages pause/resume (`enabled`) for existing schedules. | partial |
 | `dockhand_schedule_run_action` | Execute run-now action | `POST /api/schedules/{type}/{id}/run` | One-shot run trigger resource with replace-by-trigger behavior. | implemented |
+| `dockhand_batch_action` | Execute async batch operation | `POST /api/batch?env={env_id}` + optional poll `GET /api/jobs/{jobId}` | One-shot async action for batch operations (entity + operation + ids) with optional wait-for-completion and captured job output JSON. | implemented |
 
 ## Data Sources
 
@@ -123,6 +124,7 @@ Live verification artifacts:
 | `dockhand_container_logs` | `GET /api/containers/{id}/logs?env={env_id}&tail={n}` | Reads container logs for debugging/verification workflows. | implemented |
 | `dockhand_container_inspect` | `GET /api/containers/{id}?env={env_id}` | Exposes full inspect payload as raw JSON for advanced automation. | implemented |
 | `dockhand_container_processes` | `GET /api/containers/{id}/top?env={env_id}` | Reads process table (`Titles` + `Processes`) for running containers. | implemented |
+| `dockhand_job` | `GET /api/jobs/{jobId}` | Reads async job status/result/lines from Dockhand job queue. | implemented |
 
 ## Additional Endpoints Not Yet Mapped
 
@@ -135,7 +137,7 @@ Live verification artifacts:
 | `/api/stacks/{name}/env` | broader non-secret env var editing semantics | partial |
 | `/api/volumes` | advanced volume operations (`clone`, `browse`, import/export) | partial |
 | `/api/networks` | advanced network operations (`connect`, inspect details as separate surface) | partial |
-| `/api/batch` + `/api/jobs/{jobId}` | generic async job action + job status data source (`run-and-poll`) | planned |
+| `/api/batch` + `/api/jobs/{jobId}` | generic async job action + job status data source (`run-and-poll`) | implemented |
 | `/api/environments/test` + `/api/environments/detect-socket` | environment connectivity validation action | planned |
 | `/api/notifications/test` | notification test-send one-shot action | planned |
 | `/api/registry/*` (`search`,`tags`,`catalog`,`image`) | registry catalog/search data sources | planned |
@@ -165,7 +167,6 @@ Live verification artifacts:
 - Recursive WebUI bundle crawl (`/login` entrypoint) discovered `112` raw route strings (`93` normalized unique endpoint shapes).
 - Compared against provider API client surface, `59` normalized endpoint shapes are currently not mapped by provider resources/data sources/actions.
 - Highest value additions for Terraform workflows:
-  - async execution support via `/api/batch` + `/api/jobs/{jobId}`
   - environment connectivity validation action via `/api/environments/test`
   - notification smoke-test action via `/api/notifications/test`
   - registry catalog/search data sources via `/api/registry/*`

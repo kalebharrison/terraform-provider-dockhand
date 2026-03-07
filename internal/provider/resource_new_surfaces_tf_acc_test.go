@@ -221,6 +221,45 @@ func TestAccGitRepositoryEnvironmentIDNoDriftTerraform(t *testing.T) {
 	})
 }
 
+func TestAccBatchActionAndJobDataSourceTerraform(t *testing.T) {
+	endpoint, username, password := testAccEnv(t)
+	defaultEnv := testAccDefaultEnv()
+
+	t.Setenv("DOCKHAND_ENDPOINT", endpoint)
+	t.Setenv("DOCKHAND_USERNAME", username)
+	t.Setenv("DOCKHAND_PASSWORD", password)
+	t.Setenv("DOCKHAND_DEFAULT_ENV", defaultEnv)
+
+	suffix := strings.ToLower(time.Now().UTC().Format("20060102150405"))
+	missingContainerID := "tf-acc-missing-container-" + suffix
+
+	resource.Test(t, resource.TestCase{
+		ProtoV6ProviderFactories: testAccProviderFactories(),
+		Steps: []resource.TestStep{
+			{
+				Config: testAccBatchActionConfig(defaultEnv, missingContainerID, "acc-run-1"),
+				Check: resource.ComposeTestCheckFunc(
+					resource.TestCheckResourceAttr("dockhand_batch_action.test", "entity_type", "containers"),
+					resource.TestCheckResourceAttr("dockhand_batch_action.test", "operation", "restart"),
+					resource.TestCheckResourceAttr("dockhand_batch_action.test", "job_status", "done"),
+					resource.TestCheckResourceAttrSet("dockhand_batch_action.test", "job_id"),
+					resource.TestCheckResourceAttrSet("dockhand_batch_action.test", "result_json"),
+					resource.TestCheckResourceAttrSet("dockhand_batch_action.test", "lines_json"),
+					resource.TestCheckResourceAttrSet("data.dockhand_job.test", "id"),
+					resource.TestCheckResourceAttr("data.dockhand_job.test", "status", "done"),
+				),
+			},
+			{
+				Config: testAccBatchActionConfig(defaultEnv, missingContainerID, "acc-run-2"),
+				Check: resource.ComposeTestCheckFunc(
+					resource.TestCheckResourceAttr("dockhand_batch_action.test", "trigger", "acc-run-2"),
+					resource.TestCheckResourceAttr("data.dockhand_job.test", "status", "done"),
+				),
+			},
+		},
+	})
+}
+
 func testAccContainerDirectoryConfig(env string, containerID string, path string) string {
 	return fmt.Sprintf(`
 provider "dockhand" {}
@@ -324,4 +363,25 @@ resource "dockhand_git_repository" "test" {
   environment_id = %q
 }
 `, name, url, branch, environmentID)
+}
+
+func testAccBatchActionConfig(env string, containerID string, trigger string) string {
+	return fmt.Sprintf(`
+provider "dockhand" {}
+
+resource "dockhand_batch_action" "test" {
+  env                 = %q
+  entity_type         = "containers"
+  operation           = "restart"
+  item_ids            = [%q]
+  wait_for_completion = true
+  timeout_seconds     = 30
+  poll_interval_ms    = 500
+  trigger             = %q
+}
+
+data "dockhand_job" "test" {
+  job_id = dockhand_batch_action.test.job_id
+}
+`, env, containerID, trigger)
 }

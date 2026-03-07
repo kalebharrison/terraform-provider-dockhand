@@ -41,6 +41,7 @@ Repository guidance for coding agents working on `terraform-provider-dockhand`.
   - Resource: `dockhand_container_check_updates_action`
   - Resource: `dockhand_schedule`
   - Resource: `dockhand_schedule_run_action`
+  - Resource: `dockhand_batch_action`
   - Resource: `dockhand_stack_adopt_action`
   - Resource: `dockhand_stack_env`
   - Data source: `dockhand_health`
@@ -69,6 +70,7 @@ Repository guidance for coding agents working on `terraform-provider-dockhand`.
   - Data source: `dockhand_images`
   - Data source: `dockhand_schedules`
   - Data source: `dockhand_schedules_executions`
+  - Data source: `dockhand_job`
 
 ## Working Rules
 
@@ -185,6 +187,8 @@ Avoid testing by building local zips for release validation.
   - `GET /api/stacks/sources`
   - `POST /api/schedules/system/{id}/toggle`
   - `POST /api/schedules/{type}/{id}/toggle`
+  - `POST /api/batch`
+  - `GET /api/jobs/{id}`
 - Verify response payload shapes against live Dockhand responses before release.
 - Endpoint presence should be re-verified with `scripts/endpoint-probe.py` and reviewed in:
   - `docs/reports/endpoint-probe.md`

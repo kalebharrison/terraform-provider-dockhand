@@ -56,6 +56,7 @@ provider "dockhand" {
 - `dockhand_container_check_updates_action`
 - `dockhand_schedule`
 - `dockhand_schedule_run_action`
+- `dockhand_batch_action`
 - `dockhand_stack_scan_action`
 - `dockhand_stack_adopt_action`
 - `dockhand_stack_env`
@@ -87,6 +88,7 @@ provider "dockhand" {
 - `dockhand_container_processes`
 - `dockhand_stack_sources`
 - `dockhand_stacks`
+- `dockhand_job`
 
 ## Schema
 

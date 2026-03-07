@@ -200,6 +200,31 @@ type healthResponse struct {
 	Version string `json:"version,omitempty"`
 }
 
+type batchItemPayload struct {
+	ID string `json:"id"`
+}
+
+type batchRequestPayload struct {
+	EntityType string             `json:"entityType"`
+	Operation  string             `json:"operation"`
+	Items      []batchItemPayload `json:"items"`
+}
+
+type batchResponse struct {
+	JobID string `json:"jobId"`
+}
+
+type jobLineResponse struct {
+	Data map[string]any `json:"data"`
+}
+
+type jobResponse struct {
+	ID     string            `json:"id"`
+	Status string            `json:"status"`
+	Lines  []jobLineResponse `json:"lines"`
+	Result map[string]any    `json:"result"`
+}
+
 type userPayload struct {
 	Username    string  `json:"username"`
 	Password    *string `json:"password,omitempty"`
@@ -1533,6 +1558,75 @@ func (c *Client) RunSchedule(ctx context.Context, scheduleType string, id string
 	return c.doJSONWithStatus(ctx, http.MethodPost, path, nil, nil, nil)
 }
 
+func (c *Client) SubmitBatch(ctx context.Context, env string, entityType string, operation string, itemIDs []string) (*batchResponse, int, error) {
+	items := make([]batchItemPayload, 0, len(itemIDs))
+	for _, id := range itemIDs {
+		trimmed := strings.TrimSpace(id)
+		if trimmed == "" {
+			continue
+		}
+		items = append(items, batchItemPayload{ID: trimmed})
+	}
+	if len(items) == 0 {
+		return nil, 0, fmt.Errorf("at least one non-empty item id is required")
+	}
+
+	payload := batchRequestPayload{
+		EntityType: strings.TrimSpace(entityType),
+		Operation:  strings.TrimSpace(operation),
+		Items:      items,
+	}
+
+	query := map[string]string{}
+	if resolvedEnv := c.resolveEnv(env); resolvedEnv != "" {
+		query["env"] = resolvedEnv
+	}
+
+	var out batchResponse
+	status, err := c.doJSONWithStatus(ctx, http.MethodPost, "/api/batch", query, payload, &out)
+	if err != nil {
+		return nil, status, err
+	}
+	if strings.TrimSpace(out.JobID) == "" {
+		return nil, status, fmt.Errorf("dockhand batch response missing jobId")
+	}
+	return &out, status, nil
+}
+
+func (c *Client) GetJob(ctx context.Context, id string) (*jobResponse, int, error) {
+	var out jobResponse
+	status, err := c.doJSONWithStatus(ctx, http.MethodGet, "/api/jobs/"+url.PathEscape(strings.TrimSpace(id)), nil, nil, &out)
+	if err != nil {
+		return nil, status, err
+	}
+	return &out, status, nil
+}
+
+func (c *Client) WaitForJob(ctx context.Context, id string, timeout time.Duration, pollInterval time.Duration) (*jobResponse, int, error) {
+	if timeout <= 0 {
+		timeout = 2 * time.Minute
+	}
+	if pollInterval <= 0 {
+		pollInterval = 1 * time.Second
+	}
+
+	pollCtx, cancel := context.WithTimeout(ctx, timeout)
+	defer cancel()
+
+	for {
+		out, status, err := c.GetJob(pollCtx, id)
+		if err != nil {
+			return nil, status, err
+		}
+		if isTerminalJobStatus(out.Status) {
+			return out, status, nil
+		}
+		if err := sleepBackoffWithInterval(pollCtx, pollInterval); err != nil {
+			return out, status, err
+		}
+	}
+}
+
 func (c *Client) GetAuthSettings(ctx context.Context) (*authSettingsResponse, int, error) {
 	var out authSettingsResponse
 	status, err := c.doJSONWithStatus(ctx, http.MethodGet, "/api/auth/settings", nil, nil, &out)
@@ -2355,6 +2449,26 @@ func sleepBackoff(ctx context.Context, attempt int) error {
 		return ctx.Err()
 	case <-t.C:
 		return nil
+	}
+}
+
+func sleepBackoffWithInterval(ctx context.Context, delay time.Duration) error {
+	t := time.NewTimer(delay)
+	defer t.Stop()
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	case <-t.C:
+		return nil
+	}
+}
+
+func isTerminalJobStatus(status string) bool {
+	switch strings.ToLower(strings.TrimSpace(status)) {
+	case "done", "failed", "error", "cancelled", "canceled":
+		return true
+	default:
+		return false
 	}
 }
 
