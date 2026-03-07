@@ -1,0 +1,14 @@
+# Default owner for all files
+* @kalebharrison
+
+# Provider/runtime code
+/internal/provider/** @kalebharrison
+/scripts/** @kalebharrison
+
+# CI/CD and release automation
+/.github/workflows/** @kalebharrison
+
+# User and contributor docs
+/docs/** @kalebharrison
+/README.md @kalebharrison
+/CONTRIBUTING.md @kalebharrison
