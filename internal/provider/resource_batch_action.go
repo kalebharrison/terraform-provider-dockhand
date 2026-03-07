@@ -80,14 +80,14 @@ func (r *batchActionResource) Schema(_ context.Context, _ resource.SchemaRequest
 					listplanmodifier.RequiresReplace(),
 				},
 			},
-				"wait_for_completion": schema.BoolAttribute{
-					Optional: true,
-					Computed: true,
-					Default:  booldefault.StaticBool(true),
-					PlanModifiers: []planmodifier.Bool{
-						boolplanmodifier.RequiresReplace(),
-					},
+			"wait_for_completion": schema.BoolAttribute{
+				Optional: true,
+				Computed: true,
+				Default:  booldefault.StaticBool(true),
+				PlanModifiers: []planmodifier.Bool{
+					boolplanmodifier.RequiresReplace(),
 				},
+			},
 			"timeout_seconds": schema.Int64Attribute{
 				Optional: true,
 				PlanModifiers: []planmodifier.Int64{
