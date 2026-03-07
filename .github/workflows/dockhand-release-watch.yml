@@ -188,7 +188,7 @@ jobs:
 
   report_failure:
     name: Report Compatibility Failure
-    if: needs.discover.outputs.should_run == 'true' && needs.validate.result == 'failure'
+    if: always() && needs.discover.outputs.should_run == 'true' && needs.validate.result == 'failure'
     needs: [discover, validate]
     runs-on: ubuntu-latest
     steps:
