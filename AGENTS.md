@@ -91,13 +91,26 @@ Repository guidance for coding agents working on `terraform-provider-dockhand`.
 Run from repo root:
 
 ```bash
-go mod tidy
-go test ./...
-go build ./...
-/usr/bin/python3 scripts/endpoint-probe.py
+./scripts/verify.sh --quality
+
+# When API contracts changed:
+./scripts/verify.sh --endpoint-probe
+
+# When behavior coverage changed:
+./scripts/verify.sh --acceptance --test-regex 'TestAcc(<targeted-regex>)'
 ```
 
 If tests require Dockhand access, clearly separate them as acceptance tests.
+
+## Operational Breadcrumbs
+
+- Primary maintainer runbook: `docs/MAINTENANCE_PLAYBOOK.md`
+- Docs/examples parity check: `scripts/check-doc-example-coverage.py`
+- Standard local gate: `scripts/verify.sh`
+- Make targets:
+  - `make verify`
+  - `make verify-quality`
+  - `make verify-docs`
 
 ## Release-First Workflow (Local Testing)
 

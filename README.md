@@ -115,9 +115,9 @@ Requirements:
 Build:
 
 ```bash
-go mod tidy
-go test ./...
-go build ./...
+./scripts/verify.sh
+# or:
+make verify
 ```
 
 Run locally with Terraform:
@@ -170,6 +170,7 @@ Private distribution (team-friendly, still private):
 - Public/registry readiness checklist: `docs/REGISTRY_READINESS.md`
 - Compatibility matrix and recursive validation: `docs/testing/compatibility-matrix.md`
 - Release gate policy: `docs/testing/release-gate.md`
+- Maintainer runbook (standard change/release loop): `docs/MAINTENANCE_PLAYBOOK.md`
 
 Repository policy and governance:
 
@@ -252,7 +253,7 @@ export DOCKHAND_TEST_GIT_STACK_ENV_PATH="stacks/app/.env"
 export DOCKHAND_TEST_DIND_HOST="dind"
 # - Requires an active Hawser edge agent token for agent-environment connectivity tests:
 export DOCKHAND_TEST_AGENT_TOKEN="ci-agent-token"
-  go test -v ./internal/provider -run 'TestAcc(ContainerFileDirectoryResourceTerraform|ContainerProcessesDataSourceTerraform|StackActionDownTerraform|StackEnvResourceTerraform|GitStackEnvFileResourceTerraform|BatchActionAndJobDataSourceTerraform|BatchActionNoWaitTerraform)'
+go test -v ./internal/provider -run 'TestAcc(ContainerFileDirectoryResourceTerraform|ContainerProcessesDataSourceTerraform|StackActionDownTerraform|StackEnvResourceTerraform|GitStackEnvFileResourceTerraform|BatchActionAndJobDataSourceTerraform|BatchActionNoWaitTerraform)'
 
 # Direct environment connectivity acceptance test (Dockhand -> DinD):
 go test -v ./internal/provider -run 'TestAccEnvironmentResourceDirectDinDTerraform'

@@ -2,6 +2,8 @@
 
 This provider can be developed and tested locally without publishing to a registry by using Terraform `dev_overrides`.
 
+For the full maintainer loop (issue/branch/PR/release flow), see `docs/MAINTENANCE_PLAYBOOK.md`.
+
 ## Build Provider Binary
 
 From the repo root:
@@ -39,4 +41,10 @@ export DOCKHAND_DEFAULT_ENV="1"
 
 # Optional fresh-install bootstrap mode (no auth configured yet):
 # export DOCKHAND_ALLOW_UNAUTHENTICATED="true"
+```
+
+## Local Validation
+
+```bash
+./scripts/verify.sh --quality
 ```

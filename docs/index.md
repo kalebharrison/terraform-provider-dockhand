@@ -10,6 +10,7 @@ Use the Dockhand provider to manage stack definitions and query API health.
 - Contributor support: `SUPPORT.md`
 - Compatibility matrix: `docs/testing/compatibility-matrix.md`
 - Release gate: `docs/testing/release-gate.md`
+- Maintenance playbook: `docs/MAINTENANCE_PLAYBOOK.md`
 
 ## Example Usage
 

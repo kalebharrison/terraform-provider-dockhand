@@ -13,6 +13,8 @@ Thanks for contributing to `terraform-provider-dockhand`.
 6. Merge to `main`.
 7. Cut a release tag (`vX.Y.Z`) when changes are ready for distribution.
 
+Operational details and repeatable release flow: `docs/MAINTENANCE_PLAYBOOK.md`.
+
 ## Required PR Content
 
 - A clear summary of behavior changes.
@@ -24,10 +26,13 @@ Thanks for contributing to `terraform-provider-dockhand`.
 Run from repo root:
 
 ```bash
-go mod tidy
-go test ./...
-go build ./...
-/usr/bin/python3 scripts/endpoint-probe.py
+./scripts/verify.sh --quality
+
+# If API contracts changed:
+./scripts/verify.sh --endpoint-probe
+
+# If behavior changes require runtime coverage:
+./scripts/verify.sh --acceptance --test-regex 'TestAcc(<targeted-regex>)'
 ```
 
 ## Release Notes

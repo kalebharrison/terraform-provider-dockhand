@@ -17,9 +17,10 @@ Before creating `vX.Y.Z`:
 
 1. Ensure no open `compatibility` issues for current Dockhand release.
 2. Confirm `TestAcceptanceManifestCoverage` passes.
-3. Confirm endpoint probe report is clean for current Dockhand target.
-4. Confirm latest `Dockhand Release Watch` run produced compatibility artifacts (`endpoint-probe.*`, `webui-api-endpoints.txt`, `webui-endpoint-gap-audit.md`, `docs-reference-*`, `private-endpoint-probe.*`).
-5. Cut signed tag:
+3. Confirm docs/examples parity check passes (`/usr/bin/python3 scripts/check-doc-example-coverage.py`).
+4. Confirm endpoint probe report is clean for current Dockhand target.
+5. Confirm latest `Dockhand Release Watch` run produced compatibility artifacts (`endpoint-probe.*`, `webui-api-endpoints.txt`, `webui-endpoint-gap-audit.md`, `docs-reference-*`, `private-endpoint-probe.*`).
+6. Cut signed tag:
 
 ```bash
 git tag -s vX.Y.Z -m "Release vX.Y.Z"

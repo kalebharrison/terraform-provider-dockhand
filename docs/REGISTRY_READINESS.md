@@ -50,8 +50,7 @@ This checklist is for preparing a public release path for Terraform Registry and
 Run this sequence for each release candidate:
 
 ```bash
-go test ./...
-go build ./...
+./scripts/verify.sh --quality
 source terraform/dockhand/test/env.sh
 /usr/bin/python3 scripts/endpoint-probe.py
 ./scripts/release-test.sh <version>
