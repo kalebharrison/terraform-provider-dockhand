@@ -41,6 +41,7 @@ Repository guidance for coding agents working on `terraform-provider-dockhand`.
   - Resource: `dockhand_container_check_updates_action`
   - Resource: `dockhand_schedule`
   - Resource: `dockhand_schedule_run_action`
+  - Resource: `dockhand_batch_action`
   - Resource: `dockhand_stack_adopt_action`
   - Resource: `dockhand_stack_env`
   - Data source: `dockhand_health`
@@ -69,6 +70,7 @@ Repository guidance for coding agents working on `terraform-provider-dockhand`.
   - Data source: `dockhand_images`
   - Data source: `dockhand_schedules`
   - Data source: `dockhand_schedules_executions`
+  - Data source: `dockhand_job`
 
 ## Working Rules
 
@@ -89,13 +91,26 @@ Repository guidance for coding agents working on `terraform-provider-dockhand`.
 Run from repo root:
 
 ```bash
-go mod tidy
-go test ./...
-go build ./...
-/usr/bin/python3 scripts/endpoint-probe.py
+./scripts/verify.sh --quality
+
+# When API contracts changed:
+./scripts/verify.sh --endpoint-probe
+
+# When behavior coverage changed:
+./scripts/verify.sh --acceptance --test-regex 'TestAcc(<targeted-regex>)'
 ```
 
 If tests require Dockhand access, clearly separate them as acceptance tests.
+
+## Operational Breadcrumbs
+
+- Primary maintainer runbook: `docs/MAINTENANCE_PLAYBOOK.md`
+- Docs/examples parity check: `scripts/check-doc-example-coverage.py`
+- Standard local gate: `scripts/verify.sh`
+- Make targets:
+  - `make verify`
+  - `make verify-quality`
+  - `make verify-docs`
 
 ## Release-First Workflow (Local Testing)
 
@@ -185,6 +200,8 @@ Avoid testing by building local zips for release validation.
   - `GET /api/stacks/sources`
   - `POST /api/schedules/system/{id}/toggle`
   - `POST /api/schedules/{type}/{id}/toggle`
+  - `POST /api/batch`
+  - `GET /api/jobs/{id}`
 - Verify response payload shapes against live Dockhand responses before release.
 - Endpoint presence should be re-verified with `scripts/endpoint-probe.py` and reviewed in:
   - `docs/reports/endpoint-probe.md`

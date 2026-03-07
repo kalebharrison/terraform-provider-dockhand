@@ -14,6 +14,7 @@ This provider currently includes:
 - Resource: `dockhand_registry`
 - Resource: `dockhand_git_credential`
 - Resource: `dockhand_git_repository`
+- Resource: `dockhand_git_stack`
 - Resource: `dockhand_git_stack_webhook_action`
 - Resource: `dockhand_git_stack_deploy_action`
 - Resource: `dockhand_git_stack_env_file`
@@ -27,6 +28,7 @@ This provider currently includes:
 - Resource: `dockhand_container_action`
 - Resource: `dockhand_schedule`
 - Resource: `dockhand_schedule_run_action`
+- Resource: `dockhand_batch_action`
 - Resource: `dockhand_stack_env`
 - Resource: `dockhand_stack_scan_action`
 - Resource: `dockhand_stack_adopt_action`
@@ -34,6 +36,7 @@ This provider currently includes:
 - Resource: `dockhand_license`
 - Resource: `dockhand_notification`
 - Resource: `dockhand_environment`
+- Resource: `dockhand_environment_scanner_action`
 - Resource: `dockhand_network_connection_action`
 - Resource: `dockhand_volume_clone_action`
 - Resource: `dockhand_image_push_action`
@@ -65,6 +68,7 @@ This provider currently includes:
 - Data source: `dockhand_networks`
 - Data source: `dockhand_volumes`
 - Data source: `dockhand_images`
+- Data source: `dockhand_job`
 - HTTP client wiring against:
   - `POST /api/auth/login` (session-based auth)
   - `GET /api/auth/session` (session check)
@@ -96,6 +100,8 @@ This provider currently includes:
   - `POST /api/schedules/{type}/{id}/run`
   - `POST /api/schedules/system/{id}/toggle`
   - `POST /api/schedules/{type}/{id}/toggle`
+  - `POST /api/batch`
+  - `GET /api/jobs/{id}`
 
 If your Dockhand API differs, update `internal/provider/client.go`.
 
@@ -109,9 +115,9 @@ Requirements:
 Build:
 
 ```bash
-go mod tidy
-go test ./...
-go build ./...
+./scripts/verify.sh
+# or:
+make verify
 ```
 
 Run locally with Terraform:
@@ -164,6 +170,7 @@ Private distribution (team-friendly, still private):
 - Public/registry readiness checklist: `docs/REGISTRY_READINESS.md`
 - Compatibility matrix and recursive validation: `docs/testing/compatibility-matrix.md`
 - Release gate policy: `docs/testing/release-gate.md`
+- Maintainer runbook (standard change/release loop): `docs/MAINTENANCE_PLAYBOOK.md`
 
 Repository policy and governance:
 
@@ -246,7 +253,7 @@ export DOCKHAND_TEST_GIT_STACK_ENV_PATH="stacks/app/.env"
 export DOCKHAND_TEST_DIND_HOST="dind"
 # - Requires an active Hawser edge agent token for agent-environment connectivity tests:
 export DOCKHAND_TEST_AGENT_TOKEN="ci-agent-token"
-go test -v ./internal/provider -run 'TestAcc(ContainerFileDirectoryResourceTerraform|ContainerProcessesDataSourceTerraform|StackActionDownTerraform|StackEnvResourceTerraform|GitStackEnvFileResourceTerraform)'
+go test -v ./internal/provider -run 'TestAcc(ContainerFileDirectoryResourceTerraform|ContainerProcessesDataSourceTerraform|StackActionDownTerraform|StackEnvResourceTerraform|GitStackEnvFileResourceTerraform|BatchActionAndJobDataSourceTerraform|BatchActionNoWaitTerraform)'
 
 # Direct environment connectivity acceptance test (Dockhand -> DinD):
 go test -v ./internal/provider -run 'TestAccEnvironmentResourceDirectDinDTerraform'

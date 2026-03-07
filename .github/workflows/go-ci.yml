@@ -43,6 +43,9 @@ jobs:
             exit 1
           fi
 
+      - name: Verify docs/examples coverage
+        run: /usr/bin/python3 scripts/check-doc-example-coverage.py
+
       - name: Go test
         run: go test ./...
 

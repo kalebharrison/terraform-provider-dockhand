@@ -119,6 +119,8 @@ ENDPOINTS: List[Dict[str, Any]] = [
     {"method": "GET", "path": "/api/containers/stats", "with_env": True},
     {"method": "POST", "path": "/api/containers/check-updates", "with_env": True},
     {"method": "GET", "path": "/api/containers/pending-updates", "with_env": True},
+    {"method": "POST", "path": "/api/batch", "with_env": True},
+    {"method": "GET", "path": "/api/jobs/{id}"},
     {"method": "GET", "path": "/api/configs"},
     {"method": "GET", "path": "/api/backups"},
 ]
@@ -221,6 +223,7 @@ def main() -> int:
         "volume_name": None,
         "image_id": None,
         "container_id": None,
+        "job_id": None,
     }
 
     # Fixture discovery from safe list endpoints.
@@ -280,6 +283,19 @@ def main() -> int:
             if isinstance(items, list) and items and isinstance(items[0], dict) and field in items[0]:
                 fixtures[key] = str(items[0][field])
 
+    # Create a synthetic batch job fixture for probing /api/jobs/{id} safely.
+    if fixtures.get("env"):
+        batch_payload = {
+            "entityType": "containers",
+            "operation": "restart",
+            "items": [{"id": "_probe_missing_container_"}],
+        }
+        sc, body = s.request("POST", "/api/batch", body=batch_payload, query={"env": fixtures["env"]})
+        if sc >= 200 and sc < 300:
+            parsed = try_json(body)
+            if isinstance(parsed, dict) and parsed.get("jobId") is not None:
+                fixtures["job_id"] = str(parsed["jobId"])
+
     rows: List[Dict[str, Any]] = []
     for ep in ENDPOINTS:
         method = ep["method"]
@@ -322,6 +338,8 @@ def main() -> int:
                 candidate = fixtures.get("image_id")
             elif "/api/containers/" in path:
                 candidate = fixtures.get("container_id")
+            elif "/api/jobs/" in path:
+                candidate = fixtures.get("job_id")
             elif "/api/schedules/system/" in path:
                 candidate = fixtures.get("system_schedule_id")
             elif "/api/schedules/" in path:
@@ -356,12 +374,21 @@ def main() -> int:
             payload = {}
             if raw_path == "/api/auth/login":
                 payload = {"username": username, "password": password, "authProvider": auth_provider}
+            if raw_path == "/api/batch":
+                payload = {
+                    "entityType": "containers",
+                    "operation": "restart",
+                    "items": [{"id": "_probe_missing_container_"}],
+                }
 
         request_method = method
         note = ""
         # Safe mode: avoid mutating calls unless explicitly enabled.
         if not allow_mutation and method in ("POST", "PUT", "DELETE") and raw_path != "/api/auth/login":
-            if has_placeholder:
+            if raw_path == "/api/batch":
+                # Safe synthetic batch job that targets a missing container id.
+                note = "Safe mode: synthetic batch probe"
+            elif has_placeholder:
                 # Probe route match without touching real resources by using placeholder ids.
                 note = "Safe mode: placeholder probe"
             else:

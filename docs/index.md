@@ -10,6 +10,7 @@ Use the Dockhand provider to manage stack definitions and query API health.
 - Contributor support: `SUPPORT.md`
 - Compatibility matrix: `docs/testing/compatibility-matrix.md`
 - Release gate: `docs/testing/release-gate.md`
+- Maintenance playbook: `docs/MAINTENANCE_PLAYBOOK.md`
 
 ## Example Usage
 
@@ -56,6 +57,7 @@ provider "dockhand" {
 - `dockhand_container_check_updates_action`
 - `dockhand_schedule`
 - `dockhand_schedule_run_action`
+- `dockhand_batch_action`
 - `dockhand_stack_scan_action`
 - `dockhand_stack_adopt_action`
 - `dockhand_stack_env`
@@ -87,6 +89,7 @@ provider "dockhand" {
 - `dockhand_container_processes`
 - `dockhand_stack_sources`
 - `dockhand_stacks`
+- `dockhand_job`
 
 ## Schema
 

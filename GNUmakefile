@@ -1,6 +1,6 @@
 SHELL := /bin/bash
 
-.PHONY: tidy build test install tf-dev-build tf-dev-plan tf-dev-apply tf-dev-destroy packages mirror
+.PHONY: tidy build test install verify verify-quality verify-docs tf-dev-build tf-dev-plan tf-dev-apply tf-dev-destroy packages mirror
 
 tidy:
 	go mod tidy
@@ -13,6 +13,15 @@ test:
 
 install:
 	go install .
+
+verify:
+	@./scripts/verify.sh
+
+verify-quality:
+	@./scripts/verify.sh --quality
+
+verify-docs:
+	@/usr/bin/python3 scripts/check-doc-example-coverage.py
 
 # Build a provider binary suitable for Terraform "dev_overrides".
 # We keep caches inside the repo to avoid writing to global Go cache dirs.
