@@ -2,6 +2,15 @@
 
 Use the Dockhand provider to manage stack definitions and query API health.
 
+## Project Standards
+
+- Security policy: `SECURITY.md`
+- Governance: `GOVERNANCE.md`
+- Maintainers: `MAINTAINERS.md`
+- Contributor support: `SUPPORT.md`
+- Compatibility matrix: `docs/testing/compatibility-matrix.md`
+- Release gate: `docs/testing/release-gate.md`
+
 ## Example Usage
 
 ```terraform

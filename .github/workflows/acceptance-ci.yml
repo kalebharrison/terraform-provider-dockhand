@@ -55,11 +55,13 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          for i in $(seq 1 90); do
+          attempt=0
+          while (( attempt < 90 )); do
             if docker --host tcp://127.0.0.1:23750 version >/tmp/dind-version.out 2>/tmp/dind-version.err; then
               echo "DinD Docker API is reachable."
               exit 0
             fi
+            attempt=$((attempt + 1))
             sleep 2
           done
 
@@ -81,12 +83,14 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          for i in $(seq 1 60); do
+          attempt=0
+          while (( attempt < 60 )); do
             code="$(curl -sS -o /dev/null -w "%{http_code}" "${DOCKHAND_TEST_ENDPOINT}/api/auth/session" || true)"
             if [[ "$code" != "000" && "$code" != "502" && "$code" != "503" ]]; then
               echo "Dockhand API is reachable (status ${code})."
               exit 0
             fi
+            attempt=$((attempt + 1))
             sleep 2
           done
           echo "Dockhand API did not become reachable in time." >&2
@@ -193,9 +197,11 @@ jobs:
           fi
           dockhand_ws_url="ws://${dockhand_ip}:3000/api/hawser/connect"
 
-          echo "DOCKHAND_TEST_AGENT_TOKEN=${agent_token}" >> "${GITHUB_ENV}"
-          echo "DOCKHAND_TEST_AGENT_NAME=ci-hawser" >> "${GITHUB_ENV}"
-          echo "DOCKHAND_TEST_HAWSER_SERVER_URL=${dockhand_ws_url}" >> "${GITHUB_ENV}"
+          {
+            echo "DOCKHAND_TEST_AGENT_TOKEN=${agent_token}"
+            echo "DOCKHAND_TEST_AGENT_NAME=ci-hawser"
+            echo "DOCKHAND_TEST_HAWSER_SERVER_URL=${dockhand_ws_url}"
+          } >> "${GITHUB_ENV}"
 
           for i in $(seq 1 20); do
             if docker --host tcp://127.0.0.1:23750 info >/dev/null 2>&1; then
@@ -224,6 +230,14 @@ jobs:
           echo "Failed to start Hawser in DinD after retries." >&2
           docker logs dind || true
           exit 1
+
+      - name: Validate acceptance manifest parity
+        shell: bash
+        run: |
+          set -euo pipefail
+          GOCACHE="$PWD/.cache/go-build" \
+          GOMODCACHE="$PWD/.cache/gomod" \
+          go test ./internal/provider -run TestAcceptanceManifestCoverage
 
       - name: Run targeted acceptance tests
         env:

@@ -1,0 +1,32 @@
+name: Shell Lint
+
+on:
+  pull_request:
+    paths:
+      - "scripts/**"
+      - ".github/workflows/**"
+  push:
+    branches:
+      - main
+    paths:
+      - "scripts/**"
+      - ".github/workflows/**"
+
+permissions:
+  contents: read
+
+jobs:
+  shellcheck:
+    name: shellcheck
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Shellcheck scripts
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y shellcheck
+          find scripts -type f -name '*.sh' -print0 | xargs -0 -r shellcheck -x -e SC1091

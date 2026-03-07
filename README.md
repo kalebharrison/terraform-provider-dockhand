@@ -162,6 +162,16 @@ Private distribution (team-friendly, still private):
 - Filesystem mirror workflow: `docs/PRIVATE_DISTRIBUTION.md`
 - Endpoint contract probe workflow: `docs/ENDPOINT_PROBE.md`
 - Public/registry readiness checklist: `docs/REGISTRY_READINESS.md`
+- Compatibility matrix and recursive validation: `docs/testing/compatibility-matrix.md`
+- Release gate policy: `docs/testing/release-gate.md`
+
+Repository policy and governance:
+
+- `SECURITY.md`
+- `CODE_OF_CONDUCT.md`
+- `SUPPORT.md`
+- `GOVERNANCE.md`
+- `MAINTAINERS.md`
 
 Example resource:
 
@@ -255,6 +265,12 @@ GitHub Actions acceptance workflow:
 - Creates a dedicated direct environment (`ci-dind`) targeting the DinD container.
 - Launches a Hawser edge agent inside DinD with a generated token.
 - Runs targeted acceptance tests, including environment connectivity coverage.
+
+Full recursive acceptance harness:
+
+- Local script: `scripts/run-acceptance-harness.sh`
+- Nightly workflow: `.github/workflows/acceptance-full.yml`
+- Dockhand release watcher: `.github/workflows/dockhand-release-watch.yml`
 
 ## Release
 
