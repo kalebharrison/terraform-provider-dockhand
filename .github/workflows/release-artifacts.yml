@@ -68,14 +68,14 @@ jobs:
 
       - name: Import GPG key (passphrase)
         if: ${{ env.HAS_GPG_PASSPHRASE == 'true' }}
-        uses: crazy-max/ghaction-import-gpg@v6
+        uses: crazy-max/ghaction-import-gpg@v7
         with:
           gpg_private_key: ${{ secrets.GPG_PRIVATE_KEY }}
           passphrase: ${{ env.GPG_PASSPHRASE }}
 
       - name: Import GPG key (no passphrase)
         if: ${{ env.HAS_GPG_PASSPHRASE != 'true' }}
-        uses: crazy-max/ghaction-import-gpg@v6
+        uses: crazy-max/ghaction-import-gpg@v7
         with:
           gpg_private_key: ${{ secrets.GPG_PRIVATE_KEY }}
 
