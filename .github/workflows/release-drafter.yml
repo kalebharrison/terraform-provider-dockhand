@@ -4,8 +4,7 @@ on:
   push:
     branches:
       - main
-  pull_request:
-    types: [opened, reopened, synchronize, edited, labeled, unlabeled, closed]
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -23,4 +22,3 @@ jobs:
         uses: release-drafter/release-drafter@v6
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-

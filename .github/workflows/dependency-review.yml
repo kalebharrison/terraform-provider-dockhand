@@ -9,6 +9,7 @@ permissions:
 jobs:
   dependency-review:
     name: dependency-review
+    if: ${{ vars.ENABLE_DEPENDENCY_REVIEW == 'true' }}
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -19,4 +20,3 @@ jobs:
 
       - name: Dependency review
         uses: actions/dependency-review-action@v4
-

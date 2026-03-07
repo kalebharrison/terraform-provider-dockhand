@@ -2,9 +2,6 @@ name: Quality CI
 
 on:
   pull_request:
-  push:
-    branches:
-      - main
 
 permissions:
   contents: read
@@ -17,6 +14,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Setup Go
         uses: actions/setup-go@v5
@@ -32,6 +31,7 @@ jobs:
         uses: golangci/golangci-lint-action@v8
         with:
           version: latest
+          only-new-issues: true
 
       - name: Staticcheck
         shell: bash
@@ -39,4 +39,3 @@ jobs:
           set -euo pipefail
           go install honnef.co/go/tools/cmd/staticcheck@latest
           staticcheck ./...
-

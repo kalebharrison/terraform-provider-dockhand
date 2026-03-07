@@ -15,9 +15,9 @@ import (
 )
 
 type acceptanceManifest struct {
-	Version     int                        `json:"version"`
-	Resources   []acceptanceManifestEntry  `json:"resources"`
-	DataSources []acceptanceManifestEntry  `json:"data_sources"`
+	Version     int                       `json:"version"`
+	Resources   []acceptanceManifestEntry `json:"resources"`
+	DataSources []acceptanceManifestEntry `json:"data_sources"`
 }
 
 type acceptanceManifestEntry struct {
@@ -96,6 +96,7 @@ func acceptanceTestFunctionNames(t *testing.T) []string {
 		t.Fatalf("glob test files: %v", err)
 	}
 	for _, f := range files {
+		// #nosec G304 -- f comes from filepath.Glob("*_test.go") in this package.
 		raw, err := os.ReadFile(f)
 		if err != nil {
 			t.Fatalf("read %s: %v", f, err)
@@ -197,4 +198,3 @@ func requireOps(t *testing.T, surfaceType string, name string, ops map[string]st
 		}
 	}
 }
-
