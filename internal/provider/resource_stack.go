@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/hashicorp/terraform-plugin-framework/attr"
 	"github.com/hashicorp/terraform-plugin-framework/path"
@@ -145,17 +146,11 @@ func (r *stackResource) Create(ctx context.Context, req resource.CreateRequest, 
 		}
 	}
 
-	stack, found, err := r.client.GetStackByName(ctx, env, name)
-	if err != nil {
+	plan.ID = types.StringValue(formatStackID(env, name))
+	if err := r.refreshStackObservedFields(ctx, env, name, &plan, nil); err != nil {
 		resp.Diagnostics.AddError("Error reading Dockhand stack after create", err.Error())
 		return
 	}
-	if found {
-		plan.Status = types.StringValue(stack.Status)
-		plan.ContainerIDs = stringSliceToListValue(stack.Containers)
-		plan.ContainerCount = types.Int64Value(int64(len(stack.Containers)))
-	}
-	plan.ID = types.StringValue(formatStackID(env, name))
 	resp.Diagnostics.Append(resp.State.Set(ctx, &plan)...)
 }
 
@@ -207,6 +202,10 @@ func (r *stackResource) Update(ctx context.Context, req resource.UpdateRequest, 
 	}
 
 	if plan.Enabled.ValueBool() == state.Enabled.ValueBool() {
+		if err := r.refreshStackObservedFields(ctx, state.Env.ValueString(), state.Name.ValueString(), &plan, &state); err != nil {
+			resp.Diagnostics.AddError("Error refreshing Dockhand stack", err.Error())
+			return
+		}
 		resp.Diagnostics.Append(resp.State.Set(ctx, &plan)...)
 		return
 	}
@@ -222,6 +221,11 @@ func (r *stackResource) Update(ctx context.Context, req resource.UpdateRequest, 
 	}
 	if err != nil {
 		resp.Diagnostics.AddError("Error updating Dockhand stack runtime state", err.Error())
+		return
+	}
+
+	if err := r.refreshStackObservedFields(ctx, env, name, &plan, &state); err != nil {
+		resp.Diagnostics.AddError("Error reading Dockhand stack after update", err.Error())
 		return
 	}
 
@@ -282,6 +286,74 @@ func formatStackID(env string, name string) string {
 		return name
 	}
 	return env + ":" + name
+}
+
+func (r *stackResource) refreshStackObservedFields(ctx context.Context, env string, name string, target *stackResourceModel, fallback *stackResourceModel) error {
+	stack, found, err := r.getStackByNameEventually(ctx, env, name)
+	if err != nil {
+		return err
+	}
+	if found {
+		target.Status = types.StringValue(stack.Status)
+		target.ContainerIDs = stringSliceToListValue(stack.Containers)
+		target.ContainerCount = types.Int64Value(int64(len(stack.Containers)))
+		return nil
+	}
+
+	if fallback != nil {
+		if !fallback.Status.IsUnknown() {
+			target.Status = fallback.Status
+		}
+		if !fallback.ContainerIDs.IsUnknown() {
+			target.ContainerIDs = fallback.ContainerIDs
+		}
+		if !fallback.ContainerCount.IsUnknown() {
+			target.ContainerCount = fallback.ContainerCount
+		}
+	}
+
+	if target.Status.IsUnknown() {
+		target.Status = types.StringNull()
+	}
+	if target.ContainerIDs.IsUnknown() || target.ContainerIDs.IsNull() {
+		target.ContainerIDs = stringSliceToListValue(nil)
+	}
+	if target.ContainerCount.IsUnknown() || target.ContainerCount.IsNull() {
+		target.ContainerCount = types.Int64Value(0)
+	}
+
+	return nil
+}
+
+func (r *stackResource) getStackByNameEventually(ctx context.Context, env string, name string) (*stackResponse, bool, error) {
+	var lastErr error
+	for attempt := 0; attempt < 6; attempt++ {
+		stack, found, err := r.client.GetStackByName(ctx, env, name)
+		if err == nil {
+			if found {
+				return stack, true, nil
+			}
+			if attempt == 5 {
+				return nil, false, nil
+			}
+		} else {
+			lastErr = err
+			if attempt == 5 {
+				return nil, false, err
+			}
+		}
+
+		select {
+		case <-ctx.Done():
+			if lastErr != nil {
+				return nil, false, lastErr
+			}
+			return nil, false, ctx.Err()
+		case <-time.After(350 * time.Millisecond):
+		}
+	}
+
+	return nil, false, lastErr
 }
 
 func stringSliceToListValue(values []string) types.List {

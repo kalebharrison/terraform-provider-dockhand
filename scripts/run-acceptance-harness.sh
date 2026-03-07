@@ -13,7 +13,7 @@ DOCKHAND_TEST_ENDPOINT="${DOCKHAND_TEST_ENDPOINT:-http://127.0.0.1:13001}"
 DOCKHAND_TEST_USERNAME="${DOCKHAND_TEST_USERNAME:-tfacc}"
 DOCKHAND_TEST_PASSWORD="${DOCKHAND_TEST_PASSWORD:-tfaccpass123!}"
 DOCKHAND_TEST_AUTH_PROVIDER="${DOCKHAND_TEST_AUTH_PROVIDER:-local}"
-DOCKHAND_TEST_DIND_HOST="${DOCKHAND_TEST_DIND_HOST:-dind}"
+DOCKHAND_TEST_DIND_HOST="${DOCKHAND_TEST_DIND_HOST:-}"
 DOCKHAND_TEST_DIND_PORT="${DOCKHAND_TEST_DIND_PORT:-2375}"
 
 SUFFIX="$(date +%s)"
@@ -21,6 +21,10 @@ NETWORK_NAME="dockhand-ci-${SUFFIX}"
 DIND_CONTAINER="dind-${SUFFIX}"
 DOCKHAND_CONTAINER="dockhand-${SUFFIX}"
 HAWSER_CONTAINER="hawser-${SUFFIX}"
+
+if [[ -z "${DOCKHAND_TEST_DIND_HOST}" ]]; then
+  DOCKHAND_TEST_DIND_HOST="${DIND_CONTAINER}"
+fi
 
 cleanup() {
   docker --host "tcp://127.0.0.1:23750" rm -f "${HAWSER_CONTAINER}" >/dev/null 2>&1 || true
@@ -44,6 +48,8 @@ docker network create "${NETWORK_NAME}" >/dev/null
 
 echo "Starting DinD ${DIND_CONTAINER}"
 docker run -d --name "${DIND_CONTAINER}" --network "${NETWORK_NAME}" --privileged \
+  --network-alias "${DIND_CONTAINER}" \
+  --network-alias dind \
   -e DOCKER_TLS_CERTDIR= \
   -p 23750:2375 \
   "${DIND_IMAGE}" \
@@ -166,4 +172,3 @@ if [[ "${RUN_ENDPOINT_PROBE}" == "true" ]]; then
 fi
 
 echo "Acceptance harness completed successfully"
-
