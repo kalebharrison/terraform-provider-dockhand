@@ -106,7 +106,8 @@ if [[ "${RUN_QUALITY}" == "true" ]]; then
   if ! command -v staticcheck >/dev/null 2>&1; then
     echo "==> Installing staticcheck"
     run go install honnef.co/go/tools/cmd/staticcheck@latest
-    export PATH="${PATH}:$(go env GOPATH)/bin"
+    gopath="$(go env GOPATH)"
+    export PATH="${PATH}:${gopath}/bin"
   fi
   run staticcheck ./...
 
