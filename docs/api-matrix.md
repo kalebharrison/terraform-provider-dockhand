@@ -5,9 +5,9 @@ Source: [Dockhand Manual API Reference](https://dockhand.pro/manual/#api-referen
 Live verification artifacts:
 
 - Endpoint probe script: `scripts/endpoint-probe.py`
-- Latest safe probe report: `docs/reports/endpoint-probe.md` (March 7, 2026)
+- Latest safe probe report: `docs/reports/endpoint-probe.md` (March 8, 2026)
 - Latest WebUI endpoint inventory: `docs/reports/webui-api-endpoints.txt` (March 7, 2026)
-- Latest WebUI/provider gap audit: `docs/reports/webui-endpoint-gap-audit.md` (March 7, 2026)
+- Latest WebUI/provider gap audit: `docs/reports/webui-endpoint-gap-audit.md` (March 8, 2026)
 - Non-present backlog: `docs/non-present-endpoints.md`
 
 ## Status Legend
@@ -132,6 +132,10 @@ Live verification artifacts:
 | `dockhand_schedules` | `GET /api/schedules` | Exposes schedule inventory (system cleanup + generated schedules). | implemented |
 | `dockhand_schedule_settings` | `GET /api/schedules/settings` | Reads singleton schedule settings payload. | implemented |
 | `dockhand_schedule_stream` | `GET /api/schedules/stream` | Captures bounded stream snapshot events for connectivity/observability workflows. | implemented |
+| `dockhand_system` | `GET /api/system` | Exposes full system summary payload plus extracted runtime/database/stats sections as JSON. | implemented |
+| `dockhand_system_disk` | `GET /api/system/disk?env={env_id}` | Exposes environment-scoped Docker disk usage payload (`diskUsage`). | implemented |
+| `dockhand_system_files` | `GET /api/system/files?path=<dir>` | Reads directory entries for host/container file-browser paths. | implemented |
+| `dockhand_system_file_content` | `GET /api/system/files/content?path=<file>` | Reads file content and metadata (`size`,`mtime`) for a selected path. | implemented |
 | `dockhand_stack_base_path` | `GET /api/stacks/base-path` | Reads global base path used for Dockhand-managed stack directories. | implemented |
 | `dockhand_stack_default_path` | `GET /api/stacks/default-path?name=<stack>` | Resolves default directory/compose/env paths for a stack name. | implemented |
 | `dockhand_stacks` | `GET /api/stacks?env={env_id}` | Exposes stack list with runtime status and container count. | implemented |
@@ -157,11 +161,12 @@ Live verification artifacts:
 | `/api/notifications/test` | notification test-send one-shot action | implemented |
 | `/api/registry/*` (`search`,`tags`,`catalog`,`image`) | registry catalog/search data sources + remote image delete action | implemented |
 | `/api/prune/*` | explicit cleanup action resources | implemented |
+| `/api/system*` | system introspection/file-browser data sources | implemented |
 | `/api/configs` | config management resource/data source | planned (verified not present on tested instance; `404`) |
 | `/api/backups` | backup resource/data source | planned (verified not present on tested instance; `404`) |
 | license-tier auth endpoints (LDAP/AD/roles) | auth enterprise resources/data sources | planned |
 
-## Probe Follow-Up (March 7, 2026)
+## Probe Follow-Up (March 8, 2026)
 
 - Not present on tested instance:
   - `GET /api/configs`
@@ -177,7 +182,7 @@ Live verification artifacts:
   - `POST /api/git/stacks/{id}/deploy-stream` (`unexpected_404` in safe placeholder probe)
   - `POST /api/git/stacks/{id}/env-files` (`unexpected_404` in safe placeholder probe)
 
-## WebUI Gap Follow-Up (March 7, 2026)
+## WebUI Gap Follow-Up (March 8, 2026)
 
 - Recursive WebUI bundle crawl (`/login` entrypoint) discovered `112` raw route strings (`93` normalized unique endpoint shapes).
 - Compared against provider API client surface, `59` normalized endpoint shapes are currently not mapped by provider resources/data sources/actions.

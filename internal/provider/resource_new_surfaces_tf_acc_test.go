@@ -669,6 +669,39 @@ func TestAccStackDefaultPathDataSourceTerraform(t *testing.T) {
 	})
 }
 
+func TestAccSystemDataSourcesTerraform(t *testing.T) {
+	endpoint, username, password := testAccEnv(t)
+	defaultEnv := testAccDefaultEnv()
+
+	t.Setenv("DOCKHAND_ENDPOINT", endpoint)
+	t.Setenv("DOCKHAND_USERNAME", username)
+	t.Setenv("DOCKHAND_PASSWORD", password)
+	t.Setenv("DOCKHAND_DEFAULT_ENV", defaultEnv)
+
+	resource.Test(t, resource.TestCase{
+		ProtoV6ProviderFactories: testAccProviderFactories(),
+		Steps: []resource.TestStep{
+			{
+				Config: testAccSystemDataSourcesConfig(defaultEnv, "/", "/etc/hostname"),
+				Check: resource.ComposeTestCheckFunc(
+					resource.TestCheckResourceAttrSet("data.dockhand_system.test", "id"),
+					resource.TestCheckResourceAttrSet("data.dockhand_system.test", "system_json"),
+					resource.TestCheckResourceAttrSet("data.dockhand_system.test", "runtime_json"),
+					resource.TestCheckResourceAttrSet("data.dockhand_system_disk.test", "id"),
+					resource.TestCheckResourceAttr("data.dockhand_system_disk.test", "env", defaultEnv),
+					resource.TestCheckResourceAttrSet("data.dockhand_system_disk.test", "disk_usage_json"),
+					resource.TestCheckResourceAttrSet("data.dockhand_system_files.test", "id"),
+					resource.TestCheckResourceAttr("data.dockhand_system_files.test", "path", "/"),
+					resource.TestCheckResourceAttrSet("data.dockhand_system_files.test", "entries_json"),
+					resource.TestCheckResourceAttrSet("data.dockhand_system_file_content.test", "id"),
+					resource.TestCheckResourceAttr("data.dockhand_system_file_content.test", "path", "/etc/hostname"),
+					resource.TestCheckResourceAttrSet("data.dockhand_system_file_content.test", "content"),
+				),
+			},
+		},
+	})
+}
+
 func testAccContainerDirectoryConfig(env string, containerID string, path string) string {
 	return fmt.Sprintf(`
 provider "dockhand" {}
@@ -964,6 +997,26 @@ data "dockhand_stack_default_path" "test" {
   stack_name = %q
 }
 `, stackName)
+}
+
+func testAccSystemDataSourcesConfig(diskEnv string, listPath string, filePath string) string {
+	return fmt.Sprintf(`
+provider "dockhand" {}
+
+data "dockhand_system" "test" {}
+
+data "dockhand_system_disk" "test" {
+  env = %q
+}
+
+data "dockhand_system_files" "test" {
+  path = %q
+}
+
+data "dockhand_system_file_content" "test" {
+  path = %q
+}
+`, diskEnv, listPath, filePath)
 }
 
 func testAccJobDataSourceConfig(jobID string) string {
