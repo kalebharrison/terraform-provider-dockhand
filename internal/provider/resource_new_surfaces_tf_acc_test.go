@@ -568,6 +568,107 @@ func TestAccPruneActionTerraform(t *testing.T) {
 	})
 }
 
+func TestAccScheduleSettingsResourceTerraform(t *testing.T) {
+	endpoint, username, password := testAccEnv(t)
+	defaultEnv := testAccDefaultEnv()
+
+	t.Setenv("DOCKHAND_ENDPOINT", endpoint)
+	t.Setenv("DOCKHAND_USERNAME", username)
+	t.Setenv("DOCKHAND_PASSWORD", password)
+	t.Setenv("DOCKHAND_DEFAULT_ENV", defaultEnv)
+
+	resource.Test(t, resource.TestCase{
+		ProtoV6ProviderFactories: testAccProviderFactories(),
+		Steps: []resource.TestStep{
+			{
+				Config: testAccScheduleSettingsConfig(false),
+				Check: resource.ComposeTestCheckFunc(
+					resource.TestCheckResourceAttr("dockhand_schedule_settings.test", "hide_system_jobs", "false"),
+					resource.TestCheckResourceAttrSet("dockhand_schedule_settings.test", "id"),
+				),
+			},
+			{
+				Config: testAccScheduleSettingsConfig(true),
+				Check: resource.ComposeTestCheckFunc(
+					resource.TestCheckResourceAttr("dockhand_schedule_settings.test", "hide_system_jobs", "true"),
+				),
+			},
+		},
+	})
+}
+
+func TestAccScheduleStreamDataSourceTerraform(t *testing.T) {
+	endpoint, username, password := testAccEnv(t)
+	defaultEnv := testAccDefaultEnv()
+
+	t.Setenv("DOCKHAND_ENDPOINT", endpoint)
+	t.Setenv("DOCKHAND_USERNAME", username)
+	t.Setenv("DOCKHAND_PASSWORD", password)
+	t.Setenv("DOCKHAND_DEFAULT_ENV", defaultEnv)
+
+	resource.Test(t, resource.TestCase{
+		ProtoV6ProviderFactories: testAccProviderFactories(),
+		Steps: []resource.TestStep{
+			{
+				Config: testAccScheduleStreamDataSourceConfig(),
+				Check: resource.ComposeTestCheckFunc(
+					resource.TestCheckResourceAttrSet("data.dockhand_schedule_stream.test", "id"),
+					resource.TestCheckResourceAttrSet("data.dockhand_schedule_stream.test", "events_json"),
+				),
+			},
+		},
+	})
+}
+
+func TestAccStackBasePathDataSourceTerraform(t *testing.T) {
+	endpoint, username, password := testAccEnv(t)
+	defaultEnv := testAccDefaultEnv()
+
+	t.Setenv("DOCKHAND_ENDPOINT", endpoint)
+	t.Setenv("DOCKHAND_USERNAME", username)
+	t.Setenv("DOCKHAND_PASSWORD", password)
+	t.Setenv("DOCKHAND_DEFAULT_ENV", defaultEnv)
+
+	resource.Test(t, resource.TestCase{
+		ProtoV6ProviderFactories: testAccProviderFactories(),
+		Steps: []resource.TestStep{
+			{
+				Config: testAccStackBasePathDataSourceConfig(),
+				Check: resource.ComposeTestCheckFunc(
+					resource.TestCheckResourceAttrSet("data.dockhand_stack_base_path.test", "id"),
+					resource.TestCheckResourceAttrSet("data.dockhand_stack_base_path.test", "base_path"),
+				),
+			},
+		},
+	})
+}
+
+func TestAccStackDefaultPathDataSourceTerraform(t *testing.T) {
+	endpoint, username, password := testAccEnv(t)
+	defaultEnv := testAccDefaultEnv()
+
+	t.Setenv("DOCKHAND_ENDPOINT", endpoint)
+	t.Setenv("DOCKHAND_USERNAME", username)
+	t.Setenv("DOCKHAND_PASSWORD", password)
+	t.Setenv("DOCKHAND_DEFAULT_ENV", defaultEnv)
+
+	resource.Test(t, resource.TestCase{
+		ProtoV6ProviderFactories: testAccProviderFactories(),
+		Steps: []resource.TestStep{
+			{
+				Config: testAccStackDefaultPathDataSourceConfig("tf-acc-path"),
+				Check: resource.ComposeTestCheckFunc(
+					resource.TestCheckResourceAttrSet("data.dockhand_stack_default_path.test", "id"),
+					resource.TestCheckResourceAttr("data.dockhand_stack_default_path.test", "stack_name", "tf-acc-path"),
+					resource.TestCheckResourceAttrSet("data.dockhand_stack_default_path.test", "stack_dir"),
+					resource.TestCheckResourceAttrSet("data.dockhand_stack_default_path.test", "compose_path"),
+					resource.TestCheckResourceAttrSet("data.dockhand_stack_default_path.test", "env_path"),
+				),
+			},
+		},
+	})
+}
+
 func testAccContainerDirectoryConfig(env string, containerID string, path string) string {
 	return fmt.Sprintf(`
 provider "dockhand" {}
@@ -824,6 +925,45 @@ resource "dockhand_prune_action" "test" {
   trigger             = %q
 }
 `, env, mode, trigger)
+}
+
+func testAccScheduleSettingsConfig(hideSystemJobs bool) string {
+	return fmt.Sprintf(`
+provider "dockhand" {}
+
+resource "dockhand_schedule_settings" "test" {
+  hide_system_jobs = %t
+}
+`, hideSystemJobs)
+}
+
+func testAccScheduleStreamDataSourceConfig() string {
+	return `
+provider "dockhand" {}
+
+data "dockhand_schedule_stream" "test" {
+  max_events      = 1
+  timeout_seconds = 2
+}
+`
+}
+
+func testAccStackBasePathDataSourceConfig() string {
+	return `
+provider "dockhand" {}
+
+data "dockhand_stack_base_path" "test" {}
+`
+}
+
+func testAccStackDefaultPathDataSourceConfig(stackName string) string {
+	return fmt.Sprintf(`
+provider "dockhand" {}
+
+data "dockhand_stack_default_path" "test" {
+  stack_name = %q
+}
+`, stackName)
 }
 
 func testAccJobDataSourceConfig(jobID string) string {

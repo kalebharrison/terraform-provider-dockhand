@@ -111,6 +111,8 @@ Live verification artifacts:
 | `dockhand_stack_env` | Update secret env variables | `PUT /api/stacks/{name}/env?env={env_id}` | Writes secret variable list (`isSecret=true`). | implemented |
 | `dockhand_schedule` | Read | `GET /api/schedules` | Resolves existing schedule by `type` + `schedule_id`. | partial |
 | `dockhand_schedule` | Update state | `POST /api/schedules/system/{id}/toggle` or `POST /api/schedules/{type}/{id}/toggle` | Manages pause/resume (`enabled`) for existing schedules. | partial |
+| `dockhand_schedule_settings` | Read | `GET /api/schedules/settings` | Reads global schedule settings document. | implemented |
+| `dockhand_schedule_settings` | Update | `PUT /api/schedules/settings` | Manages `hide_system_jobs` schedule view setting. | implemented |
 | `dockhand_schedule_run_action` | Execute run-now action | `POST /api/schedules/{type}/{id}/run` | One-shot run trigger resource with replace-by-trigger behavior. | implemented |
 | `dockhand_prune_action` | Execute cleanup action | `POST /api/prune/all`, `POST /api/prune/containers`, `POST /api/prune/images`, `POST /api/prune/networks`, `POST /api/prune/volumes` | One-shot prune action with optional async job polling when Dockhand returns `jobId`. | implemented |
 | `dockhand_batch_action` | Execute async batch operation | `POST /api/batch?env={env_id}` + optional poll `GET /api/jobs/{jobId}` | One-shot async action for batch operations (entity + operation + ids) with optional wait-for-completion and captured job output JSON. | implemented |
@@ -128,6 +130,10 @@ Live verification artifacts:
 | `dockhand_registry_tags` | `GET /api/registry/tags` | Lists tags for an image repository with optional paging and registry selector. | implemented |
 | `dockhand_registry_catalog` | `GET /api/registry/catalog` | Reads raw catalog payload and extracted repository names. | implemented |
 | `dockhand_schedules` | `GET /api/schedules` | Exposes schedule inventory (system cleanup + generated schedules). | implemented |
+| `dockhand_schedule_settings` | `GET /api/schedules/settings` | Reads singleton schedule settings payload. | implemented |
+| `dockhand_schedule_stream` | `GET /api/schedules/stream` | Captures bounded stream snapshot events for connectivity/observability workflows. | implemented |
+| `dockhand_stack_base_path` | `GET /api/stacks/base-path` | Reads global base path used for Dockhand-managed stack directories. | implemented |
+| `dockhand_stack_default_path` | `GET /api/stacks/default-path?name=<stack>` | Resolves default directory/compose/env paths for a stack name. | implemented |
 | `dockhand_stacks` | `GET /api/stacks?env={env_id}` | Exposes stack list with runtime status and container count. | implemented |
 | `dockhand_container_logs` | `GET /api/containers/{id}/logs?env={env_id}&tail={n}` | Reads container logs for debugging/verification workflows. | implemented |
 | `dockhand_container_inspect` | `GET /api/containers/{id}?env={env_id}` | Exposes full inspect payload as raw JSON for advanced automation. | implemented |
@@ -139,10 +145,11 @@ Live verification artifacts:
 | API Endpoint Group | Candidate Terraform Surface | Status |
 | --- | --- | --- |
 | `/api/environments` | additional environment data sources | partial |
-| `/api/schedules` | schedule details/advanced actions (`run`, executions history/settings) | partial |
+| `/api/schedules` | schedule details/advanced actions (`run`, executions history/stream/settings) | partial |
 | `/api/images` | image actions (`scan`, `push`) | partial |
 | `/api/containers` | exec websocket, upload/download streams, and advanced create/update options coverage | partial |
 | `/api/stacks/{name}/env` | broader non-secret env var editing semantics | partial |
+| `/api/stacks/base-path` + `/api/stacks/default-path` | stack path helper data sources | implemented |
 | `/api/volumes` | advanced volume operations (`clone`, `browse`, import/export) | partial |
 | `/api/networks` | advanced network operations (`connect`, inspect details as separate surface) | partial |
 | `/api/batch` + `/api/jobs/{jobId}` | generic async job action + job status data source (`run-and-poll`) | implemented |

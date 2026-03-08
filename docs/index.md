@@ -59,6 +59,7 @@ provider "dockhand" {
 - `dockhand_container_update_action`
 - `dockhand_container_check_updates_action`
 - `dockhand_schedule`
+- `dockhand_schedule_settings`
 - `dockhand_schedule_run_action`
 - `dockhand_prune_action`
 - `dockhand_batch_action`
@@ -87,6 +88,8 @@ provider "dockhand" {
 - `dockhand_images`
 - `dockhand_auth_providers`
 - `dockhand_schedules`
+- `dockhand_schedule_settings`
+- `dockhand_schedule_stream`
 - `dockhand_schedules_executions`
 - `dockhand_containers`
 - `dockhand_container_stats`
@@ -96,6 +99,8 @@ provider "dockhand" {
 - `dockhand_container_inspect`
 - `dockhand_container_processes`
 - `dockhand_stack_sources`
+- `dockhand_stack_base_path`
+- `dockhand_stack_default_path`
 - `dockhand_stacks`
 - `dockhand_job`
 

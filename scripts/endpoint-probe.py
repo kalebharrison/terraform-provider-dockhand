@@ -24,6 +24,9 @@ ENDPOINTS: List[Dict[str, Any]] = [
     {"method": "GET", "path": "/api/activity"},
     {"method": "GET", "path": "/api/hawser/connect"},
     {"method": "GET", "path": "/api/schedules"},
+    {"method": "GET", "path": "/api/schedules/settings"},
+    {"method": "PUT", "path": "/api/schedules/settings"},
+    {"method": "GET", "path": "/api/schedules/stream"},
     {"method": "GET", "path": "/api/schedules/executions"},
     {"method": "POST", "path": "/api/schedules/system/{id}/toggle"},
     {"method": "POST", "path": "/api/schedules/{type}/{id}/toggle"},
@@ -84,6 +87,8 @@ ENDPOINTS: List[Dict[str, Any]] = [
     {"method": "PUT", "path": "/api/stacks/{name}/env", "with_env": True},
     {"method": "GET", "path": "/api/stacks/{name}/env/raw", "with_env": True},
     {"method": "PUT", "path": "/api/stacks/{name}/env/raw", "with_env": True},
+    {"method": "GET", "path": "/api/stacks/base-path"},
+    {"method": "GET", "path": "/api/stacks/default-path"},
     {"method": "POST", "path": "/api/stacks/scan"},
     {"method": "POST", "path": "/api/stacks/adopt"},
     {"method": "GET", "path": "/api/stacks/sources"},
@@ -198,7 +203,12 @@ class Session:
             self.opener.add_handler(urllib.request.HTTPSHandler(context=ctx))
 
     def request(
-        self, method: str, path: str, body: Optional[Dict[str, Any]] = None, query: Optional[Dict[str, str]] = None
+        self,
+        method: str,
+        path: str,
+        body: Optional[Dict[str, Any]] = None,
+        query: Optional[Dict[str, str]] = None,
+        read_limit: Optional[int] = None,
     ) -> Tuple[int, str]:
         url = self.endpoint + path
         if query:
@@ -210,7 +220,10 @@ class Session:
         req.add_header("Content-Type", "application/json")
         try:
             with self.opener.open(req, timeout=20) as resp:
-                payload = resp.read().decode("utf-8", errors="replace")
+                if read_limit is not None and read_limit > 0:
+                    payload = resp.read(read_limit).decode("utf-8", errors="replace")
+                else:
+                    payload = resp.read().decode("utf-8", errors="replace")
                 return resp.status, payload
         except urllib.error.HTTPError as exc:
             payload = exc.read().decode("utf-8", errors="replace")
@@ -422,6 +435,8 @@ def main() -> int:
             query = {"image": "library/busybox", "tag": "latest"}
             if fixtures.get("registry_id"):
                 query["registry"] = str(fixtures["registry_id"])
+        if raw_path == "/api/stacks/default-path":
+            query = {"name": "probe-stack"}
         payload = None
         if method in ("POST", "PUT"):
             payload = {}
@@ -450,7 +465,12 @@ def main() -> int:
                 payload = None
                 note = "Safe mode: options probe (mutation skipped)"
 
-        code, body = s.request(request_method, path, payload, query)
+        read_limit = None
+        if raw_path == "/api/schedules/stream":
+            read_limit = 1
+            note = "Safe mode: partial stream probe"
+
+        code, body = s.request(request_method, path, payload, query, read_limit=read_limit)
 
         if code == 404 and "{" not in raw_path:
             result = "not_present"
