@@ -21,7 +21,9 @@ jobs:
     outputs:
       image: ${{ steps.pick.outputs.image }}
       tag: ${{ steps.pick.outputs.tag }}
+      digest: ${{ steps.pick.outputs.digest }}
       last_tag: ${{ steps.state.outputs.last_tag }}
+      last_digest: ${{ steps.state.outputs.last_digest }}
       state_issue: ${{ steps.state.outputs.state_issue }}
       should_run: ${{ steps.state.outputs.should_run }}
       reason: ${{ steps.state.outputs.reason }}
@@ -42,7 +44,14 @@ jobs:
             fi
           fi
 
+          digest=""
+          tag_json="$(curl -fsSL "https://hub.docker.com/v2/repositories/fnsys/dockhand/tags/${tag}" 2>/dev/null || true)"
+          if [[ -n "${tag_json}" ]]; then
+            digest="$(echo "${tag_json}" | jq -r '.images[]?.digest // empty' | head -n 1)"
+          fi
+
           echo "tag=${tag}" >> "${GITHUB_OUTPUT}"
+          echo "digest=${digest}" >> "${GITHUB_OUTPUT}"
           echo "image=fnsys/dockhand:${tag}" >> "${GITHUB_OUTPUT}"
 
       - name: Resolve watch state
@@ -55,28 +64,47 @@ jobs:
 
           state_title="release-watch: dockhand-last-tested-tag"
           tag="${{ steps.pick.outputs.tag }}"
+          digest="${{ steps.pick.outputs.digest }}"
           issues_json="$(gh issue list --repo "${GITHUB_REPOSITORY}" --state all --search "${state_title} in:title" --limit 100 --json number,title,state,body)"
           state_issue="$(echo "${issues_json}" | jq -r --arg title "${state_title}" 'map(select(.title == $title)) | sort_by(.state != "OPEN") | .[0].number // empty')"
           state_body=""
           last_tag=""
+          last_digest=""
           if [[ -n "${state_issue}" ]]; then
             state_body="$(gh issue view "${state_issue}" --repo "${GITHUB_REPOSITORY}" --json body --jq '.body // ""')"
             last_tag="$(printf '%s\n' "${state_body}" | sed -n 's/^last_tag=//p' | head -n 1 | tr -d '\r')"
+            last_digest="$(printf '%s\n' "${state_body}" | sed -n 's/^last_digest=//p' | head -n 1 | tr -d '\r')"
           fi
 
           should_run="true"
-          reason="new_tag"
+          reason="new_tag_or_digest"
 
           if [[ -n "${{ inputs.image_tag }}" ]]; then
             should_run="true"
             reason="manual_override"
-          elif [[ -n "${last_tag}" && "${tag}" == "${last_tag}" ]]; then
+          elif [[ -z "${last_tag}" ]]; then
+            should_run="true"
+            reason="state_unset"
+          elif [[ "${tag}" != "${last_tag}" ]]; then
+            should_run="true"
+            reason="new_tag"
+          elif [[ -n "${digest}" && -n "${last_digest}" && "${digest}" != "${last_digest}" ]]; then
+            should_run="true"
+            reason="changed_digest"
+          elif [[ -n "${digest}" && -z "${last_digest}" ]]; then
+            should_run="true"
+            reason="state_missing_digest"
+          elif [[ -n "${digest}" && -n "${last_digest}" && "${digest}" == "${last_digest}" ]]; then
+            should_run="false"
+            reason="unchanged_tag_digest"
+          else
             should_run="false"
             reason="unchanged_tag"
           fi
 
           {
             echo "last_tag=${last_tag}"
+            echo "last_digest=${last_digest}"
             echo "state_issue=${state_issue}"
             echo "should_run=${should_run}"
             echo "reason=${reason}"
@@ -86,7 +114,9 @@ jobs:
         run: |
           {
             echo "Latest detected Dockhand image: \`${{ steps.pick.outputs.image }}\`"
+            echo "Latest detected digest: \`${{ steps.pick.outputs.digest || 'none' }}\`"
             echo "Last tested tag: \`${{ steps.state.outputs.last_tag || 'none' }}\`"
+            echo "Last tested digest: \`${{ steps.state.outputs.last_digest || 'none' }}\`"
             echo "State issue: \`${{ steps.state.outputs.state_issue || 'none' }}\`"
             echo "Run required: \`${{ steps.state.outputs.should_run }}\` (\`${{ steps.state.outputs.reason }}\`)"
           } >> "${GITHUB_STEP_SUMMARY}"
@@ -170,11 +200,11 @@ jobs:
     steps:
       - name: Skip summary
         run: |
-          echo "Skipping validation: tag \`${{ needs.discover.outputs.tag }}\` already tested (\`${{ needs.discover.outputs.last_tag || 'none' }}\`)." >> "${GITHUB_STEP_SUMMARY}"
+          echo "Skipping validation: image \`${{ needs.discover.outputs.image }}\` with digest \`${{ needs.discover.outputs.digest || 'none' }}\` already tested (last tag \`${{ needs.discover.outputs.last_tag || 'none' }}\`, last digest \`${{ needs.discover.outputs.last_digest || 'none' }}\`)." >> "${GITHUB_STEP_SUMMARY}"
 
   persist_state:
     name: Persist Last Tested Tag
-    if: needs.discover.outputs.should_run == 'true' && needs.discover.outputs.reason == 'new_tag' && needs.validate.result == 'success'
+    if: needs.discover.outputs.should_run == 'true' && needs.discover.outputs.reason != 'manual_override' && needs.validate.result == 'success'
     needs: [discover, validate]
     runs-on: ubuntu-latest
     steps:
@@ -183,11 +213,13 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           TAG: ${{ needs.discover.outputs.tag }}
+          DIGEST: ${{ needs.discover.outputs.digest }}
           STATE_ISSUE: ${{ needs.discover.outputs.state_issue }}
         run: |
           set -euo pipefail
           state_title="release-watch: dockhand-last-tested-tag"
           state_body="last_tag=${TAG}
+          last_digest=${DIGEST}
           updated_at=$(date -u +%Y-%m-%dT%H:%M:%SZ)
           source_run=https://github.com/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
 
