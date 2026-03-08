@@ -212,6 +212,7 @@ func (p *dockhandProvider) Resources(_ context.Context) []func() resource.Resour
 		NewGitStackEnvFileResource,
 		NewConfigSetResource,
 		NewNotificationResource,
+		NewNotificationTestActionResource,
 		NewEnvironmentResource,
 		NewEnvironmentTestActionResource,
 		NewEnvironmentScannerActionResource,

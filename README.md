@@ -35,6 +35,7 @@ This provider currently includes:
 - Resource: `dockhand_auth_settings`
 - Resource: `dockhand_license`
 - Resource: `dockhand_notification`
+- Resource: `dockhand_notification_test_action`
 - Resource: `dockhand_environment`
 - Resource: `dockhand_environment_test_action`
 - Resource: `dockhand_environment_scanner_action`
@@ -91,6 +92,7 @@ This provider currently includes:
   - `POST /api/containers/{id}/restart`
   - `GET /api/activity`
   - `GET /api/hawser/connect`
+  - `POST /api/notifications/test`
   - `GET /api/environments/detect-socket`
   - `POST /api/environments/test`
   - `POST /api/git/stacks/{id}/webhook`

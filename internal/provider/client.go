@@ -444,6 +444,17 @@ type notificationResponse struct {
 	UpdatedAt  *string        `json:"updatedAt"`
 }
 
+type notificationTestPayload struct {
+	Type   string         `json:"type"`
+	Config map[string]any `json:"config"`
+}
+
+type notificationTestResponse struct {
+	Success bool   `json:"success"`
+	Error   string `json:"error"`
+	Message string `json:"message"`
+}
+
 type environmentPayload struct {
 	Name                  string  `json:"name"`
 	ConnectionType        string  `json:"connectionType"`
@@ -1158,6 +1169,23 @@ func (c *Client) UpdateNotification(ctx context.Context, id string, payload noti
 
 func (c *Client) DeleteNotification(ctx context.Context, id string) (int, error) {
 	return c.doJSONWithStatus(ctx, http.MethodDelete, "/api/notifications/"+url.PathEscape(id), nil, nil, nil)
+}
+
+func (c *Client) TestNotification(ctx context.Context, typ string, config map[string]any) (*notificationTestResponse, int, error) {
+	payload := notificationTestPayload{
+		Type:   strings.TrimSpace(typ),
+		Config: config,
+	}
+	if payload.Config == nil {
+		payload.Config = map[string]any{}
+	}
+
+	var out notificationTestResponse
+	status, err := c.doJSONWithStatus(ctx, http.MethodPost, "/api/notifications/test", nil, payload, &out)
+	if err != nil {
+		return nil, status, err
+	}
+	return &out, status, nil
 }
 
 func (c *Client) ListEnvironments(ctx context.Context) ([]environmentResponse, int, error) {

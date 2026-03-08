@@ -15,6 +15,7 @@
     { "name": "dockhand_git_stack_env_file", "mode": "stateful", "operations": ["create", "read", "update", "import", "delete"], "acceptance_test_regex": "TestAccGitStackEnvFileResourceTerraform" },
     { "name": "dockhand_config_set", "mode": "stateful", "operations": ["create", "read", "update", "import", "delete"], "acceptance_test_regex": "TestAcc" },
     { "name": "dockhand_notification", "mode": "stateful", "operations": ["create", "read", "update", "import", "delete"], "acceptance_test_regex": "TestAcc" },
+    { "name": "dockhand_notification_test_action", "mode": "action", "operations": ["create", "read", "delete"], "acceptance_test_regex": "TestAccNotificationTestActionTerraform" },
     { "name": "dockhand_environment", "mode": "stateful", "operations": ["create", "read", "update", "import", "delete"], "acceptance_test_regex": "TestAccEnvironmentResource" },
     { "name": "dockhand_environment_test_action", "mode": "action", "operations": ["create", "read", "delete"], "acceptance_test_regex": "TestAccEnvironmentTestActionTerraform" },
     { "name": "dockhand_environment_scanner_action", "mode": "action", "operations": ["create", "read", "delete"], "acceptance_test_regex": "TestAcc" },

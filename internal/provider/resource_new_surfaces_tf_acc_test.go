@@ -410,6 +410,39 @@ func TestAccEnvironmentDetectSocketDataSourceTerraform(t *testing.T) {
 	})
 }
 
+func TestAccNotificationTestActionTerraform(t *testing.T) {
+	endpoint, username, password := testAccEnv(t)
+	defaultEnv := testAccDefaultEnv()
+
+	t.Setenv("DOCKHAND_ENDPOINT", endpoint)
+	t.Setenv("DOCKHAND_USERNAME", username)
+	t.Setenv("DOCKHAND_PASSWORD", password)
+	t.Setenv("DOCKHAND_DEFAULT_ENV", defaultEnv)
+
+	resource.Test(t, resource.TestCase{
+		ProtoV6ProviderFactories: testAccProviderFactories(),
+		Steps: []resource.TestStep{
+			{
+				Config: testAccNotificationTestActionConfig("acc-notif-test-1"),
+				Check: resource.ComposeTestCheckFunc(
+					resource.TestCheckResourceAttr("dockhand_notification_test_action.test", "type", "smtp"),
+					resource.TestCheckResourceAttr("dockhand_notification_test_action.test", "fail_on_error", "false"),
+					resource.TestCheckResourceAttr("dockhand_notification_test_action.test", "success", "false"),
+					resource.TestMatchResourceAttr("dockhand_notification_test_action.test", "error", regexp.MustCompile(`(?i)smtp`)),
+					resource.TestCheckResourceAttrSet("dockhand_notification_test_action.test", "result_json"),
+				),
+			},
+			{
+				Config: testAccNotificationTestActionConfig("acc-notif-test-2"),
+				Check: resource.ComposeTestCheckFunc(
+					resource.TestCheckResourceAttr("dockhand_notification_test_action.test", "trigger", "acc-notif-test-2"),
+					resource.TestCheckResourceAttr("dockhand_notification_test_action.test", "success", "false"),
+				),
+			},
+		},
+	})
+}
+
 func testAccContainerDirectoryConfig(env string, containerID string, path string) string {
 	return fmt.Sprintf(`
 provider "dockhand" {}
@@ -595,6 +628,24 @@ provider "dockhand" {}
 
 data "dockhand_environment_detect_socket" "test" {}
 `
+}
+
+func testAccNotificationTestActionConfig(trigger string) string {
+	return fmt.Sprintf(`
+provider "dockhand" {}
+
+resource "dockhand_notification_test_action" "test" {
+  type = "smtp"
+  config_json = jsonencode({
+    host       = "smtp.example.local"
+    port       = 25
+    from_email = "dockhand@example.local"
+    to_emails  = ["ops@example.local"]
+  })
+  fail_on_error = false
+  trigger       = %q
+}
+`, trigger)
 }
 
 func testAccJobDataSourceConfig(jobID string) string {

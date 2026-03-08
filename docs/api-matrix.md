@@ -75,6 +75,7 @@ Live verification artifacts:
 | `dockhand_notification` | Read | `GET /api/notifications/{id}` | `404` removes from state. | implemented |
 | `dockhand_notification` | Update | `PUT /api/notifications/{id}` | Updates config and event types. | partial |
 | `dockhand_notification` | Delete | `DELETE /api/notifications/{id}` | `404` treated as already deleted. | implemented |
+| `dockhand_notification_test_action` | Send test notification | `POST /api/notifications/test` | One-shot notification test action using existing `notification_id` or inline `type` + `config_json` payload. | implemented |
 | `dockhand_environment` | Create | `POST /api/environments`, `POST /api/hawser/tokens` | Supports Docker environment connection + collection settings, including mTLS cert/key fields (`ca_cert`, `client_cert`, `client_key`). `connection_type = "agent"` maps to `hawser-edge` and provisions `agent_token` through Hawser token API. | partial |
 | `dockhand_environment` | Read | `GET /api/environments/{id}` | `404` removes from state. | implemented |
 | `dockhand_environment` | Update | `PUT /api/environments/{id}`, `POST /api/hawser/tokens` | Updates environment settings, including mTLS cert/key fields. For `connection_type = "agent"`, token changes are applied through Hawser token API. | partial |
@@ -141,7 +142,7 @@ Live verification artifacts:
 | `/api/networks` | advanced network operations (`connect`, inspect details as separate surface) | partial |
 | `/api/batch` + `/api/jobs/{jobId}` | generic async job action + job status data source (`run-and-poll`) | implemented |
 | `/api/environments/test` + `/api/environments/detect-socket` | environment connectivity validation action + socket discovery data source | implemented |
-| `/api/notifications/test` | notification test-send one-shot action | planned |
+| `/api/notifications/test` | notification test-send one-shot action | implemented |
 | `/api/registry/*` (`search`,`tags`,`catalog`,`image`) | registry catalog/search data sources | planned |
 | `/api/prune/*` | explicit cleanup action resources | planned |
 | `/api/configs` | config management resource/data source | planned (verified not present on tested instance; `404`) |

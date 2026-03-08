@@ -40,6 +40,7 @@ provider "dockhand" {
 - `dockhand_git_stack_env_file`
 - `dockhand_config_set`
 - `dockhand_notification`
+- `dockhand_notification_test_action`
 - `dockhand_environment`
 - `dockhand_environment_test_action`
 - `dockhand_environment_scanner_action`
