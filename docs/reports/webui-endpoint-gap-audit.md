@@ -1,6 +1,6 @@
 # WebUI Endpoint Gap Audit
 
-Date: March 7, 2026
+Date: March 8, 2026
 
 ## Scope
 
@@ -24,8 +24,8 @@ Goal: identify provider coverage gaps and prioritize additions that are useful f
 ## Current Snapshot
 
 - Probe summary:
-  - Total checked routes: `110`
-  - Present (non-404): `99`
+  - Total checked routes: `131`
+  - Present (non-404): `120`
   - Not present: `2` (`/api/configs`, `/api/backups`)
   - Unverified (fixture missing): `3`
   - Unexpected 404 (placeholder parameter probe): `6`
@@ -75,6 +75,11 @@ These are practical additions for Terraform users and align with current Dockhan
 - Stack path helper coverage:
   - `dockhand_stack_base_path` data source
   - `dockhand_stack_default_path` data source
+- System coverage:
+  - `dockhand_system` data source
+  - `dockhand_system_disk` data source
+  - `dockhand_system_files` data source
+  - `dockhand_system_file_content` data source
 
 ## Lower Priority / Likely UI-Oriented
 

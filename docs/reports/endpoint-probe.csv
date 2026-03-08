@@ -16,6 +16,10 @@ GET,/api/schedules/settings,200,present,
 PUT,/api/schedules/settings,405,present,Safe mode: options probe (mutation skipped)
 GET,/api/schedules/stream,200,present,Safe mode: partial stream probe
 GET,/api/schedules/executions,200,present,
+GET,/api/system,200,present,
+GET,/api/system/disk,200,present,
+GET,/api/system/files,200,present,
+GET,/api/system/files/content,200,present,
 POST,/api/schedules/system/{id}/toggle,400,present,Safe mode: placeholder probe
 POST,/api/schedules/{type}/{id}/toggle,400,present,Safe mode: placeholder probe
 POST,/api/schedules/{type}/{id}/run,400,present,Safe mode: placeholder probe

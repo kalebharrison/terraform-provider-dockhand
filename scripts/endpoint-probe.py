@@ -28,6 +28,10 @@ ENDPOINTS: List[Dict[str, Any]] = [
     {"method": "PUT", "path": "/api/schedules/settings"},
     {"method": "GET", "path": "/api/schedules/stream"},
     {"method": "GET", "path": "/api/schedules/executions"},
+    {"method": "GET", "path": "/api/system"},
+    {"method": "GET", "path": "/api/system/disk", "with_env": True},
+    {"method": "GET", "path": "/api/system/files"},
+    {"method": "GET", "path": "/api/system/files/content"},
     {"method": "POST", "path": "/api/schedules/system/{id}/toggle"},
     {"method": "POST", "path": "/api/schedules/{type}/{id}/toggle"},
     {"method": "POST", "path": "/api/schedules/{type}/{id}/run"},
@@ -437,6 +441,10 @@ def main() -> int:
                 query["registry"] = str(fixtures["registry_id"])
         if raw_path == "/api/stacks/default-path":
             query = {"name": "probe-stack"}
+        if raw_path == "/api/system/files":
+            query = {"path": "/"}
+        if raw_path == "/api/system/files/content":
+            query = {"path": "/etc/hostname"}
         payload = None
         if method in ("POST", "PUT"):
             payload = {}

@@ -83,6 +83,10 @@ Repository guidance for coding agents working on `terraform-provider-dockhand`.
   - Data source: `dockhand_schedule_settings`
   - Data source: `dockhand_schedule_stream`
   - Data source: `dockhand_schedules_executions`
+  - Data source: `dockhand_system`
+  - Data source: `dockhand_system_disk`
+  - Data source: `dockhand_system_files`
+  - Data source: `dockhand_system_file_content`
   - Data source: `dockhand_job`
 
 ## Working Rules
@@ -215,6 +219,10 @@ Avoid testing by building local zips for release validation.
   - `PUT /api/schedules/settings`
   - `GET /api/schedules/stream`
   - `GET /api/schedules/executions`
+  - `GET /api/system`
+  - `GET /api/system/disk`
+  - `GET /api/system/files`
+  - `GET /api/system/files/content`
   - `POST /api/schedules/{type}/{id}/run`
   - `POST /api/stacks/scan`
   - `POST /api/stacks/adopt`

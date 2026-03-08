@@ -91,6 +91,10 @@ provider "dockhand" {
 - `dockhand_schedule_settings`
 - `dockhand_schedule_stream`
 - `dockhand_schedules_executions`
+- `dockhand_system`
+- `dockhand_system_disk`
+- `dockhand_system_files`
+- `dockhand_system_file_content`
 - `dockhand_containers`
 - `dockhand_container_stats`
 - `dockhand_container_pending_updates`
