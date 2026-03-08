@@ -59,18 +59,19 @@ These are practical additions for Terraform users and align with current Dockhan
    - Candidate surface:
      - `dockhand_notification_test_action`
 
-4. Registry browser/search data sources
-   - Endpoints: `/api/registry/search`, `/api/registry/tags`, `/api/registry/catalog`, `/api/registry/image`
-   - Why: enables validation and selection logic for image workflows.
-   - Candidate surfaces:
-     - `dockhand_registry_search` data source
-     - `dockhand_registry_tags` data source
-
-5. Cleanup action resources
+4. Cleanup action resources
    - Endpoints: `/api/prune/all`, `/api/prune/containers`, `/api/prune/images`, `/api/prune/networks`, `/api/prune/volumes`
    - Why: useful explicit lifecycle operations for disposable/test environments.
    - Candidate surfaces:
      - `dockhand_prune_action` (typed mode)
+
+## Completed Since This Snapshot
+
+- Registry browser/search + delete coverage:
+  - `dockhand_registry_search` data source
+  - `dockhand_registry_tags` data source
+  - `dockhand_registry_catalog` data source
+  - `dockhand_registry_image_delete_action` resource
 
 ## Lower Priority / Likely UI-Oriented
 
@@ -105,4 +106,3 @@ Confirmed absent in latest probe:
 - `GET /api/backups`
 
 Keep these in backlog only until API presence is confirmed on supported versions.
-

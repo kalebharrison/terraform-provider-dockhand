@@ -32,6 +32,7 @@ provider "dockhand" {
 - `dockhand_auth_settings`
 - `dockhand_license`
 - `dockhand_registry`
+- `dockhand_registry_image_delete_action`
 - `dockhand_git_credential`
 - `dockhand_git_repository`
 - `dockhand_git_stack`
@@ -71,6 +72,9 @@ provider "dockhand" {
 - `dockhand_hawser_status`
 - `dockhand_users`
 - `dockhand_registries`
+- `dockhand_registry_search`
+- `dockhand_registry_tags`
+- `dockhand_registry_catalog`
 - `dockhand_git_credentials`
 - `dockhand_git_repositories`
 - `dockhand_notifications`

@@ -12,6 +12,7 @@ This provider currently includes:
 - Resource: `dockhand_user`
 - Resource: `dockhand_settings_general`
 - Resource: `dockhand_registry`
+- Resource: `dockhand_registry_image_delete_action`
 - Resource: `dockhand_git_credential`
 - Resource: `dockhand_git_repository`
 - Resource: `dockhand_git_stack`
@@ -62,6 +63,9 @@ This provider currently includes:
 - Data source: `dockhand_stacks`
 - Data source: `dockhand_users`
 - Data source: `dockhand_registries`
+- Data source: `dockhand_registry_search`
+- Data source: `dockhand_registry_tags`
+- Data source: `dockhand_registry_catalog`
 - Data source: `dockhand_git_credentials`
 - Data source: `dockhand_git_repositories`
 - Data source: `dockhand_notifications`
@@ -93,6 +97,10 @@ This provider currently includes:
   - `GET /api/activity`
   - `GET /api/hawser/connect`
   - `POST /api/notifications/test`
+  - `GET /api/registry/search`
+  - `GET /api/registry/tags`
+  - `GET /api/registry/catalog`
+  - `DELETE /api/registry/image`
   - `GET /api/environments/detect-socket`
   - `POST /api/environments/test`
   - `POST /api/git/stacks/{id}/webhook`

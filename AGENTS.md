@@ -17,6 +17,7 @@ Repository guidance for coding agents working on `terraform-provider-dockhand`.
   - Resource: `dockhand_auth_settings`
   - Resource: `dockhand_license`
   - Resource: `dockhand_registry`
+  - Resource: `dockhand_registry_image_delete_action`
   - Resource: `dockhand_git_credential`
   - Resource: `dockhand_git_repository`
   - Resource: `dockhand_git_stack`
@@ -62,6 +63,9 @@ Repository guidance for coding agents working on `terraform-provider-dockhand`.
   - Data source: `dockhand_auth_providers`
   - Data source: `dockhand_users`
   - Data source: `dockhand_registries`
+  - Data source: `dockhand_registry_search`
+  - Data source: `dockhand_registry_tags`
+  - Data source: `dockhand_registry_catalog`
   - Data source: `dockhand_git_credentials`
   - Data source: `dockhand_git_repositories`
   - Data source: `dockhand_notifications`
@@ -167,6 +171,10 @@ Avoid testing by building local zips for release validation.
   - `GET/POST/DELETE /api/images`
   - `POST /api/images/push`
   - `POST /api/images/scan`
+  - `GET /api/registry/search`
+  - `GET /api/registry/tags`
+  - `GET /api/registry/catalog`
+  - `DELETE /api/registry/image`
   - `GET/POST/DELETE /api/containers`
   - `POST /api/containers/{id}/start`
   - `POST /api/containers/{id}/stop`

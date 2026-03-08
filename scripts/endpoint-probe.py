@@ -43,6 +43,10 @@ ENDPOINTS: List[Dict[str, Any]] = [
     {"method": "GET", "path": "/api/registries/{id}"},
     {"method": "PUT", "path": "/api/registries/{id}"},
     {"method": "DELETE", "path": "/api/registries/{id}"},
+    {"method": "GET", "path": "/api/registry/search"},
+    {"method": "GET", "path": "/api/registry/tags"},
+    {"method": "GET", "path": "/api/registry/catalog"},
+    {"method": "DELETE", "path": "/api/registry/image"},
     {"method": "GET", "path": "/api/git/credentials"},
     {"method": "POST", "path": "/api/git/credentials"},
     {"method": "GET", "path": "/api/git/credentials/{id}"},
@@ -395,6 +399,24 @@ def main() -> int:
         query = None
         if ep.get("with_env"):
             query = {"env": default_env}
+        if raw_path == "/api/registry/search":
+            query = {"term": "busybox"}
+            if fixtures.get("registry_id"):
+                query["registry"] = str(fixtures["registry_id"])
+        if raw_path == "/api/registry/tags":
+            query = {"image": "library/busybox"}
+            if fixtures.get("registry_id"):
+                query["registry"] = str(fixtures["registry_id"])
+            query["page"] = "1"
+            query["pageSize"] = "5"
+        if raw_path == "/api/registry/catalog":
+            query = {"page": "1", "pageSize": "5"}
+            if fixtures.get("registry_id"):
+                query["registry"] = str(fixtures["registry_id"])
+        if raw_path == "/api/registry/image":
+            query = {"image": "library/busybox", "tag": "latest"}
+            if fixtures.get("registry_id"):
+                query["registry"] = str(fixtures["registry_id"])
         payload = None
         if method in ("POST", "PUT"):
             payload = {}
