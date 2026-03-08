@@ -54,6 +54,7 @@ Live verification artifacts:
 | `dockhand_registry` | Read | `GET /api/registries/{id}` | `404` removes from state. | implemented |
 | `dockhand_registry` | Update | `PUT /api/registries/{id}` | Omitting username/password preserves credentials. | implemented |
 | `dockhand_registry` | Delete | `DELETE /api/registries/{id}` | `404` treated as already deleted. | implemented |
+| `dockhand_registry_image_delete_action` | Delete remote image tag | `DELETE /api/registry/image` | One-shot remote registry delete action for (`registry`,`image`,`tag`) tuples. | implemented |
 | `dockhand_git_credential` | Create | `POST /api/git/credentials` | Observed payload supports name/authType/username/password. | partial |
 | `dockhand_git_credential` | Read | `GET /api/git/credentials/{id}` | `404` removes from state. | implemented |
 | `dockhand_git_credential` | Update | `PUT /api/git/credentials/{id}` | Password is write-only. | partial |
@@ -122,6 +123,9 @@ Live verification artifacts:
 | `dockhand_hawser_status` | `GET /api/hawser/connect` | Reads Hawser websocket endpoint readiness and active connection count. | implemented |
 | `dockhand_auth_providers` | `GET /api/auth/providers` | Exposes configured auth providers and default provider (local/free providers in current scope). | implemented |
 | `dockhand_environment_detect_socket` | `GET /api/environments/detect-socket` | Reads Dockhand local socket discovery payload (`home_dir`, `socket_paths`, raw `sockets_json`). | implemented |
+| `dockhand_registry_search` | `GET /api/registry/search` | Searches remote registry repositories by `term` and optional `registry`. | implemented |
+| `dockhand_registry_tags` | `GET /api/registry/tags` | Lists tags for an image repository with optional paging and registry selector. | implemented |
+| `dockhand_registry_catalog` | `GET /api/registry/catalog` | Reads raw catalog payload and extracted repository names. | implemented |
 | `dockhand_schedules` | `GET /api/schedules` | Exposes schedule inventory (system cleanup + generated schedules). | implemented |
 | `dockhand_stacks` | `GET /api/stacks?env={env_id}` | Exposes stack list with runtime status and container count. | implemented |
 | `dockhand_container_logs` | `GET /api/containers/{id}/logs?env={env_id}&tail={n}` | Reads container logs for debugging/verification workflows. | implemented |
@@ -143,7 +147,7 @@ Live verification artifacts:
 | `/api/batch` + `/api/jobs/{jobId}` | generic async job action + job status data source (`run-and-poll`) | implemented |
 | `/api/environments/test` + `/api/environments/detect-socket` | environment connectivity validation action + socket discovery data source | implemented |
 | `/api/notifications/test` | notification test-send one-shot action | implemented |
-| `/api/registry/*` (`search`,`tags`,`catalog`,`image`) | registry catalog/search data sources | planned |
+| `/api/registry/*` (`search`,`tags`,`catalog`,`image`) | registry catalog/search data sources + remote image delete action | implemented |
 | `/api/prune/*` | explicit cleanup action resources | planned |
 | `/api/configs` | config management resource/data source | planned (verified not present on tested instance; `404`) |
 | `/api/backups` | backup resource/data source | planned (verified not present on tested instance; `404`) |
@@ -172,7 +176,6 @@ Live verification artifacts:
 - Highest value additions for Terraform workflows:
   - environment connectivity validation action via `/api/environments/test`
   - notification smoke-test action via `/api/notifications/test`
-  - registry catalog/search data sources via `/api/registry/*`
   - prune action resources via `/api/prune/*`
 - Known likely-non-Terraform/UI-only endpoints are documented in `docs/reports/webui-endpoint-gap-audit.md` and should not block provider feature parity work.
 

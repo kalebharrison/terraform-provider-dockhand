@@ -260,6 +260,22 @@ type registryResponse struct {
 	HasCredentials bool    `json:"hasCredentials"`
 }
 
+type registryTagResponse struct {
+	Name        string  `json:"name"`
+	Size        int64   `json:"size"`
+	LastUpdated *string `json:"lastUpdated"`
+	Digest      *string `json:"digest"`
+}
+
+type registryTagsResponse struct {
+	Tags     []registryTagResponse `json:"tags"`
+	Total    int64                 `json:"total"`
+	Page     int64                 `json:"page"`
+	PageSize int64                 `json:"pageSize"`
+	HasNext  bool                  `json:"hasNext"`
+	HasPrev  bool                  `json:"hasPrev"`
+}
+
 type gitCredentialPayload struct {
 	Name     string  `json:"name"`
 	AuthType string  `json:"authType"`
@@ -917,6 +933,91 @@ func (c *Client) UpdateRegistry(ctx context.Context, id string, payload map[stri
 
 func (c *Client) DeleteRegistry(ctx context.Context, id string) (int, error) {
 	return c.doJSONWithStatus(ctx, http.MethodDelete, "/api/registries/"+url.PathEscape(id), nil, nil, nil)
+}
+
+func (c *Client) SearchRegistry(ctx context.Context, term string, registry string) ([]map[string]any, int, error) {
+	query := map[string]string{
+		"term": strings.TrimSpace(term),
+	}
+	if v := strings.TrimSpace(registry); v != "" {
+		query["registry"] = v
+	}
+
+	var out []map[string]any
+	status, err := c.doJSONWithStatus(ctx, http.MethodGet, "/api/registry/search", query, nil, &out)
+	if err != nil {
+		return nil, status, err
+	}
+	if out == nil {
+		out = []map[string]any{}
+	}
+	return out, status, nil
+}
+
+func (c *Client) ListRegistryTags(ctx context.Context, image string, registry string, page int64, pageSize int64) (*registryTagsResponse, int, error) {
+	query := map[string]string{
+		"image": strings.TrimSpace(image),
+	}
+	if v := strings.TrimSpace(registry); v != "" {
+		query["registry"] = v
+	}
+	if page > 0 {
+		query["page"] = strconv.FormatInt(page, 10)
+	}
+	if pageSize > 0 {
+		query["pageSize"] = strconv.FormatInt(pageSize, 10)
+	}
+
+	var out registryTagsResponse
+	status, err := c.doJSONWithStatus(ctx, http.MethodGet, "/api/registry/tags", query, nil, &out)
+	if err != nil {
+		return nil, status, err
+	}
+	if out.Tags == nil {
+		out.Tags = []registryTagResponse{}
+	}
+	return &out, status, nil
+}
+
+func (c *Client) GetRegistryCatalogRaw(ctx context.Context, registry string, page int64, pageSize int64) (json.RawMessage, int, error) {
+	query := map[string]string{}
+	if v := strings.TrimSpace(registry); v != "" {
+		query["registry"] = v
+	}
+	if page > 0 {
+		query["page"] = strconv.FormatInt(page, 10)
+	}
+	if pageSize > 0 {
+		query["pageSize"] = strconv.FormatInt(pageSize, 10)
+	}
+
+	var raw json.RawMessage
+	status, err := c.doJSONWithStatus(ctx, http.MethodGet, "/api/registry/catalog", query, nil, &raw)
+	if err != nil {
+		return nil, status, err
+	}
+	if len(raw) == 0 {
+		raw = []byte("{}")
+	}
+	return raw, status, nil
+}
+
+func (c *Client) DeleteRegistryImage(ctx context.Context, registry string, image string, tag string) (map[string]any, int, error) {
+	query := map[string]string{
+		"registry": strings.TrimSpace(registry),
+		"image":    strings.TrimSpace(image),
+		"tag":      strings.TrimSpace(tag),
+	}
+
+	var out map[string]any
+	status, err := c.doJSONWithStatus(ctx, http.MethodDelete, "/api/registry/image", query, nil, &out)
+	if err != nil {
+		return nil, status, err
+	}
+	if out == nil {
+		out = map[string]any{}
+	}
+	return out, status, nil
 }
 
 func (c *Client) ListGitCredentials(ctx context.Context) ([]gitCredentialResponse, int, error) {

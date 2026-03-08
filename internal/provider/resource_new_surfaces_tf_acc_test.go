@@ -443,6 +443,86 @@ func TestAccNotificationTestActionTerraform(t *testing.T) {
 	})
 }
 
+func TestAccRegistrySurfacesTerraform(t *testing.T) {
+	endpoint, username, password := testAccEnv(t)
+	defaultEnv := testAccDefaultEnv()
+
+	t.Setenv("DOCKHAND_ENDPOINT", endpoint)
+	t.Setenv("DOCKHAND_USERNAME", username)
+	t.Setenv("DOCKHAND_PASSWORD", password)
+	t.Setenv("DOCKHAND_DEFAULT_ENV", defaultEnv)
+
+	registryID := strings.TrimSpace(os.Getenv("DOCKHAND_TEST_REGISTRY_ID"))
+	if registryID == "" {
+		registryID = "1"
+	}
+	searchTerm := strings.TrimSpace(os.Getenv("DOCKHAND_TEST_REGISTRY_SEARCH_TERM"))
+	if searchTerm == "" {
+		searchTerm = "busybox"
+	}
+	imageName := strings.TrimSpace(os.Getenv("DOCKHAND_TEST_REGISTRY_IMAGE"))
+	if imageName == "" {
+		imageName = "library/busybox"
+	}
+	deleteTag := strings.TrimSpace(os.Getenv("DOCKHAND_TEST_REGISTRY_DELETE_TAG"))
+	if deleteTag == "" {
+		deleteTag = "latest"
+	}
+
+	resource.Test(t, resource.TestCase{
+		ProtoV6ProviderFactories: testAccProviderFactories(),
+		Steps: []resource.TestStep{
+			{
+				Config: testAccRegistrySurfacesConfig(registryID, searchTerm, imageName, deleteTag, "acc-registry-1"),
+				Check: resource.ComposeTestCheckFunc(
+					resource.TestCheckResourceAttrSet("data.dockhand_registry_search.test", "id"),
+					resource.TestCheckResourceAttrSet("data.dockhand_registry_search.test", "results_json"),
+					resource.TestCheckResourceAttrSet("data.dockhand_registry_tags.test", "id"),
+					resource.TestCheckResourceAttrSet("data.dockhand_registry_tags.test", "tags_json"),
+					resource.TestCheckResourceAttrSet("dockhand_registry_image_delete_action.test", "id"),
+					resource.TestCheckResourceAttrSet("dockhand_registry_image_delete_action.test", "status_code"),
+					resource.TestCheckResourceAttrSet("dockhand_registry_image_delete_action.test", "result_json"),
+				),
+			},
+			{
+				Config: testAccRegistrySurfacesConfig(registryID, searchTerm, imageName, deleteTag, "acc-registry-2"),
+				Check: resource.ComposeTestCheckFunc(
+					resource.TestCheckResourceAttr("dockhand_registry_image_delete_action.test", "trigger", "acc-registry-2"),
+					resource.TestCheckResourceAttrSet("dockhand_registry_image_delete_action.test", "status_code"),
+				),
+			},
+		},
+	})
+}
+
+func TestAccRegistryCatalogDataSourceTerraform(t *testing.T) {
+	endpoint, username, password := testAccEnv(t)
+	defaultEnv := testAccDefaultEnv()
+
+	t.Setenv("DOCKHAND_ENDPOINT", endpoint)
+	t.Setenv("DOCKHAND_USERNAME", username)
+	t.Setenv("DOCKHAND_PASSWORD", password)
+	t.Setenv("DOCKHAND_DEFAULT_ENV", defaultEnv)
+
+	registryID := strings.TrimSpace(os.Getenv("DOCKHAND_TEST_REGISTRY_CATALOG_ID"))
+	if registryID == "" {
+		t.Skip("acceptance test requires DOCKHAND_TEST_REGISTRY_CATALOG_ID for a registry that supports catalog listing")
+	}
+
+	resource.Test(t, resource.TestCase{
+		ProtoV6ProviderFactories: testAccProviderFactories(),
+		Steps: []resource.TestStep{
+			{
+				Config: testAccRegistryCatalogConfig(registryID),
+				Check: resource.ComposeTestCheckFunc(
+					resource.TestCheckResourceAttrSet("data.dockhand_registry_catalog.test", "id"),
+					resource.TestCheckResourceAttrSet("data.dockhand_registry_catalog.test", "catalog_json"),
+				),
+			},
+		},
+	})
+}
+
 func testAccContainerDirectoryConfig(env string, containerID string, path string) string {
 	return fmt.Sprintf(`
 provider "dockhand" {}
@@ -646,6 +726,44 @@ resource "dockhand_notification_test_action" "test" {
   trigger       = %q
 }
 `, trigger)
+}
+
+func testAccRegistrySurfacesConfig(registryID string, term string, imageName string, tag string, trigger string) string {
+	return fmt.Sprintf(`
+provider "dockhand" {}
+
+data "dockhand_registry_search" "test" {
+  term     = %q
+  registry = %q
+}
+
+data "dockhand_registry_tags" "test" {
+  image     = %q
+  registry  = %q
+  page      = 1
+  page_size = 5
+}
+
+resource "dockhand_registry_image_delete_action" "test" {
+  registry      = %q
+  image         = %q
+  tag           = %q
+  fail_on_error = false
+  trigger       = %q
+}
+`, term, registryID, imageName, registryID, registryID, imageName, tag, trigger)
+}
+
+func testAccRegistryCatalogConfig(registryID string) string {
+	return fmt.Sprintf(`
+provider "dockhand" {}
+
+data "dockhand_registry_catalog" "test" {
+  registry  = %q
+  page      = 1
+  page_size = 5
+}
+`, registryID)
 }
 
 func testAccJobDataSourceConfig(jobID string) string {

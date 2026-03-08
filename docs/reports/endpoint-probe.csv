@@ -31,6 +31,10 @@ POST,/api/registries,405,present,Safe mode: options probe (mutation skipped)
 GET,/api/registries/{id},200,present,
 PUT,/api/registries/{id},400,present,Safe mode: placeholder probe
 DELETE,/api/registries/{id},400,present,Safe mode: placeholder probe
+GET,/api/registry/search,200,present,
+GET,/api/registry/tags,200,present,
+GET,/api/registry/catalog,400,present,
+DELETE,/api/registry/image,405,present,Safe mode: options probe (mutation skipped)
 GET,/api/git/credentials,200,present,
 POST,/api/git/credentials,405,present,Safe mode: options probe (mutation skipped)
 GET,/api/git/credentials/{id},200,present,
@@ -99,7 +103,7 @@ POST,/api/containers/{id}/unpause,500,present,Safe mode: placeholder probe
 POST,/api/containers/{id}/rename,400,present,Safe mode: placeholder probe
 POST,/api/containers/{id}/update,500,present,Safe mode: placeholder probe
 GET,/api/containers/{id}/logs,200,present,
-GET,/api/containers/{id}/top,500,present,
+GET,/api/containers/{id}/top,200,present,
 GET,/api/containers/{id}/shells,200,present,
 POST,/api/containers/{id}/files/create,400,present,Safe mode: placeholder probe
 GET,/api/containers/{id}/files/content,400,present,
