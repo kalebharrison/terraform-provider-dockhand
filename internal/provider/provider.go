@@ -232,6 +232,7 @@ func (p *dockhandProvider) Resources(_ context.Context) []func() resource.Resour
 		NewContainerCheckUpdatesActionResource,
 		NewScheduleResource,
 		NewScheduleRunActionResource,
+		NewPruneActionResource,
 		NewBatchActionResource,
 		NewStackActionResource,
 		NewStackScanActionResource,

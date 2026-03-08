@@ -59,12 +59,6 @@ These are practical additions for Terraform users and align with current Dockhan
    - Candidate surface:
      - `dockhand_notification_test_action`
 
-4. Cleanup action resources
-   - Endpoints: `/api/prune/all`, `/api/prune/containers`, `/api/prune/images`, `/api/prune/networks`, `/api/prune/volumes`
-   - Why: useful explicit lifecycle operations for disposable/test environments.
-   - Candidate surfaces:
-     - `dockhand_prune_action` (typed mode)
-
 ## Completed Since This Snapshot
 
 - Registry browser/search + delete coverage:
@@ -72,6 +66,8 @@ These are practical additions for Terraform users and align with current Dockhan
   - `dockhand_registry_tags` data source
   - `dockhand_registry_catalog` data source
   - `dockhand_registry_image_delete_action` resource
+- Cleanup action coverage:
+  - `dockhand_prune_action` resource (`/api/prune/*`)
 
 ## Lower Priority / Likely UI-Oriented
 

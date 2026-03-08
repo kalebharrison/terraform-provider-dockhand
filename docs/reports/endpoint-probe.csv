@@ -16,6 +16,11 @@ GET,/api/schedules/executions,200,present,
 POST,/api/schedules/system/{id}/toggle,400,present,Safe mode: placeholder probe
 POST,/api/schedules/{type}/{id}/toggle,400,present,Safe mode: placeholder probe
 POST,/api/schedules/{type}/{id}/run,400,present,Safe mode: placeholder probe
+POST,/api/prune/all,405,present,Safe mode: options probe (mutation skipped)
+POST,/api/prune/containers,405,present,Safe mode: options probe (mutation skipped)
+POST,/api/prune/images,405,present,Safe mode: options probe (mutation skipped)
+POST,/api/prune/networks,405,present,Safe mode: options probe (mutation skipped)
+POST,/api/prune/volumes,405,present,Safe mode: options probe (mutation skipped)
 GET,/api/users,200,present,
 POST,/api/users,405,present,Safe mode: options probe (mutation skipped)
 GET,/api/users/{id},200,present,
