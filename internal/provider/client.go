@@ -1984,7 +1984,9 @@ func (c *Client) ReadScheduleStream(ctx context.Context, maxEvents int64, timeou
 	if err != nil {
 		return nil, 0, err
 	}
-	defer res.Body.Close()
+	defer func() {
+		_ = res.Body.Close()
+	}()
 
 	if res.StatusCode < 200 || res.StatusCode > 299 {
 		body, _ := io.ReadAll(io.LimitReader(res.Body, 64<<10))
