@@ -68,6 +68,10 @@ These are practical additions for Terraform users and align with current Dockhan
   - `dockhand_registry_image_delete_action` resource
 - Cleanup action coverage:
   - `dockhand_prune_action` resource (`/api/prune/*`)
+- Schedule settings/stream coverage:
+  - `dockhand_schedule_settings` resource
+  - `dockhand_schedule_settings` data source
+  - `dockhand_schedule_stream` data source
 
 ## Lower Priority / Likely UI-Oriented
 

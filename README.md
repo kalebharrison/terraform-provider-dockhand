@@ -28,6 +28,7 @@ This provider currently includes:
 - Resource: `dockhand_container_file`
 - Resource: `dockhand_container_action`
 - Resource: `dockhand_schedule`
+- Resource: `dockhand_schedule_settings`
 - Resource: `dockhand_schedule_run_action`
 - Resource: `dockhand_prune_action`
 - Resource: `dockhand_batch_action`
@@ -52,6 +53,8 @@ This provider currently includes:
 - Data source: `dockhand_hawser_status`
 - Data source: `dockhand_auth_providers`
 - Data source: `dockhand_schedules`
+- Data source: `dockhand_schedule_settings`
+- Data source: `dockhand_schedule_stream`
 - Data source: `dockhand_schedules_executions`
 - Data source: `dockhand_containers`
 - Data source: `dockhand_container_stats`
@@ -112,6 +115,9 @@ This provider currently includes:
   - `GET /api/stacks/{name}/env/raw`
   - `PUT /api/stacks/{name}/env/raw`
   - `GET /api/schedules`
+  - `GET /api/schedules/settings`
+  - `PUT /api/schedules/settings`
+  - `GET /api/schedules/stream`
   - `POST /api/schedules/{type}/{id}/run`
   - `POST /api/schedules/system/{id}/toggle`
   - `POST /api/schedules/{type}/{id}/toggle`

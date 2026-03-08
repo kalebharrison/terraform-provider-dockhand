@@ -43,6 +43,7 @@ Repository guidance for coding agents working on `terraform-provider-dockhand`.
   - Resource: `dockhand_container_update_action`
   - Resource: `dockhand_container_check_updates_action`
   - Resource: `dockhand_schedule`
+  - Resource: `dockhand_schedule_settings`
   - Resource: `dockhand_schedule_run_action`
   - Resource: `dockhand_prune_action`
   - Resource: `dockhand_batch_action`
@@ -77,6 +78,8 @@ Repository guidance for coding agents working on `terraform-provider-dockhand`.
   - Data source: `dockhand_volumes`
   - Data source: `dockhand_images`
   - Data source: `dockhand_schedules`
+  - Data source: `dockhand_schedule_settings`
+  - Data source: `dockhand_schedule_stream`
   - Data source: `dockhand_schedules_executions`
   - Data source: `dockhand_job`
 
@@ -206,6 +209,9 @@ Avoid testing by building local zips for release validation.
   - `GET /api/git/stacks/{id}/env-files`
   - `POST /api/git/stacks/{id}/env-files`
   - `GET /api/schedules`
+  - `GET /api/schedules/settings`
+  - `PUT /api/schedules/settings`
+  - `GET /api/schedules/stream`
   - `GET /api/schedules/executions`
   - `POST /api/schedules/{type}/{id}/run`
   - `POST /api/stacks/scan`
