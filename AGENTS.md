@@ -25,6 +25,7 @@ Repository guidance for coding agents working on `terraform-provider-dockhand`.
   - Resource: `dockhand_git_stack_env_file`
   - Resource: `dockhand_config_set`
   - Resource: `dockhand_environment`
+  - Resource: `dockhand_notification_test_action`
   - Resource: `dockhand_environment_test_action`
   - Resource: `dockhand_environment_scanner_action`
   - Resource: `dockhand_network`
@@ -185,6 +186,7 @@ Avoid testing by building local zips for release validation.
   - `DELETE /api/containers/{id}/files/delete`
   - `GET /api/activity`
   - `GET /api/hawser/connect`
+  - `POST /api/notifications/test`
   - `POST /api/hawser/tokens`
   - `GET/POST /api/environments`
   - `GET/PUT/DELETE /api/environments/{id}`

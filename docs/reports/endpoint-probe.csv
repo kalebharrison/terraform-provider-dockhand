@@ -48,6 +48,7 @@ PUT,/api/config-sets/{id},400,present,Safe mode: placeholder probe
 DELETE,/api/config-sets/{id},400,present,Safe mode: placeholder probe
 GET,/api/notifications,200,present,
 POST,/api/notifications,405,present,Safe mode: options probe (mutation skipped)
+POST,/api/notifications/test,405,present,Safe mode: options probe (mutation skipped)
 GET,/api/notifications/{id},,unverified_no_fixture,No fixture available for path placeholder
 PUT,/api/notifications/{id},400,present,Safe mode: placeholder probe
 DELETE,/api/notifications/{id},400,present,Safe mode: placeholder probe
@@ -98,7 +99,7 @@ POST,/api/containers/{id}/unpause,500,present,Safe mode: placeholder probe
 POST,/api/containers/{id}/rename,400,present,Safe mode: placeholder probe
 POST,/api/containers/{id}/update,500,present,Safe mode: placeholder probe
 GET,/api/containers/{id}/logs,200,present,
-GET,/api/containers/{id}/top,200,present,
+GET,/api/containers/{id}/top,500,present,
 GET,/api/containers/{id}/shells,200,present,
 POST,/api/containers/{id}/files/create,400,present,Safe mode: placeholder probe
 GET,/api/containers/{id}/files/content,400,present,
@@ -107,5 +108,7 @@ DELETE,/api/containers/{id}/files/delete,400,present,Safe mode: placeholder prob
 GET,/api/containers/stats,200,present,
 POST,/api/containers/check-updates,405,present,Safe mode: options probe (mutation skipped)
 GET,/api/containers/pending-updates,200,present,
+POST,/api/batch,200,present,Safe mode: synthetic batch probe
+GET,/api/jobs/{id},200,present,
 GET,/api/configs,404,not_present,
 GET,/api/backups,404,not_present,
