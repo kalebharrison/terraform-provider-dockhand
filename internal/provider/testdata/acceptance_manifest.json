@@ -16,6 +16,7 @@
     { "name": "dockhand_config_set", "mode": "stateful", "operations": ["create", "read", "update", "import", "delete"], "acceptance_test_regex": "TestAcc" },
     { "name": "dockhand_notification", "mode": "stateful", "operations": ["create", "read", "update", "import", "delete"], "acceptance_test_regex": "TestAcc" },
     { "name": "dockhand_environment", "mode": "stateful", "operations": ["create", "read", "update", "import", "delete"], "acceptance_test_regex": "TestAccEnvironmentResource" },
+    { "name": "dockhand_environment_test_action", "mode": "action", "operations": ["create", "read", "delete"], "acceptance_test_regex": "TestAccEnvironmentTestActionTerraform" },
     { "name": "dockhand_environment_scanner_action", "mode": "action", "operations": ["create", "read", "delete"], "acceptance_test_regex": "TestAcc" },
     { "name": "dockhand_network", "mode": "stateful", "operations": ["create", "read", "update", "import", "delete"], "acceptance_test_regex": "TestAcc" },
     { "name": "dockhand_network_connection_action", "mode": "action", "operations": ["create", "read", "delete"], "acceptance_test_regex": "TestAcc" },
@@ -50,6 +51,7 @@
     { "name": "dockhand_notifications", "mode": "data_source", "operations": ["read"], "acceptance_test_regex": "TestAcc" },
     { "name": "dockhand_config_sets", "mode": "data_source", "operations": ["read"], "acceptance_test_regex": "TestAcc" },
     { "name": "dockhand_environments", "mode": "data_source", "operations": ["read"], "acceptance_test_regex": "TestAccEnvironmentResourceDirectDinDTerraform" },
+    { "name": "dockhand_environment_detect_socket", "mode": "data_source", "operations": ["read"], "acceptance_test_regex": "TestAccEnvironmentDetectSocketDataSourceTerraform" },
     { "name": "dockhand_networks", "mode": "data_source", "operations": ["read"], "acceptance_test_regex": "TestAcc" },
     { "name": "dockhand_volumes", "mode": "data_source", "operations": ["read"], "acceptance_test_regex": "TestAcc" },
     { "name": "dockhand_images", "mode": "data_source", "operations": ["read"], "acceptance_test_regex": "TestAcc" },
@@ -64,6 +66,6 @@
     { "name": "dockhand_container_inspect", "mode": "data_source", "operations": ["read"], "acceptance_test_regex": "TestAcc" },
     { "name": "dockhand_container_processes", "mode": "data_source", "operations": ["read"], "acceptance_test_regex": "TestAccContainerProcessesDataSourceTerraform" },
     { "name": "dockhand_stacks", "mode": "data_source", "operations": ["read"], "acceptance_test_regex": "TestAcc" },
-    { "name": "dockhand_job", "mode": "data_source", "operations": ["read"], "acceptance_test_regex": "TestAccBatchAction(AndJobDataSource|NoWait)Terraform" }
+    { "name": "dockhand_job", "mode": "data_source", "operations": ["read"], "acceptance_test_regex": "TestAccJobDataSourceTerraform" }
   ]
 }

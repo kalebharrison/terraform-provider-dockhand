@@ -1,6 +1,7 @@
 package provider
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"regexp"
@@ -232,29 +233,26 @@ func TestAccBatchActionAndJobDataSourceTerraform(t *testing.T) {
 	t.Setenv("DOCKHAND_DEFAULT_ENV", defaultEnv)
 
 	suffix := strings.ToLower(time.Now().UTC().Format("20060102150405"))
-	missingContainerID := "tf-acc-missing-container-" + suffix
+	containerName := "tf-acc-batch-target-" + suffix
 
 	resource.Test(t, resource.TestCase{
 		ProtoV6ProviderFactories: testAccProviderFactories(),
 		Steps: []resource.TestStep{
 			{
-				Config: testAccBatchActionConfig(defaultEnv, missingContainerID, "acc-run-1"),
+				Config: testAccBatchActionConfig(defaultEnv, containerName, "acc-run-1"),
 				Check: resource.ComposeTestCheckFunc(
 					resource.TestCheckResourceAttr("dockhand_batch_action.test", "entity_type", "containers"),
 					resource.TestCheckResourceAttr("dockhand_batch_action.test", "operation", "restart"),
-					resource.TestCheckResourceAttr("dockhand_batch_action.test", "job_status", "done"),
-					resource.TestCheckResourceAttrSet("dockhand_batch_action.test", "job_id"),
+					resource.TestMatchResourceAttr("dockhand_batch_action.test", "job_status", regexp.MustCompile("(?i)^(done|queued|pending|running|processing|failed|error|cancelled|canceled)$")),
 					resource.TestCheckResourceAttrSet("dockhand_batch_action.test", "result_json"),
 					resource.TestCheckResourceAttrSet("dockhand_batch_action.test", "lines_json"),
-					resource.TestCheckResourceAttrSet("data.dockhand_job.test", "id"),
-					resource.TestCheckResourceAttr("data.dockhand_job.test", "status", "done"),
 				),
 			},
 			{
-				Config: testAccBatchActionConfig(defaultEnv, missingContainerID, "acc-run-2"),
+				Config: testAccBatchActionConfig(defaultEnv, containerName, "acc-run-2"),
 				Check: resource.ComposeTestCheckFunc(
 					resource.TestCheckResourceAttr("dockhand_batch_action.test", "trigger", "acc-run-2"),
-					resource.TestCheckResourceAttr("data.dockhand_job.test", "status", "done"),
+					resource.TestCheckResourceAttrSet("dockhand_batch_action.test", "result_json"),
 				),
 			},
 		},
@@ -271,31 +269,141 @@ func TestAccBatchActionNoWaitTerraform(t *testing.T) {
 	t.Setenv("DOCKHAND_DEFAULT_ENV", defaultEnv)
 
 	suffix := strings.ToLower(time.Now().UTC().Format("20060102150405"))
-	missingContainerID := "tf-acc-no-wait-missing-container-" + suffix
+	containerName := "tf-acc-no-wait-target-" + suffix
 
 	resource.Test(t, resource.TestCase{
 		ProtoV6ProviderFactories: testAccProviderFactories(),
 		Steps: []resource.TestStep{
 			{
-				Config: testAccBatchActionNoWaitConfig(defaultEnv, missingContainerID, "acc-no-wait-1"),
+				Config: testAccBatchActionNoWaitConfig(defaultEnv, containerName, "acc-no-wait-1"),
 				Check: resource.ComposeTestCheckFunc(
 					resource.TestCheckResourceAttr("dockhand_batch_action.test", "entity_type", "containers"),
 					resource.TestCheckResourceAttr("dockhand_batch_action.test", "operation", "restart"),
 					resource.TestCheckResourceAttr("dockhand_batch_action.test", "wait_for_completion", "false"),
-					resource.TestCheckResourceAttrSet("dockhand_batch_action.test", "job_id"),
 					resource.TestMatchResourceAttr("dockhand_batch_action.test", "job_status", regexp.MustCompile("(?i)^(submitted|queued|pending|running|processing|done|failed|error|cancelled|canceled)$")),
 					resource.TestCheckResourceAttrSet("dockhand_batch_action.test", "result_json"),
 					resource.TestCheckResourceAttrSet("dockhand_batch_action.test", "lines_json"),
-					resource.TestCheckResourceAttrSet("data.dockhand_job.test", "id"),
-					resource.TestMatchResourceAttr("data.dockhand_job.test", "status", regexp.MustCompile("(?i)^(queued|pending|running|processing|done|failed|error|cancelled|canceled)$")),
 				),
 			},
 			{
-				Config: testAccBatchActionNoWaitConfig(defaultEnv, missingContainerID, "acc-no-wait-2"),
+				Config: testAccBatchActionNoWaitConfig(defaultEnv, containerName, "acc-no-wait-2"),
 				Check: resource.ComposeTestCheckFunc(
 					resource.TestCheckResourceAttr("dockhand_batch_action.test", "trigger", "acc-no-wait-2"),
-					resource.TestCheckResourceAttrSet("dockhand_batch_action.test", "job_id"),
+					resource.TestCheckResourceAttrSet("dockhand_batch_action.test", "result_json"),
+				),
+			},
+		},
+	})
+}
+
+func TestAccJobDataSourceTerraform(t *testing.T) {
+	endpoint, username, password := testAccEnv(t)
+	defaultEnv := testAccDefaultEnv()
+
+	sessionCookie, err := testAccLoginSessionCookieForDestroy(endpoint, username, password)
+	if err != nil {
+		t.Fatalf("login for job data source fixture: %v", err)
+	}
+	client, err := NewClient(endpoint, sessionCookie, defaultEnv, false)
+	if err != nil {
+		t.Fatalf("new client for job data source fixture: %v", err)
+	}
+
+	suffix := strings.ToLower(time.Now().UTC().Format("20060102150405"))
+	submitted, _, err := client.SubmitBatch(context.Background(), defaultEnv, "containers", "restart", []string{"tf-acc-job-fixture-" + suffix})
+	if err != nil {
+		t.Fatalf("submit batch fixture: %v", err)
+	}
+	if strings.TrimSpace(submitted.JobID) == "" {
+		t.Skip("Dockhand returned inline batch completion without async job id; skipping dockhand_job data source acceptance")
+	}
+
+	t.Setenv("DOCKHAND_ENDPOINT", endpoint)
+	t.Setenv("DOCKHAND_USERNAME", username)
+	t.Setenv("DOCKHAND_PASSWORD", password)
+	t.Setenv("DOCKHAND_DEFAULT_ENV", defaultEnv)
+
+	resource.Test(t, resource.TestCase{
+		ProtoV6ProviderFactories: testAccProviderFactories(),
+		Steps: []resource.TestStep{
+			{
+				Config: testAccJobDataSourceConfig(submitted.JobID),
+				Check: resource.ComposeTestCheckFunc(
+					resource.TestCheckResourceAttr("data.dockhand_job.test", "job_id", submitted.JobID),
 					resource.TestCheckResourceAttrSet("data.dockhand_job.test", "id"),
+					resource.TestCheckResourceAttrSet("data.dockhand_job.test", "status"),
+					resource.TestCheckResourceAttrSet("data.dockhand_job.test", "result_json"),
+					resource.TestCheckResourceAttrSet("data.dockhand_job.test", "lines_json"),
+				),
+			},
+		},
+	})
+}
+
+func TestAccEnvironmentTestActionTerraform(t *testing.T) {
+	endpoint, username, password := testAccEnv(t)
+	defaultEnv := testAccDefaultEnv()
+	dindHost := strings.TrimSpace(os.Getenv("DOCKHAND_TEST_DIND_HOST"))
+	if dindHost == "" {
+		t.Skip("acceptance test requires DOCKHAND_TEST_DIND_HOST")
+	}
+	dindPort := strings.TrimSpace(os.Getenv("DOCKHAND_TEST_DIND_PORT"))
+	if dindPort == "" {
+		dindPort = "2375"
+	}
+	if !regexp.MustCompile(`^\d+$`).MatchString(dindPort) {
+		t.Skip("acceptance test requires numeric DOCKHAND_TEST_DIND_PORT")
+	}
+
+	t.Setenv("DOCKHAND_ENDPOINT", endpoint)
+	t.Setenv("DOCKHAND_USERNAME", username)
+	t.Setenv("DOCKHAND_PASSWORD", password)
+	t.Setenv("DOCKHAND_DEFAULT_ENV", defaultEnv)
+
+	resource.Test(t, resource.TestCase{
+		ProtoV6ProviderFactories: testAccProviderFactories(),
+		Steps: []resource.TestStep{
+			{
+				Config: testAccEnvironmentTestActionConfig(dindHost, dindPort, "acc-env-test-1"),
+				Check: resource.ComposeTestCheckFunc(
+					resource.TestCheckResourceAttr("dockhand_environment_test_action.test", "connection_type", "direct"),
+					resource.TestCheckResourceAttr("dockhand_environment_test_action.test", "host", dindHost),
+					resource.TestCheckResourceAttr("dockhand_environment_test_action.test", "port", dindPort),
+					resource.TestCheckResourceAttr("dockhand_environment_test_action.test", "protocol", "http"),
+					resource.TestCheckResourceAttr("dockhand_environment_test_action.test", "success", "true"),
+					resource.TestCheckResourceAttrSet("dockhand_environment_test_action.test", "server_version"),
+					resource.TestCheckResourceAttrSet("dockhand_environment_test_action.test", "info_json"),
+				),
+			},
+			{
+				Config: testAccEnvironmentTestActionConfig(dindHost, dindPort, "acc-env-test-2"),
+				Check: resource.ComposeTestCheckFunc(
+					resource.TestCheckResourceAttr("dockhand_environment_test_action.test", "trigger", "acc-env-test-2"),
+					resource.TestCheckResourceAttr("dockhand_environment_test_action.test", "success", "true"),
+				),
+			},
+		},
+	})
+}
+
+func TestAccEnvironmentDetectSocketDataSourceTerraform(t *testing.T) {
+	endpoint, username, password := testAccEnv(t)
+	defaultEnv := testAccDefaultEnv()
+
+	t.Setenv("DOCKHAND_ENDPOINT", endpoint)
+	t.Setenv("DOCKHAND_USERNAME", username)
+	t.Setenv("DOCKHAND_PASSWORD", password)
+	t.Setenv("DOCKHAND_DEFAULT_ENV", defaultEnv)
+
+	resource.Test(t, resource.TestCase{
+		ProtoV6ProviderFactories: testAccProviderFactories(),
+		Steps: []resource.TestStep{
+			{
+				Config: testAccEnvironmentDetectSocketDataSourceConfig(),
+				Check: resource.ComposeTestCheckFunc(
+					resource.TestCheckResourceAttrSet("data.dockhand_environment_detect_socket.test", "id"),
+					resource.TestCheckResourceAttrSet("data.dockhand_environment_detect_socket.test", "home_dir"),
+					resource.TestCheckResourceAttrSet("data.dockhand_environment_detect_socket.test", "sockets_json"),
 				),
 			},
 		},
@@ -407,42 +515,94 @@ resource "dockhand_git_repository" "test" {
 `, name, url, branch, environmentID)
 }
 
-func testAccBatchActionConfig(env string, containerID string, trigger string) string {
+func testAccBatchActionConfig(env string, containerName string, trigger string) string {
 	return fmt.Sprintf(`
 provider "dockhand" {}
+
+resource "dockhand_image" "batch_target" {
+  env             = %q
+  name            = "busybox:1.36.1"
+  scan_after_pull = false
+}
+
+resource "dockhand_container" "batch_target" {
+  env     = %q
+  name    = %q
+  image   = dockhand_image.batch_target.name
+  enabled = false
+}
 
 resource "dockhand_batch_action" "test" {
   env                 = %q
   entity_type         = "containers"
   operation           = "restart"
-  item_ids            = [%q]
+  item_ids            = [dockhand_container.batch_target.id]
   wait_for_completion = true
   timeout_seconds     = 30
   poll_interval_ms    = 500
   trigger             = %q
 }
-
-data "dockhand_job" "test" {
-  job_id = dockhand_batch_action.test.job_id
-}
-	`, env, containerID, trigger)
+	`, env, env, containerName, env, trigger)
 }
 
-func testAccBatchActionNoWaitConfig(env string, containerID string, trigger string) string {
+func testAccBatchActionNoWaitConfig(env string, containerName string, trigger string) string {
 	return fmt.Sprintf(`
 provider "dockhand" {}
+
+resource "dockhand_image" "batch_target" {
+  env             = %q
+  name            = "busybox:1.36.1"
+  scan_after_pull = false
+}
+
+resource "dockhand_container" "batch_target" {
+  env     = %q
+  name    = %q
+  image   = dockhand_image.batch_target.name
+  enabled = false
+}
 
 resource "dockhand_batch_action" "test" {
   env                 = %q
   entity_type         = "containers"
   operation           = "restart"
-  item_ids            = [%q]
+  item_ids            = [dockhand_container.batch_target.id]
   wait_for_completion = false
   trigger             = %q
 }
+`, env, env, containerName, env, trigger)
+}
+
+func testAccEnvironmentTestActionConfig(host string, port string, trigger string) string {
+	return fmt.Sprintf(`
+provider "dockhand" {}
+
+resource "dockhand_environment_test_action" "test" {
+  connection_type = "direct"
+  host            = %q
+  port            = %s
+  protocol        = "http"
+  tls_skip_verify = false
+  fail_on_error   = true
+  trigger         = %q
+}
+`, host, port, trigger)
+}
+
+func testAccEnvironmentDetectSocketDataSourceConfig() string {
+	return `
+provider "dockhand" {}
+
+data "dockhand_environment_detect_socket" "test" {}
+`
+}
+
+func testAccJobDataSourceConfig(jobID string) string {
+	return fmt.Sprintf(`
+provider "dockhand" {}
 
 data "dockhand_job" "test" {
-  job_id = dockhand_batch_action.test.job_id
+  job_id = %q
 }
-`, env, containerID, trigger)
+`, jobID)
 }

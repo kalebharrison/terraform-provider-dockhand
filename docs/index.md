@@ -41,6 +41,7 @@ provider "dockhand" {
 - `dockhand_config_set`
 - `dockhand_notification`
 - `dockhand_environment`
+- `dockhand_environment_test_action`
 - `dockhand_environment_scanner_action`
 - `dockhand_network`
 - `dockhand_network_connection_action`
@@ -74,6 +75,7 @@ provider "dockhand" {
 - `dockhand_notifications`
 - `dockhand_config_sets`
 - `dockhand_environments`
+- `dockhand_environment_detect_socket`
 - `dockhand_networks`
 - `dockhand_volumes`
 - `dockhand_images`
