@@ -82,6 +82,7 @@ Live verification artifacts:
 | `dockhand_environment` | Image-prune settings | `GET/POST /api/environments/{id}/image-prune` | Manages `image_prune_enabled`, `image_prune_cron`, and `image_prune_mode`. | implemented |
 | `dockhand_environment` | Timezone settings | `GET/POST /api/environments/{id}/timezone` | Manages environment timezone (`timezone`). | implemented |
 | `dockhand_environment` | Vulnerability scanner settings | `GET/POST /api/settings/scanner?env={env_id}` | Manages scanner enable/selection per environment and exposes scanner availability/version status. Optional install enforcement pulls scanner images when missing. | implemented |
+| `dockhand_environment_test_action` | Test connectivity | `POST /api/environments/test` | One-shot connectivity validation action for direct/socket/agent payloads with optional apply failure on unsuccessful test. | implemented |
 | `dockhand_environment_scanner_action` | Scanner install/remove/update-check actions | `POST /api/images/pull?env={env_id}`, `DELETE /api/settings/scanner?removeImages=true&scanner={name}&env={env_id}`, `GET /api/settings/scanner?checkUpdates=true&env={env_id}` | One-shot scanner operations for install/remove/update-check workflows. | implemented |
 | `dockhand_environment` | Delete | `DELETE /api/environments/{id}` | `404` treated as already deleted. | implemented |
 | `dockhand_network` | Create | `POST /api/networks?env={env_id}` | Minimal create payload: name + driver (replace-only resource). | partial |
@@ -119,6 +120,7 @@ Live verification artifacts:
 | `dockhand_activity` | `GET /api/activity` | Returns recent event stream/history for observability. | implemented |
 | `dockhand_hawser_status` | `GET /api/hawser/connect` | Reads Hawser websocket endpoint readiness and active connection count. | implemented |
 | `dockhand_auth_providers` | `GET /api/auth/providers` | Exposes configured auth providers and default provider (local/free providers in current scope). | implemented |
+| `dockhand_environment_detect_socket` | `GET /api/environments/detect-socket` | Reads Dockhand local socket discovery payload (`home_dir`, `socket_paths`, raw `sockets_json`). | implemented |
 | `dockhand_schedules` | `GET /api/schedules` | Exposes schedule inventory (system cleanup + generated schedules). | implemented |
 | `dockhand_stacks` | `GET /api/stacks?env={env_id}` | Exposes stack list with runtime status and container count. | implemented |
 | `dockhand_container_logs` | `GET /api/containers/{id}/logs?env={env_id}&tail={n}` | Reads container logs for debugging/verification workflows. | implemented |
@@ -138,7 +140,7 @@ Live verification artifacts:
 | `/api/volumes` | advanced volume operations (`clone`, `browse`, import/export) | partial |
 | `/api/networks` | advanced network operations (`connect`, inspect details as separate surface) | partial |
 | `/api/batch` + `/api/jobs/{jobId}` | generic async job action + job status data source (`run-and-poll`) | implemented |
-| `/api/environments/test` + `/api/environments/detect-socket` | environment connectivity validation action | planned |
+| `/api/environments/test` + `/api/environments/detect-socket` | environment connectivity validation action + socket discovery data source | implemented |
 | `/api/notifications/test` | notification test-send one-shot action | planned |
 | `/api/registry/*` (`search`,`tags`,`catalog`,`image`) | registry catalog/search data sources | planned |
 | `/api/prune/*` | explicit cleanup action resources | planned |

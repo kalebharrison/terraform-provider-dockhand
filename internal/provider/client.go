@@ -211,7 +211,9 @@ type batchRequestPayload struct {
 }
 
 type batchResponse struct {
-	JobID string `json:"jobId"`
+	JobID  string         `json:"jobId"`
+	Status string         `json:"status"`
+	Result map[string]any `json:"result"`
 }
 
 type jobLineResponse struct {
@@ -488,6 +490,18 @@ type environmentResponse struct {
 	CreatedAt             *string  `json:"createdAt"`
 	UpdatedAt             *string  `json:"updatedAt"`
 	Labels                []string `json:"labels"`
+}
+
+type environmentTestResponse struct {
+	Success bool           `json:"success"`
+	Error   string         `json:"error"`
+	Info    map[string]any `json:"info"`
+	Hawser  map[string]any `json:"hawser"`
+}
+
+type environmentDetectSocketResponse struct {
+	Sockets []any  `json:"sockets"`
+	HomeDir string `json:"homedir"`
 }
 
 type hawserTokenPayload struct {
@@ -1186,6 +1200,33 @@ func (c *Client) DeleteEnvironment(ctx context.Context, id string) (int, error) 
 	return c.doJSONWithStatus(ctx, http.MethodDelete, "/api/environments/"+url.PathEscape(id), nil, nil, nil)
 }
 
+func (c *Client) TestEnvironmentConnection(ctx context.Context, payload environmentPayload) (*environmentTestResponse, int, error) {
+	var out environmentTestResponse
+	status, err := c.doJSONWithStatus(ctx, http.MethodPost, "/api/environments/test", nil, payload, &out)
+	if err != nil {
+		return nil, status, err
+	}
+	if out.Info == nil {
+		out.Info = map[string]any{}
+	}
+	if out.Hawser == nil {
+		out.Hawser = map[string]any{}
+	}
+	return &out, status, nil
+}
+
+func (c *Client) DetectEnvironmentSockets(ctx context.Context) (*environmentDetectSocketResponse, int, error) {
+	var out environmentDetectSocketResponse
+	status, err := c.doJSONWithStatus(ctx, http.MethodGet, "/api/environments/detect-socket", nil, nil, &out)
+	if err != nil {
+		return nil, status, err
+	}
+	if out.Sockets == nil {
+		out.Sockets = []any{}
+	}
+	return &out, status, nil
+}
+
 func (c *Client) CreateHawserToken(ctx context.Context, name string, environmentID int64, rawToken string) (*hawserTokenResponse, int, error) {
 	payload := hawserTokenPayload{
 		Name:          strings.TrimSpace(name),
@@ -1582,22 +1623,32 @@ func (c *Client) SubmitBatch(ctx context.Context, env string, entityType string,
 		query["env"] = resolvedEnv
 	}
 
-	var out batchResponse
-	status, err := c.doJSONWithStatus(ctx, http.MethodPost, "/api/batch", query, payload, &out)
+	var raw map[string]any
+	status, err := c.doJSONWithStatus(ctx, http.MethodPost, "/api/batch", query, payload, &raw)
 	if err != nil {
 		return nil, status, err
 	}
-	if strings.TrimSpace(out.JobID) == "" {
-		return nil, status, fmt.Errorf("dockhand batch response missing jobId")
+	jobID := extractBatchJobID(raw)
+	statusText := extractBatchStatus(raw)
+	if jobID == "" && statusText == "" {
+		return nil, status, fmt.Errorf("dockhand batch response missing jobId (response=%s)", mustJSON(raw))
 	}
-	return &out, status, nil
+	return &batchResponse{
+		JobID:  jobID,
+		Status: statusText,
+		Result: raw,
+	}, status, nil
 }
 
 func (c *Client) GetJob(ctx context.Context, id string) (*jobResponse, int, error) {
-	var out jobResponse
-	status, err := c.doJSONWithStatus(ctx, http.MethodGet, "/api/jobs/"+url.PathEscape(strings.TrimSpace(id)), nil, nil, &out)
+	var raw map[string]any
+	status, err := c.doJSONWithStatus(ctx, http.MethodGet, "/api/jobs/"+url.PathEscape(strings.TrimSpace(id)), nil, nil, &raw)
 	if err != nil {
 		return nil, status, err
+	}
+	out := parseJobResponse(raw)
+	if strings.TrimSpace(out.ID) == "" {
+		out.ID = strings.TrimSpace(id)
 	}
 	return &out, status, nil
 }
@@ -2568,6 +2619,140 @@ func firstString(item map[string]any, keys ...string) string {
 	}
 
 	return ""
+}
+
+func firstMap(item map[string]any, keys ...string) map[string]any {
+	for _, key := range keys {
+		value, ok := item[key]
+		if !ok || value == nil {
+			continue
+		}
+		if m, ok := value.(map[string]any); ok {
+			return m
+		}
+	}
+	return nil
+}
+
+func extractBatchJobID(payload map[string]any) string {
+	if payload == nil {
+		return ""
+	}
+
+	if id := strings.TrimSpace(firstString(payload, "jobId", "jobID", "job_id")); id != "" {
+		return id
+	}
+
+	for _, key := range []string{"job", "data", "result"} {
+		if m := firstMap(payload, key); m != nil {
+			if id := strings.TrimSpace(firstString(m, "jobId", "jobID", "job_id", "id")); id != "" {
+				return id
+			}
+		}
+	}
+
+	return strings.TrimSpace(firstString(payload, "id"))
+}
+
+func extractBatchStatus(payload map[string]any) string {
+	if payload == nil {
+		return ""
+	}
+
+	if status := strings.TrimSpace(firstString(payload, "status", "state", "type")); status != "" {
+		switch strings.ToLower(status) {
+		case "complete", "completed", "success", "ok":
+			return "done"
+		case "queued":
+			return "queued"
+		case "pending":
+			return "pending"
+		case "running", "processing":
+			return "running"
+		case "failed", "failure", "error":
+			return "failed"
+		case "cancelled", "canceled":
+			return "cancelled"
+		default:
+			return status
+		}
+	}
+
+	for _, key := range []string{"job", "data", "result"} {
+		if m := firstMap(payload, key); m != nil {
+			if status := extractBatchStatus(m); status != "" {
+				return status
+			}
+		}
+	}
+
+	return ""
+}
+
+func parseJobResponse(payload map[string]any) jobResponse {
+	source := payload
+	for _, key := range []string{"job", "data"} {
+		if m := firstMap(payload, key); m != nil {
+			source = m
+			break
+		}
+	}
+
+	out := jobResponse{
+		ID:     strings.TrimSpace(firstString(source, "id", "jobId", "jobID", "job_id")),
+		Status: strings.TrimSpace(firstString(source, "status", "state")),
+		Result: mapFromAny(source["result"]),
+		Lines:  parseJobLines(source["lines"]),
+	}
+
+	if out.Result == nil {
+		out.Result = map[string]any{}
+	}
+	if out.Lines == nil {
+		out.Lines = []jobLineResponse{}
+	}
+
+	return out
+}
+
+func mapFromAny(value any) map[string]any {
+	if value == nil {
+		return nil
+	}
+	switch v := value.(type) {
+	case map[string]any:
+		return v
+	case map[string]string:
+		out := make(map[string]any, len(v))
+		for k, val := range v {
+			out[k] = val
+		}
+		return out
+	default:
+		return nil
+	}
+}
+
+func parseJobLines(value any) []jobLineResponse {
+	raw, ok := value.([]any)
+	if !ok {
+		return nil
+	}
+
+	lines := make([]jobLineResponse, 0, len(raw))
+	for _, entry := range raw {
+		var data map[string]any
+		switch v := entry.(type) {
+		case map[string]any:
+			data = v
+		case string:
+			data = map[string]any{"message": v}
+		default:
+			data = map[string]any{"value": v}
+		}
+		lines = append(lines, jobLineResponse{Data: data})
+	}
+	return lines
 }
 
 func toStringSlice(value any) []string {

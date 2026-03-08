@@ -2,6 +2,11 @@
 
 Runs an asynchronous batch operation in Dockhand via `/api/batch` and optionally waits for completion.
 
+Dockhand can return either:
+
+- async job payloads with `jobId` (provider then polls `/api/jobs/{jobId}`), or
+- inline completion payloads without `jobId` (provider records inline status/result directly).
+
 ## Example Usage
 
 ```hcl
@@ -35,8 +40,8 @@ resource "dockhand_batch_action" "restart_containers" {
 
 ### Read-Only
 
-- `id` (String) Synthetic ID set to the Dockhand job ID.
-- `job_id` (String) Dockhand async job ID returned by `/api/batch`.
-- `job_status` (String) Current or terminal job status from `/api/jobs/{jobId}`.
-- `lines_json` (String) JSON array of job output lines.
-- `result_json` (String) JSON object of job result payload.
+- `id` (String) Action instance ID.
+- `job_id` (String) Dockhand async job ID when `/api/batch` returns one; otherwise null for inline completion responses.
+- `job_status` (String) Terminal status from job polling or inline completion payload.
+- `lines_json` (String) JSON array of job output lines (empty for inline completions without line data).
+- `result_json` (String) JSON object of job result payload (job result or inline response object).

@@ -163,16 +163,36 @@ func (r *batchActionResource) Create(ctx context.Context, req resource.CreateReq
 
 	plan.EntityType = types.StringValue(entityType)
 	plan.Operation = types.StringValue(operation)
-	plan.JobID = types.StringValue(submitted.JobID)
-	plan.ID = types.StringValue(submitted.JobID)
+	if strings.TrimSpace(submitted.JobID) != "" {
+		plan.JobID = types.StringValue(submitted.JobID)
+		plan.ID = types.StringValue(submitted.JobID)
+	} else {
+		plan.JobID = types.StringNull()
+		plan.ID = types.StringValue(fmt.Sprintf("inline:%s:%s:%s", entityType, operation, strings.TrimSpace(plan.Trigger.ValueString())))
+	}
 
 	waitForCompletion := true
 	if !plan.WaitForCompletion.IsNull() && !plan.WaitForCompletion.IsUnknown() {
 		waitForCompletion = plan.WaitForCompletion.ValueBool()
 	}
 
-	job := &jobResponse{ID: submitted.JobID, Status: "submitted"}
-	if waitForCompletion {
+	job := &jobResponse{
+		ID:     strings.TrimSpace(submitted.JobID),
+		Status: "submitted",
+		Result: map[string]any{},
+		Lines:  []jobLineResponse{},
+	}
+	if strings.TrimSpace(submitted.JobID) == "" {
+		job.Status = "done"
+		if s := strings.TrimSpace(submitted.Status); s != "" {
+			job.Status = s
+		}
+		if submitted.Result != nil {
+			job.Result = submitted.Result
+		}
+	}
+
+	if waitForCompletion && strings.TrimSpace(submitted.JobID) != "" {
 		timeoutSeconds := int64(120)
 		if !plan.TimeoutSeconds.IsNull() && !plan.TimeoutSeconds.IsUnknown() && plan.TimeoutSeconds.ValueInt64() > 0 {
 			timeoutSeconds = plan.TimeoutSeconds.ValueInt64()

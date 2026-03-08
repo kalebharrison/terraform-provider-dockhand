@@ -140,6 +140,30 @@ def try_json(text: str) -> Any:
         return None
 
 
+def extract_batch_job_id(payload: Any) -> Optional[str]:
+    if not isinstance(payload, dict):
+        return None
+
+    for key in ("jobId", "jobID", "job_id"):
+        value = payload.get(key)
+        if value is not None and str(value).strip():
+            return str(value)
+
+    for nested_key in ("job", "data", "result"):
+        nested = payload.get(nested_key)
+        if not isinstance(nested, dict):
+            continue
+        for key in ("jobId", "jobID", "job_id", "id"):
+            value = nested.get(key)
+            if value is not None and str(value).strip():
+                return str(value)
+
+    value = payload.get("id")
+    if value is not None and str(value).strip():
+        return str(value)
+    return None
+
+
 def first_id(items: Any, keys: List[str]) -> Optional[str]:
     if not isinstance(items, list) or not items:
         return None
@@ -293,8 +317,9 @@ def main() -> int:
         sc, body = s.request("POST", "/api/batch", body=batch_payload, query={"env": fixtures["env"]})
         if sc >= 200 and sc < 300:
             parsed = try_json(body)
-            if isinstance(parsed, dict) and parsed.get("jobId") is not None:
-                fixtures["job_id"] = str(parsed["jobId"])
+            job_id = extract_batch_job_id(parsed)
+            if job_id:
+                fixtures["job_id"] = job_id
 
     rows: List[Dict[str, Any]] = []
     for ep in ENDPOINTS:

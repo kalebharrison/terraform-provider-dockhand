@@ -36,6 +36,7 @@ This provider currently includes:
 - Resource: `dockhand_license`
 - Resource: `dockhand_notification`
 - Resource: `dockhand_environment`
+- Resource: `dockhand_environment_test_action`
 - Resource: `dockhand_environment_scanner_action`
 - Resource: `dockhand_network_connection_action`
 - Resource: `dockhand_volume_clone_action`
@@ -65,6 +66,7 @@ This provider currently includes:
 - Data source: `dockhand_notifications`
 - Data source: `dockhand_config_sets`
 - Data source: `dockhand_environments`
+- Data source: `dockhand_environment_detect_socket`
 - Data source: `dockhand_networks`
 - Data source: `dockhand_volumes`
 - Data source: `dockhand_images`
@@ -89,6 +91,8 @@ This provider currently includes:
   - `POST /api/containers/{id}/restart`
   - `GET /api/activity`
   - `GET /api/hawser/connect`
+  - `GET /api/environments/detect-socket`
+  - `POST /api/environments/test`
   - `POST /api/git/stacks/{id}/webhook`
   - `GET /api/git/stacks/{id}/env-files`
   - `POST /api/git/stacks/{id}/env-files`

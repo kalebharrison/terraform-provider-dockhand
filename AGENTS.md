@@ -25,6 +25,7 @@ Repository guidance for coding agents working on `terraform-provider-dockhand`.
   - Resource: `dockhand_git_stack_env_file`
   - Resource: `dockhand_config_set`
   - Resource: `dockhand_environment`
+  - Resource: `dockhand_environment_test_action`
   - Resource: `dockhand_environment_scanner_action`
   - Resource: `dockhand_network`
   - Resource: `dockhand_network_connection_action`
@@ -65,6 +66,7 @@ Repository guidance for coding agents working on `terraform-provider-dockhand`.
   - Data source: `dockhand_notifications`
   - Data source: `dockhand_config_sets`
   - Data source: `dockhand_environments`
+  - Data source: `dockhand_environment_detect_socket`
   - Data source: `dockhand_networks`
   - Data source: `dockhand_volumes`
   - Data source: `dockhand_images`
@@ -184,6 +186,10 @@ Avoid testing by building local zips for release validation.
   - `GET /api/activity`
   - `GET /api/hawser/connect`
   - `POST /api/hawser/tokens`
+  - `GET/POST /api/environments`
+  - `GET/PUT/DELETE /api/environments/{id}`
+  - `GET /api/environments/detect-socket`
+  - `POST /api/environments/test`
   - `POST /api/git/stacks/{id}/webhook`
   - `POST /api/git/stacks/{id}/deploy-stream`
   - `GET /api/git/stacks/{id}/env-files`
