@@ -22,6 +22,7 @@ jobs:
       image: ${{ steps.pick.outputs.image }}
       tag: ${{ steps.pick.outputs.tag }}
       last_tag: ${{ steps.state.outputs.last_tag }}
+      state_issue: ${{ steps.state.outputs.state_issue }}
       should_run: ${{ steps.state.outputs.should_run }}
       reason: ${{ steps.state.outputs.reason }}
     steps:
@@ -48,12 +49,21 @@ jobs:
         id: state
         shell: bash
         env:
-          GH_TOKEN: ${{ secrets.WATCH_STATE_TOKEN != '' && secrets.WATCH_STATE_TOKEN || github.token }}
+          GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
 
+          state_title="release-watch: dockhand-last-tested-tag"
           tag="${{ steps.pick.outputs.tag }}"
-          last_tag="$(gh api "repos/${GITHUB_REPOSITORY}/actions/variables/DOCKHAND_RELEASE_WATCH_LAST_TAG" --jq '.value' 2>/dev/null || true)"
+          issues_json="$(gh issue list --repo "${GITHUB_REPOSITORY}" --state all --search "${state_title} in:title" --limit 100 --json number,title,state,body)"
+          state_issue="$(echo "${issues_json}" | jq -r --arg title "${state_title}" 'map(select(.title == $title)) | sort_by(.state != "OPEN") | .[0].number // empty')"
+          state_body=""
+          last_tag=""
+          if [[ -n "${state_issue}" ]]; then
+            state_body="$(gh issue view "${state_issue}" --repo "${GITHUB_REPOSITORY}" --json body --jq '.body // ""')"
+            last_tag="$(printf '%s\n' "${state_body}" | sed -n 's/^last_tag=//p' | head -n 1 | tr -d '\r')"
+          fi
+
           should_run="true"
           reason="new_tag"
 
@@ -67,6 +77,7 @@ jobs:
 
           {
             echo "last_tag=${last_tag}"
+            echo "state_issue=${state_issue}"
             echo "should_run=${should_run}"
             echo "reason=${reason}"
           } >> "${GITHUB_OUTPUT}"
@@ -76,6 +87,7 @@ jobs:
           {
             echo "Latest detected Dockhand image: \`${{ steps.pick.outputs.image }}\`"
             echo "Last tested tag: \`${{ steps.state.outputs.last_tag || 'none' }}\`"
+            echo "State issue: \`${{ steps.state.outputs.state_issue || 'none' }}\`"
             echo "Run required: \`${{ steps.state.outputs.should_run }}\` (\`${{ steps.state.outputs.reason }}\`)"
           } >> "${GITHUB_STEP_SUMMARY}"
 
@@ -166,29 +178,35 @@ jobs:
     needs: [discover, validate]
     runs-on: ubuntu-latest
     steps:
-      - name: Update repository watch variable
+      - name: Update watch state issue
         shell: bash
         env:
-          GH_TOKEN: ${{ secrets.WATCH_STATE_TOKEN }}
+          GH_TOKEN: ${{ github.token }}
           TAG: ${{ needs.discover.outputs.tag }}
+          STATE_ISSUE: ${{ needs.discover.outputs.state_issue }}
         run: |
           set -euo pipefail
-          if [[ -z "${GH_TOKEN}" ]]; then
-            echo "Skipping state persist: secret \`WATCH_STATE_TOKEN\` is not configured." >> "${GITHUB_STEP_SUMMARY}"
-            exit 0
-          fi
+          state_title="release-watch: dockhand-last-tested-tag"
+          state_body="last_tag=${TAG}
+          updated_at=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+          source_run=https://github.com/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
 
-          if gh api "repos/${GITHUB_REPOSITORY}/actions/variables/DOCKHAND_RELEASE_WATCH_LAST_TAG" >/dev/null 2>&1; then
-            gh api --method PATCH "repos/${GITHUB_REPOSITORY}/actions/variables/DOCKHAND_RELEASE_WATCH_LAST_TAG" \
-              -F name='DOCKHAND_RELEASE_WATCH_LAST_TAG' \
-              -F value="${TAG}" >/dev/null
+          issue_number="${STATE_ISSUE}"
+          if [[ -z "${issue_number}" ]]; then
+            issue_url="$(gh issue create \
+              --repo "${GITHUB_REPOSITORY}" \
+              --title "${state_title}" \
+              --body "${state_body}")"
+            issue_number="${issue_url##*/}"
           else
-            gh api --method POST "repos/${GITHUB_REPOSITORY}/actions/variables" \
-              -F name='DOCKHAND_RELEASE_WATCH_LAST_TAG' \
-              -F value="${TAG}" >/dev/null
+            gh issue edit "${issue_number}" \
+              --repo "${GITHUB_REPOSITORY}" \
+              --title "${state_title}" \
+              --body "${state_body}" >/dev/null
+            gh issue reopen "${issue_number}" --repo "${GITHUB_REPOSITORY}" >/dev/null 2>&1 || true
           fi
 
-          echo "Stored DOCKHAND_RELEASE_WATCH_LAST_TAG=${TAG}" >> "${GITHUB_STEP_SUMMARY}"
+          echo "Stored release-watch state in issue #${issue_number}" >> "${GITHUB_STEP_SUMMARY}"
 
   report_failure:
     name: Report Compatibility Failure

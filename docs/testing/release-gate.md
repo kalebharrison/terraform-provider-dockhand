@@ -37,8 +37,8 @@ git push origin vX.Y.Z
 
 - Workflow: `.github/workflows/dockhand-release-watch.yml`
 - Poll cadence: every 6 hours.
-- New-tag detection: compares latest discovered Dockhand tag to repo variable `DOCKHAND_RELEASE_WATCH_LAST_TAG`.
+- New-tag detection: compares latest discovered Dockhand tag to the release-watch state issue body (`last_tag=<value>`).
 - Only runs full validation when a new tag is discovered (or manual override via `workflow_dispatch` input).
-- On success, updates `DOCKHAND_RELEASE_WATCH_LAST_TAG` only when repository secret `WATCH_STATE_TOKEN` is configured (token must allow updating repo Actions variables).
+- On success, updates the release-watch state issue using `GITHUB_TOKEN` (`issues:write`), so no extra repository secret is required.
 - Includes docs-reference drift audit from `https://dockhand.pro/manual/#api-reference`.
 - Includes a targeted authenticated private endpoint probe (`GET /api/environments` by default).
