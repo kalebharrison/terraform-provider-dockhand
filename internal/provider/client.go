@@ -29,6 +29,17 @@ type stackPayload struct {
 	Compose string `json:"compose"`
 }
 
+type stackBasePathResponse struct {
+	BasePath string `json:"basePath"`
+}
+
+type stackDefaultPathResponse struct {
+	StackDir    string `json:"stackDir"`
+	ComposePath string `json:"composePath"`
+	EnvPath     string `json:"envPath"`
+	Source      string `json:"source"`
+}
+
 type stackAdoptItemPayload struct {
 	Name        string `json:"name"`
 	ComposePath string `json:"composePath"`
@@ -2036,6 +2047,28 @@ func (c *Client) ReadScheduleStream(ctx context.Context, maxEvents int64, timeou
 		events = []scheduleStreamEvent{}
 	}
 	return events, res.StatusCode, nil
+}
+
+func (c *Client) GetStackBasePath(ctx context.Context) (*stackBasePathResponse, int, error) {
+	var out stackBasePathResponse
+	status, err := c.doJSONWithStatus(ctx, http.MethodGet, "/api/stacks/base-path", nil, nil, &out)
+	if err != nil {
+		return nil, status, err
+	}
+	return &out, status, nil
+}
+
+func (c *Client) GetStackDefaultPath(ctx context.Context, stackName string) (*stackDefaultPathResponse, int, error) {
+	query := map[string]string{
+		"name": strings.TrimSpace(stackName),
+	}
+
+	var out stackDefaultPathResponse
+	status, err := c.doJSONWithStatus(ctx, http.MethodGet, "/api/stacks/default-path", query, nil, &out)
+	if err != nil {
+		return nil, status, err
+	}
+	return &out, status, nil
 }
 
 func (c *Client) CreateStack(ctx context.Context, env string, payload stackPayload) error {

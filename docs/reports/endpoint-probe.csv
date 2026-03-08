@@ -75,6 +75,8 @@ GET,/api/stacks/{name}/env,200,present,
 PUT,/api/stacks/{name}/env,400,present,Safe mode: placeholder probe
 GET,/api/stacks/{name}/env/raw,200,present,
 PUT,/api/stacks/{name}/env/raw,400,present,Safe mode: placeholder probe
+GET,/api/stacks/base-path,200,present,
+GET,/api/stacks/default-path,200,present,
 POST,/api/stacks/scan,405,present,Safe mode: options probe (mutation skipped)
 POST,/api/stacks/adopt,405,present,Safe mode: options probe (mutation skipped)
 GET,/api/stacks/sources,200,present,

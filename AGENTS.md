@@ -54,6 +54,8 @@ Repository guidance for coding agents working on `terraform-provider-dockhand`.
   - Data source: `dockhand_hawser_status`
   - Data source: `dockhand_stacks`
   - Data source: `dockhand_stack_sources`
+  - Data source: `dockhand_stack_base_path`
+  - Data source: `dockhand_stack_default_path`
   - Data source: `dockhand_containers`
   - Data source: `dockhand_container_stats`
   - Data source: `dockhand_container_pending_updates`
@@ -220,6 +222,8 @@ Avoid testing by building local zips for release validation.
   - `PUT /api/stacks/{name}/env`
   - `GET /api/stacks/{name}/env/raw`
   - `PUT /api/stacks/{name}/env/raw`
+  - `GET /api/stacks/base-path`
+  - `GET /api/stacks/default-path`
   - `GET /api/stacks/sources`
   - `POST /api/schedules/system/{id}/toggle`
   - `POST /api/schedules/{type}/{id}/toggle`

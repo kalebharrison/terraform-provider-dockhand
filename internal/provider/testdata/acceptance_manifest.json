@@ -70,6 +70,8 @@
     { "name": "dockhand_container_stats", "mode": "data_source", "operations": ["read"], "acceptance_test_regex": "TestAcc" },
     { "name": "dockhand_container_pending_updates", "mode": "data_source", "operations": ["read"], "acceptance_test_regex": "TestAcc" },
     { "name": "dockhand_stack_sources", "mode": "data_source", "operations": ["read"], "acceptance_test_regex": "TestAcc" },
+    { "name": "dockhand_stack_base_path", "mode": "data_source", "operations": ["read"], "acceptance_test_regex": "TestAccStackBasePathDataSourceTerraform" },
+    { "name": "dockhand_stack_default_path", "mode": "data_source", "operations": ["read"], "acceptance_test_regex": "TestAccStackDefaultPathDataSourceTerraform" },
     { "name": "dockhand_container_shells", "mode": "data_source", "operations": ["read"], "acceptance_test_regex": "TestAcc" },
     { "name": "dockhand_container_logs", "mode": "data_source", "operations": ["read"], "acceptance_test_regex": "TestAcc" },
     { "name": "dockhand_container_inspect", "mode": "data_source", "operations": ["read"], "acceptance_test_regex": "TestAcc" },

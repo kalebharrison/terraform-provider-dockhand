@@ -99,6 +99,8 @@ provider "dockhand" {
 - `dockhand_container_inspect`
 - `dockhand_container_processes`
 - `dockhand_stack_sources`
+- `dockhand_stack_base_path`
+- `dockhand_stack_default_path`
 - `dockhand_stacks`
 - `dockhand_job`
 

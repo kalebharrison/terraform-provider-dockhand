@@ -61,6 +61,8 @@ This provider currently includes:
 - Data source: `dockhand_container_pending_updates`
 - Data source: `dockhand_container_shells`
 - Data source: `dockhand_stack_sources`
+- Data source: `dockhand_stack_base_path`
+- Data source: `dockhand_stack_default_path`
 - Data source: `dockhand_container_logs`
 - Data source: `dockhand_container_inspect`
 - Data source: `dockhand_container_processes`
@@ -114,6 +116,8 @@ This provider currently includes:
   - `PUT /api/stacks/{name}/env`
   - `GET /api/stacks/{name}/env/raw`
   - `PUT /api/stacks/{name}/env/raw`
+  - `GET /api/stacks/base-path`
+  - `GET /api/stacks/default-path`
   - `GET /api/schedules`
   - `GET /api/schedules/settings`
   - `PUT /api/schedules/settings`

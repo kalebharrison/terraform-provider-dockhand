@@ -87,6 +87,8 @@ ENDPOINTS: List[Dict[str, Any]] = [
     {"method": "PUT", "path": "/api/stacks/{name}/env", "with_env": True},
     {"method": "GET", "path": "/api/stacks/{name}/env/raw", "with_env": True},
     {"method": "PUT", "path": "/api/stacks/{name}/env/raw", "with_env": True},
+    {"method": "GET", "path": "/api/stacks/base-path"},
+    {"method": "GET", "path": "/api/stacks/default-path"},
     {"method": "POST", "path": "/api/stacks/scan"},
     {"method": "POST", "path": "/api/stacks/adopt"},
     {"method": "GET", "path": "/api/stacks/sources"},
@@ -433,6 +435,8 @@ def main() -> int:
             query = {"image": "library/busybox", "tag": "latest"}
             if fixtures.get("registry_id"):
                 query["registry"] = str(fixtures["registry_id"])
+        if raw_path == "/api/stacks/default-path":
+            query = {"name": "probe-stack"}
         payload = None
         if method in ("POST", "PUT"):
             payload = {}

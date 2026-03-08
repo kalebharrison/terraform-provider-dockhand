@@ -132,6 +132,8 @@ Live verification artifacts:
 | `dockhand_schedules` | `GET /api/schedules` | Exposes schedule inventory (system cleanup + generated schedules). | implemented |
 | `dockhand_schedule_settings` | `GET /api/schedules/settings` | Reads singleton schedule settings payload. | implemented |
 | `dockhand_schedule_stream` | `GET /api/schedules/stream` | Captures bounded stream snapshot events for connectivity/observability workflows. | implemented |
+| `dockhand_stack_base_path` | `GET /api/stacks/base-path` | Reads global base path used for Dockhand-managed stack directories. | implemented |
+| `dockhand_stack_default_path` | `GET /api/stacks/default-path?name=<stack>` | Resolves default directory/compose/env paths for a stack name. | implemented |
 | `dockhand_stacks` | `GET /api/stacks?env={env_id}` | Exposes stack list with runtime status and container count. | implemented |
 | `dockhand_container_logs` | `GET /api/containers/{id}/logs?env={env_id}&tail={n}` | Reads container logs for debugging/verification workflows. | implemented |
 | `dockhand_container_inspect` | `GET /api/containers/{id}?env={env_id}` | Exposes full inspect payload as raw JSON for advanced automation. | implemented |
@@ -147,6 +149,7 @@ Live verification artifacts:
 | `/api/images` | image actions (`scan`, `push`) | partial |
 | `/api/containers` | exec websocket, upload/download streams, and advanced create/update options coverage | partial |
 | `/api/stacks/{name}/env` | broader non-secret env var editing semantics | partial |
+| `/api/stacks/base-path` + `/api/stacks/default-path` | stack path helper data sources | implemented |
 | `/api/volumes` | advanced volume operations (`clone`, `browse`, import/export) | partial |
 | `/api/networks` | advanced network operations (`connect`, inspect details as separate surface) | partial |
 | `/api/batch` + `/api/jobs/{jobId}` | generic async job action + job status data source (`run-and-poll`) | implemented |
