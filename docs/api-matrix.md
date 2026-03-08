@@ -112,6 +112,7 @@ Live verification artifacts:
 | `dockhand_schedule` | Read | `GET /api/schedules` | Resolves existing schedule by `type` + `schedule_id`. | partial |
 | `dockhand_schedule` | Update state | `POST /api/schedules/system/{id}/toggle` or `POST /api/schedules/{type}/{id}/toggle` | Manages pause/resume (`enabled`) for existing schedules. | partial |
 | `dockhand_schedule_run_action` | Execute run-now action | `POST /api/schedules/{type}/{id}/run` | One-shot run trigger resource with replace-by-trigger behavior. | implemented |
+| `dockhand_prune_action` | Execute cleanup action | `POST /api/prune/all`, `POST /api/prune/containers`, `POST /api/prune/images`, `POST /api/prune/networks`, `POST /api/prune/volumes` | One-shot prune action with optional async job polling when Dockhand returns `jobId`. | implemented |
 | `dockhand_batch_action` | Execute async batch operation | `POST /api/batch?env={env_id}` + optional poll `GET /api/jobs/{jobId}` | One-shot async action for batch operations (entity + operation + ids) with optional wait-for-completion and captured job output JSON. | implemented |
 
 ## Data Sources
@@ -148,7 +149,7 @@ Live verification artifacts:
 | `/api/environments/test` + `/api/environments/detect-socket` | environment connectivity validation action + socket discovery data source | implemented |
 | `/api/notifications/test` | notification test-send one-shot action | implemented |
 | `/api/registry/*` (`search`,`tags`,`catalog`,`image`) | registry catalog/search data sources + remote image delete action | implemented |
-| `/api/prune/*` | explicit cleanup action resources | planned |
+| `/api/prune/*` | explicit cleanup action resources | implemented |
 | `/api/configs` | config management resource/data source | planned (verified not present on tested instance; `404`) |
 | `/api/backups` | backup resource/data source | planned (verified not present on tested instance; `404`) |
 | license-tier auth endpoints (LDAP/AD/roles) | auth enterprise resources/data sources | planned |
@@ -176,7 +177,6 @@ Live verification artifacts:
 - Highest value additions for Terraform workflows:
   - environment connectivity validation action via `/api/environments/test`
   - notification smoke-test action via `/api/notifications/test`
-  - prune action resources via `/api/prune/*`
 - Known likely-non-Terraform/UI-only endpoints are documented in `docs/reports/webui-endpoint-gap-audit.md` and should not block provider feature parity work.
 
 ## Open Contract Questions

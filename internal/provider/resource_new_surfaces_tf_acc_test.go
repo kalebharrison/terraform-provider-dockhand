@@ -523,6 +523,51 @@ func TestAccRegistryCatalogDataSourceTerraform(t *testing.T) {
 	})
 }
 
+func TestAccPruneActionTerraform(t *testing.T) {
+	if !strings.EqualFold(strings.TrimSpace(os.Getenv("DOCKHAND_TEST_ENABLE_PRUNE_ACTIONS")), "true") {
+		t.Skip("acceptance test requires DOCKHAND_TEST_ENABLE_PRUNE_ACTIONS=true")
+	}
+
+	endpoint, username, password := testAccEnv(t)
+	defaultEnv := testAccDefaultEnv()
+
+	t.Setenv("DOCKHAND_ENDPOINT", endpoint)
+	t.Setenv("DOCKHAND_USERNAME", username)
+	t.Setenv("DOCKHAND_PASSWORD", password)
+	t.Setenv("DOCKHAND_DEFAULT_ENV", defaultEnv)
+
+	mode := strings.ToLower(strings.TrimSpace(os.Getenv("DOCKHAND_TEST_PRUNE_MODE")))
+	if mode == "" {
+		mode = "containers"
+	}
+	switch mode {
+	case "all", "containers", "images", "networks", "volumes":
+	default:
+		t.Skip("DOCKHAND_TEST_PRUNE_MODE must be one of: all, containers, images, networks, volumes")
+	}
+
+	resource.Test(t, resource.TestCase{
+		ProtoV6ProviderFactories: testAccProviderFactories(),
+		Steps: []resource.TestStep{
+			{
+				Config: testAccPruneActionConfig(defaultEnv, mode, "acc-prune-1"),
+				Check: resource.ComposeTestCheckFunc(
+					resource.TestCheckResourceAttr("dockhand_prune_action.test", "mode", mode),
+					resource.TestCheckResourceAttrSet("dockhand_prune_action.test", "status_code"),
+					resource.TestCheckResourceAttrSet("dockhand_prune_action.test", "result_json"),
+				),
+			},
+			{
+				Config: testAccPruneActionConfig(defaultEnv, mode, "acc-prune-2"),
+				Check: resource.ComposeTestCheckFunc(
+					resource.TestCheckResourceAttr("dockhand_prune_action.test", "trigger", "acc-prune-2"),
+					resource.TestCheckResourceAttrSet("dockhand_prune_action.test", "status_code"),
+				),
+			},
+		},
+	})
+}
+
 func testAccContainerDirectoryConfig(env string, containerID string, path string) string {
 	return fmt.Sprintf(`
 provider "dockhand" {}
@@ -764,6 +809,21 @@ data "dockhand_registry_catalog" "test" {
   page_size = 5
 }
 `, registryID)
+}
+
+func testAccPruneActionConfig(env string, mode string, trigger string) string {
+	return fmt.Sprintf(`
+provider "dockhand" {}
+
+resource "dockhand_prune_action" "test" {
+  env                 = %q
+  mode                = %q
+  wait_for_completion = false
+  timeout_seconds     = 30
+  poll_interval_ms    = 500
+  trigger             = %q
+}
+`, env, mode, trigger)
 }
 
 func testAccJobDataSourceConfig(jobID string) string {

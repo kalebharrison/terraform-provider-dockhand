@@ -29,6 +29,7 @@ This provider currently includes:
 - Resource: `dockhand_container_action`
 - Resource: `dockhand_schedule`
 - Resource: `dockhand_schedule_run_action`
+- Resource: `dockhand_prune_action`
 - Resource: `dockhand_batch_action`
 - Resource: `dockhand_stack_env`
 - Resource: `dockhand_stack_scan_action`
@@ -114,6 +115,11 @@ This provider currently includes:
   - `POST /api/schedules/{type}/{id}/run`
   - `POST /api/schedules/system/{id}/toggle`
   - `POST /api/schedules/{type}/{id}/toggle`
+  - `POST /api/prune/all`
+  - `POST /api/prune/containers`
+  - `POST /api/prune/images`
+  - `POST /api/prune/networks`
+  - `POST /api/prune/volumes`
   - `POST /api/batch`
   - `GET /api/jobs/{id}`
 

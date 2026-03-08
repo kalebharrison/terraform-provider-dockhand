@@ -1020,6 +1020,40 @@ func (c *Client) DeleteRegistryImage(ctx context.Context, registry string, image
 	return out, status, nil
 }
 
+func (c *Client) Prune(ctx context.Context, env string, mode string) (map[string]any, int, error) {
+	pruneMode := strings.ToLower(strings.TrimSpace(mode))
+	path := ""
+	switch pruneMode {
+	case "all":
+		path = "/api/prune/all"
+	case "containers":
+		path = "/api/prune/containers"
+	case "images":
+		path = "/api/prune/images"
+	case "networks":
+		path = "/api/prune/networks"
+	case "volumes":
+		path = "/api/prune/volumes"
+	default:
+		return nil, 0, fmt.Errorf("unsupported prune mode %q", mode)
+	}
+
+	query := map[string]string{}
+	if resolved := strings.TrimSpace(c.resolveEnv(env)); resolved != "" {
+		query["env"] = resolved
+	}
+
+	var out map[string]any
+	status, err := c.doJSONWithStatus(ctx, http.MethodPost, path, query, nil, &out)
+	if err != nil {
+		return nil, status, err
+	}
+	if out == nil {
+		out = map[string]any{}
+	}
+	return out, status, nil
+}
+
 func (c *Client) ListGitCredentials(ctx context.Context) ([]gitCredentialResponse, int, error) {
 	var out []gitCredentialResponse
 	status, err := c.doJSONWithStatus(ctx, http.MethodGet, "/api/git/credentials", nil, nil, &out)

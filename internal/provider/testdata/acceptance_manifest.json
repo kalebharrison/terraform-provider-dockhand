@@ -35,6 +35,7 @@
     { "name": "dockhand_container_check_updates_action", "mode": "action", "operations": ["create", "read", "delete"], "acceptance_test_regex": "TestAcc" },
     { "name": "dockhand_schedule", "mode": "stateful", "operations": ["create", "read", "update", "import", "delete"], "acceptance_test_regex": "TestAcc" },
     { "name": "dockhand_schedule_run_action", "mode": "action", "operations": ["create", "read", "delete"], "acceptance_test_regex": "TestAccScheduleRunActionTerraform" },
+    { "name": "dockhand_prune_action", "mode": "action", "operations": ["create", "read", "delete"], "acceptance_test_regex": "TestAccPruneActionTerraform" },
     { "name": "dockhand_batch_action", "mode": "action", "operations": ["create", "read", "delete"], "acceptance_test_regex": "TestAccBatchAction(AndJobDataSource|NoWait)Terraform" },
     { "name": "dockhand_stack_action", "mode": "action", "operations": ["create", "read", "delete"], "acceptance_test_regex": "TestAccStackActionDownTerraform" },
     { "name": "dockhand_stack_scan_action", "mode": "action", "operations": ["create", "read", "delete"], "acceptance_test_regex": "TestAcc" },
