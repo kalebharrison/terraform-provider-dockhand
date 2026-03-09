@@ -107,7 +107,7 @@ jobs:
           fi
 
       - name: Attest build provenance
-        uses: actions/attest-build-provenance@v2
+        uses: actions/attest-build-provenance@v4
         with:
           subject-path: |
             dist-local/terraform-provider-dockhand_${{ steps.ver.outputs.version }}_*.zip
