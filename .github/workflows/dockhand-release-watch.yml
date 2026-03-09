@@ -50,9 +50,11 @@ jobs:
             digest="$(echo "${tag_json}" | jq -r '.images[]?.digest // empty' | head -n 1)"
           fi
 
-          echo "tag=${tag}" >> "${GITHUB_OUTPUT}"
-          echo "digest=${digest}" >> "${GITHUB_OUTPUT}"
-          echo "image=fnsys/dockhand:${tag}" >> "${GITHUB_OUTPUT}"
+          {
+            echo "tag=${tag}"
+            echo "digest=${digest}"
+            echo "image=fnsys/dockhand:${tag}"
+          } >> "${GITHUB_OUTPUT}"
 
       - name: Resolve watch state
         id: state
