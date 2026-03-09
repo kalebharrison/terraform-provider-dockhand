@@ -19,11 +19,19 @@ jobs:
           script: |
             const pr = context.payload.pull_request;
             const actor = context.payload.sender?.login || "";
+            const author = pr?.user?.login || "";
+            const authorType = pr?.user?.type || "";
             const title = (pr?.title || "").trim();
 
-            // Allow Dependabot-generated update titles.
-            if (actor === "dependabot[bot]" || actor === "app/dependabot") {
-              core.info("Skipping title convention check for Dependabot.");
+            // Skip title convention checks for bot-authored PRs (Dependabot and other automation).
+            if (
+              authorType === "Bot" ||
+              actor === "dependabot[bot]" ||
+              actor === "app/dependabot" ||
+              author === "dependabot[bot]" ||
+              author === "app/dependabot"
+            ) {
+              core.info("Skipping title convention check for bot-authored PR.");
               return;
             }
 
