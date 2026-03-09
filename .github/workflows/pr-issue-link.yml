@@ -20,6 +20,12 @@ jobs:
           script: |
             const action = context.payload.action;
             const pr = context.payload.pull_request;
+
+            if (pr?.user?.type === "Bot") {
+              core.info("Skipping issue-link enforcement for bot PR.");
+              return;
+            }
+
             const body = pr.body || "";
             const closeRegex = /\b(?:close[sd]?|fix(?:e[sd])?|resolve[sd]?)\s+#(\d+)\b/gi;
             const linked = new Set();
