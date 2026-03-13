@@ -186,11 +186,12 @@ jobs:
           echo "DOCKHAND_TEST_DEFAULT_ENV=${existing_id}" >> "${GITHUB_ENV}"
           echo "Using DOCKHAND_TEST_DEFAULT_ENV=${existing_id}"
 
-      - name: Start Hawser edge agent in DinD
+      - name: Prepare Hawser edge agent settings
         shell: bash
         run: |
           set -euo pipefail
           agent_token="ci-agent-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          hawser_container="hawser-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
           dockhand_ip="$(docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' dockhand)"
           if [[ -z "${dockhand_ip}" ]]; then
             echo "Could not resolve Dockhand container IP." >&2
@@ -203,35 +204,10 @@ jobs:
             echo "DOCKHAND_TEST_AGENT_TOKEN=${agent_token}"
             echo "DOCKHAND_TEST_AGENT_NAME=ci-hawser"
             echo "DOCKHAND_TEST_HAWSER_SERVER_URL=${dockhand_ws_url}"
+            echo "DOCKHAND_TEST_HAWSER_CONTAINER=${hawser_container}"
+            echo "DOCKHAND_TEST_HAWSER_DOCKER_HOST=tcp://127.0.0.1:23750"
+            echo "DOCKHAND_TEST_HAWSER_IMAGE=${HAWSER_IMAGE}"
           } >> "${GITHUB_ENV}"
-
-          for i in $(seq 1 20); do
-            if docker --host tcp://127.0.0.1:23750 info >/dev/null 2>&1; then
-              break
-            fi
-            sleep 2
-          done
-
-          for i in $(seq 1 5); do
-            docker --host tcp://127.0.0.1:23750 rm -f hawser >/dev/null 2>&1 || true
-
-            if docker --host tcp://127.0.0.1:23750 run -d --name hawser --restart unless-stopped \
-              -v /var/run/docker.sock:/var/run/docker.sock \
-              -e DOCKHAND_SERVER_URL="${dockhand_ws_url}" \
-              -e TOKEN="${agent_token}" \
-              -e AGENT_NAME="ci-hawser" \
-              "${HAWSER_IMAGE}"; then
-              echo "Hawser started successfully."
-              exit 0
-            fi
-
-            echo "Hawser start attempt ${i} failed; retrying..."
-            sleep 3
-          done
-
-          echo "Failed to start Hawser in DinD after retries." >&2
-          docker logs dind || true
-          exit 1
 
       - name: Validate acceptance manifest parity
         shell: bash
@@ -257,7 +233,9 @@ jobs:
         run: |
           docker logs dockhand || true
           docker logs dind || true
-          docker --host tcp://127.0.0.1:23750 logs hawser || true
+          if [[ -n "${DOCKHAND_TEST_HAWSER_CONTAINER:-}" ]]; then
+            docker --host tcp://127.0.0.1:23750 logs "${DOCKHAND_TEST_HAWSER_CONTAINER}" || true
+          fi
 
       - name: Cleanup containers
         if: always()

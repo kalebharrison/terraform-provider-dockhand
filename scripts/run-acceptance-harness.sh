@@ -134,19 +134,6 @@ agent_token="ci-agent-${SUFFIX}"
 dockhand_ip="$(docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' "${DOCKHAND_CONTAINER}")"
 dockhand_ws_url="ws://${dockhand_ip}:3000/api/hawser/connect"
 
-for _ in $(seq 1 5); do
-  docker --host "tcp://127.0.0.1:23750" rm -f "${HAWSER_CONTAINER}" >/dev/null 2>&1 || true
-  if docker --host "tcp://127.0.0.1:23750" run -d --name "${HAWSER_CONTAINER}" --restart unless-stopped \
-    -v /var/run/docker.sock:/var/run/docker.sock \
-    -e DOCKHAND_SERVER_URL="${dockhand_ws_url}" \
-    -e TOKEN="${agent_token}" \
-    -e AGENT_NAME="ci-hawser" \
-    "${HAWSER_IMAGE}" >/dev/null; then
-    break
-  fi
-  sleep 3
-done
-
 export TF_ACC=1
 export DOCKHAND_TEST_ENDPOINT="${DOCKHAND_TEST_ENDPOINT}"
 export DOCKHAND_TEST_USERNAME="${DOCKHAND_TEST_USERNAME}"
@@ -160,6 +147,9 @@ export DOCKHAND_TEST_DEFAULT_ENV="${existing_id}"
 export DOCKHAND_TEST_AGENT_TOKEN="${agent_token}"
 export DOCKHAND_TEST_AGENT_NAME="ci-hawser"
 export DOCKHAND_TEST_HAWSER_SERVER_URL="${dockhand_ws_url}"
+export DOCKHAND_TEST_HAWSER_CONTAINER="${HAWSER_CONTAINER}"
+export DOCKHAND_TEST_HAWSER_DOCKER_HOST="tcp://127.0.0.1:23750"
+export DOCKHAND_TEST_HAWSER_IMAGE="${HAWSER_IMAGE}"
 
 export DOCKHAND_ENDPOINT="${DOCKHAND_TEST_ENDPOINT}"
 export DOCKHAND_USERNAME="${DOCKHAND_TEST_USERNAME}"
