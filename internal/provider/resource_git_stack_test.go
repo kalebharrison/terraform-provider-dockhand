@@ -1,10 +1,41 @@
 package provider
 
 import (
+	"context"
+	"errors"
+	"reflect"
 	"testing"
 
 	"github.com/hashicorp/terraform-plugin-framework/types"
 )
+
+type fakeGitStackDestroyClient struct {
+	calls                []string
+	deleteStackStatus    int
+	deleteStackErr       error
+	getStackFound        bool
+	getStackErr          error
+	deleteGitStackStatus int
+	deleteGitStackErr    error
+}
+
+func (f *fakeGitStackDestroyClient) DeleteStack(_ context.Context, env string, name string) (int, error) {
+	f.calls = append(f.calls, "DeleteStack:"+env+":"+name)
+	return f.deleteStackStatus, f.deleteStackErr
+}
+
+func (f *fakeGitStackDestroyClient) GetStackByName(_ context.Context, env string, name string) (*stackResponse, bool, error) {
+	f.calls = append(f.calls, "GetStackByName:"+env+":"+name)
+	if f.getStackFound {
+		return &stackResponse{Name: name}, true, f.getStackErr
+	}
+	return nil, false, f.getStackErr
+}
+
+func (f *fakeGitStackDestroyClient) DeleteGitStack(_ context.Context, env string, id string) (int, error) {
+	f.calls = append(f.calls, "DeleteGitStack:"+env+":"+id)
+	return f.deleteGitStackStatus, f.deleteGitStackErr
+}
 
 func TestBuildGitStackPayloadWebhookDisabledAutoGenerateSendsEmptySecret(t *testing.T) {
 	plan := gitStackModel{
@@ -177,5 +208,91 @@ func TestModelFromGitStackResponseFallsBackToAutoUpdate(t *testing.T) {
 	}
 	if !model.AutoUpdateEnabled.ValueBool() {
 		t.Fatalf("expected AutoUpdateEnabled=true when falling back to autoUpdate")
+	}
+}
+
+func TestDestroyGitStackDeletesRuntimeBeforeGitRecord(t *testing.T) {
+	client := &fakeGitStackDestroyClient{
+		deleteStackStatus:    200,
+		deleteGitStackStatus: 200,
+	}
+
+	err := destroyGitStack(context.Background(), client, "11", "77", "ollama")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	wantCalls := []string{
+		"DeleteStack:11:ollama",
+		"DeleteGitStack:11:77",
+	}
+	if !reflect.DeepEqual(client.calls, wantCalls) {
+		t.Fatalf("unexpected call order: got=%v want=%v", client.calls, wantCalls)
+	}
+}
+
+func TestDestroyGitStackSkipsGitDeleteWhenRuntimeStillExists(t *testing.T) {
+	client := &fakeGitStackDestroyClient{
+		deleteStackStatus: 500,
+		deleteStackErr:    errors.New("runtime delete failed"),
+		getStackFound:     true,
+	}
+
+	err := destroyGitStack(context.Background(), client, "11", "77", "ollama")
+	if err == nil {
+		t.Fatal("expected error")
+	}
+
+	wantCalls := []string{
+		"DeleteStack:11:ollama",
+		"GetStackByName:11:ollama",
+	}
+	if !reflect.DeepEqual(client.calls, wantCalls) {
+		t.Fatalf("unexpected call order: got=%v want=%v", client.calls, wantCalls)
+	}
+}
+
+func TestDestroyGitStackContinuesWhenRuntimeAlreadyGone(t *testing.T) {
+	client := &fakeGitStackDestroyClient{
+		deleteStackStatus:    500,
+		deleteStackErr:       errors.New("runtime delete failed"),
+		getStackFound:        false,
+		deleteGitStackStatus: 200,
+	}
+
+	err := destroyGitStack(context.Background(), client, "11", "77", "ollama")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	wantCalls := []string{
+		"DeleteStack:11:ollama",
+		"GetStackByName:11:ollama",
+		"DeleteGitStack:11:77",
+	}
+	if !reflect.DeepEqual(client.calls, wantCalls) {
+		t.Fatalf("unexpected call order: got=%v want=%v", client.calls, wantCalls)
+	}
+}
+
+func TestDestroyGitStackTreatsNotFoundAsSuccess(t *testing.T) {
+	client := &fakeGitStackDestroyClient{
+		deleteStackStatus:    404,
+		deleteStackErr:       errors.New("not found"),
+		deleteGitStackStatus: 404,
+		deleteGitStackErr:    errors.New("not found"),
+	}
+
+	err := destroyGitStack(context.Background(), client, "11", "77", "ollama")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	wantCalls := []string{
+		"DeleteStack:11:ollama",
+		"DeleteGitStack:11:77",
+	}
+	if !reflect.DeepEqual(client.calls, wantCalls) {
+		t.Fatalf("unexpected call order: got=%v want=%v", client.calls, wantCalls)
 	}
 }
