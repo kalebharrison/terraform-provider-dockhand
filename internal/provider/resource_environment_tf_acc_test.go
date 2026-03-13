@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"os/exec"
 	"strings"
 	"testing"
 	"time"
@@ -117,14 +118,14 @@ func TestAccEnvironmentResourceAgentTokenTerraform(t *testing.T) {
 					resource.TestCheckResourceAttr("dockhand_environment.test", "agent_token", agentToken),
 					resource.TestCheckResourceAttr("dockhand_environment.test", "icon", "globe"),
 					resource.TestCheckResourceAttrSet("dockhand_environment.test", "id"),
-					testAccCheckHawserConnected(endpoint, username, password),
+					testAccCheckHawserConnected("dockhand_environment.test", endpoint, username, password, agentToken),
 				),
 			},
 			{
 				Config: testAccEnvironmentAgentConfig(envName, agentToken, "server"),
 				Check: resource.ComposeTestCheckFunc(
 					resource.TestCheckResourceAttr("dockhand_environment.test", "icon", "server"),
-					testAccCheckHawserConnected(endpoint, username, password),
+					testAccCheckHawserConnected("dockhand_environment.test", endpoint, username, password, agentToken),
 				),
 			},
 		},
@@ -149,12 +150,27 @@ resource "dockhand_environment" "test" {
 `, envName, token, icon)
 }
 
-func testAccCheckHawserConnected(endpoint string, username string, password string) resource.TestCheckFunc {
-	return func(_ *terraform.State) error {
-		deadline := time.Now().Add(90 * time.Second)
+func testAccCheckHawserConnected(resourceName string, endpoint string, username string, password string, agentToken string) resource.TestCheckFunc {
+	return func(state *terraform.State) error {
+		if err := testAccEnsureHawserRunning(agentToken); err != nil {
+			return err
+		}
+
+		rs, ok := state.RootModule().Resources[resourceName]
+		if !ok {
+			return fmt.Errorf("resource %q not found in state", resourceName)
+		}
+		envID := strings.TrimSpace(rs.Primary.ID)
+		if envID == "" {
+			return fmt.Errorf("resource %q has empty environment id", resourceName)
+		}
+
+		deadline := time.Now().Add(3 * time.Minute)
 		var lastConnections int64
 		var lastStatus string
 		var lastErr error
+		var lastEnvTestErr string
+		var lastHawserSummary string
 
 		for time.Now().Before(deadline) {
 			sessionCookie, err := testAccLoginSessionCookieForDestroy(endpoint, username, password)
@@ -171,22 +187,119 @@ func testAccCheckHawserConnected(endpoint string, username string, password stri
 				continue
 			}
 
-			status, _, err := client.GetHawserStatus(context.Background())
+			if status, _, err := client.GetHawserStatus(context.Background()); err == nil && status != nil {
+				lastConnections = status.ActiveConnections
+				lastStatus = status.Status
+				lastHawserSummary = strings.TrimSpace(status.Message)
+			}
+
+			out, _, err := client.TestEnvironmentConnectionByID(context.Background(), envID)
 			if err != nil {
 				lastErr = err
 				time.Sleep(3 * time.Second)
 				continue
 			}
 
-			lastConnections = status.ActiveConnections
-			lastStatus = status.Status
-			if status.ActiveConnections > 0 {
+			if out.Success {
 				return nil
+			}
+			lastEnvTestErr = strings.TrimSpace(out.Error)
+			if lastEnvTestErr == "" {
+				lastEnvTestErr = "environment test returned success=false without error"
 			}
 
 			time.Sleep(3 * time.Second)
 		}
 
-		return fmt.Errorf("hawser did not report active connections > 0 before timeout (status=%q active_connections=%d last_err=%v)", lastStatus, lastConnections, lastErr)
+		return fmt.Errorf(
+			"hawser-backed environment did not pass /api/environments/%s/test before timeout (hawser_status=%q active_connections=%d hawser_message=%q env_test_error=%q last_err=%v hawser_logs_tail=%q)",
+			envID,
+			lastStatus,
+			lastConnections,
+			lastHawserSummary,
+			lastEnvTestErr,
+			lastErr,
+			testAccTailHawserLogs(),
+		)
 	}
+}
+
+func testAccEnsureHawserRunning(agentToken string) error {
+	dockerHost := strings.TrimSpace(os.Getenv("DOCKHAND_TEST_HAWSER_DOCKER_HOST"))
+	if dockerHost == "" {
+		dockerHost = "tcp://127.0.0.1:23750"
+	}
+
+	containerName := strings.TrimSpace(os.Getenv("DOCKHAND_TEST_HAWSER_CONTAINER"))
+	if containerName == "" {
+		return fmt.Errorf("acceptance test requires DOCKHAND_TEST_HAWSER_CONTAINER")
+	}
+
+	serverURL := strings.TrimSpace(os.Getenv("DOCKHAND_TEST_HAWSER_SERVER_URL"))
+	if serverURL == "" {
+		return fmt.Errorf("acceptance test requires DOCKHAND_TEST_HAWSER_SERVER_URL")
+	}
+
+	image := strings.TrimSpace(os.Getenv("DOCKHAND_TEST_HAWSER_IMAGE"))
+	if image == "" {
+		image = "ghcr.io/finsys/hawser:latest"
+	}
+
+	agentName := strings.TrimSpace(os.Getenv("DOCKHAND_TEST_AGENT_NAME"))
+	if agentName == "" {
+		agentName = "ci-hawser"
+	}
+
+	inspectCtx, inspectCancel := context.WithTimeout(context.Background(), 15*time.Second)
+	defer inspectCancel()
+	//nolint:gosec // Acceptance test intentionally launches the docker CLI with harness-provided values.
+	inspectOut, inspectErr := exec.CommandContext(inspectCtx, "docker", "--host", dockerHost, "inspect", "-f", "{{.State.Running}}", containerName).CombinedOutput()
+	if inspectErr == nil && strings.TrimSpace(string(inspectOut)) == "true" {
+		return nil
+	}
+
+	rmCtx, rmCancel := context.WithTimeout(context.Background(), 20*time.Second)
+	defer rmCancel()
+	//nolint:gosec // Acceptance test intentionally launches the docker CLI with harness-provided values.
+	_ = exec.CommandContext(rmCtx, "docker", "--host", dockerHost, "rm", "-f", containerName).Run()
+
+	runCtx, runCancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer runCancel()
+	args := []string{
+		"--host", dockerHost,
+		"run", "-d",
+		"--name", containerName,
+		"--restart", "unless-stopped",
+		"-v", "/var/run/docker.sock:/var/run/docker.sock",
+		"-e", "DOCKHAND_SERVER_URL=" + serverURL,
+		"-e", "TOKEN=" + agentToken,
+		"-e", "AGENT_NAME=" + agentName,
+		image,
+	}
+	//nolint:gosec // Acceptance test intentionally launches the docker CLI with harness-provided values.
+	out, err := exec.CommandContext(runCtx, "docker", args...).CombinedOutput()
+	if err != nil {
+		return fmt.Errorf("start hawser agent container %q: %w (output=%s)", containerName, err, strings.TrimSpace(string(out)))
+	}
+	return nil
+}
+
+func testAccTailHawserLogs() string {
+	dockerHost := strings.TrimSpace(os.Getenv("DOCKHAND_TEST_HAWSER_DOCKER_HOST"))
+	if dockerHost == "" {
+		dockerHost = "tcp://127.0.0.1:23750"
+	}
+	containerName := strings.TrimSpace(os.Getenv("DOCKHAND_TEST_HAWSER_CONTAINER"))
+	if containerName == "" {
+		return ""
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	//nolint:gosec // Acceptance test intentionally launches the docker CLI with harness-provided values.
+	out, err := exec.CommandContext(ctx, "docker", "--host", dockerHost, "logs", "--tail", "20", containerName).CombinedOutput()
+	if err != nil && len(out) == 0 {
+		return ""
+	}
+	return strings.TrimSpace(string(out))
 }

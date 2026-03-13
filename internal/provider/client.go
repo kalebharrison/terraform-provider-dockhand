@@ -1425,6 +1425,21 @@ func (c *Client) TestEnvironmentConnection(ctx context.Context, payload environm
 	return &out, status, nil
 }
 
+func (c *Client) TestEnvironmentConnectionByID(ctx context.Context, id string) (*environmentTestResponse, int, error) {
+	var out environmentTestResponse
+	status, err := c.doJSONWithStatus(ctx, http.MethodPost, "/api/environments/"+url.PathEscape(id)+"/test", nil, nil, &out)
+	if err != nil {
+		return nil, status, err
+	}
+	if out.Info == nil {
+		out.Info = map[string]any{}
+	}
+	if out.Hawser == nil {
+		out.Hawser = map[string]any{}
+	}
+	return &out, status, nil
+}
+
 func (c *Client) DetectEnvironmentSockets(ctx context.Context) (*environmentDetectSocketResponse, int, error) {
 	var out environmentDetectSocketResponse
 	status, err := c.doJSONWithStatus(ctx, http.MethodGet, "/api/environments/detect-socket", nil, nil, &out)
