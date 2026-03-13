@@ -252,7 +252,7 @@ func testAccEnsureHawserRunning(agentToken string) error {
 
 	inspectCtx, inspectCancel := context.WithTimeout(context.Background(), 15*time.Second)
 	defer inspectCancel()
-	// #nosec G204 -- acceptance test intentionally launches the docker CLI with harness-provided values.
+	//nolint:gosec // Acceptance test intentionally launches the docker CLI with harness-provided values.
 	inspectOut, inspectErr := exec.CommandContext(inspectCtx, "docker", "--host", dockerHost, "inspect", "-f", "{{.State.Running}}", containerName).CombinedOutput()
 	if inspectErr == nil && strings.TrimSpace(string(inspectOut)) == "true" {
 		return nil
@@ -260,7 +260,7 @@ func testAccEnsureHawserRunning(agentToken string) error {
 
 	rmCtx, rmCancel := context.WithTimeout(context.Background(), 20*time.Second)
 	defer rmCancel()
-	// #nosec G204 -- acceptance test intentionally launches the docker CLI with harness-provided values.
+	//nolint:gosec // Acceptance test intentionally launches the docker CLI with harness-provided values.
 	_ = exec.CommandContext(rmCtx, "docker", "--host", dockerHost, "rm", "-f", containerName).Run()
 
 	runCtx, runCancel := context.WithTimeout(context.Background(), 30*time.Second)
@@ -276,7 +276,7 @@ func testAccEnsureHawserRunning(agentToken string) error {
 		"-e", "AGENT_NAME=" + agentName,
 		image,
 	}
-	// #nosec G204 -- acceptance test intentionally launches the docker CLI with harness-provided values.
+	//nolint:gosec // Acceptance test intentionally launches the docker CLI with harness-provided values.
 	out, err := exec.CommandContext(runCtx, "docker", args...).CombinedOutput()
 	if err != nil {
 		return fmt.Errorf("start hawser agent container %q: %w (output=%s)", containerName, err, strings.TrimSpace(string(out)))
@@ -296,7 +296,7 @@ func testAccTailHawserLogs() string {
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
-	// #nosec G204 -- acceptance test intentionally launches the docker CLI with harness-provided values.
+	//nolint:gosec // Acceptance test intentionally launches the docker CLI with harness-provided values.
 	out, err := exec.CommandContext(ctx, "docker", "--host", dockerHost, "logs", "--tail", "20", containerName).CombinedOutput()
 	if err != nil && len(out) == 0 {
 		return ""
