@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"net/http"
 	"strconv"
 	"strings"
 
@@ -29,6 +30,12 @@ func NewGitStackResource() resource.Resource {
 
 type gitStackResource struct {
 	client *Client
+}
+
+type gitStackDestroyClient interface {
+	DeleteStack(ctx context.Context, env string, name string) (int, error)
+	GetStackByName(ctx context.Context, env string, name string) (*stackResponse, bool, error)
+	DeleteGitStack(ctx context.Context, env string, id string) (int, error)
 }
 
 type gitStackModel struct {
@@ -306,11 +313,34 @@ func (r *gitStackResource) Delete(ctx context.Context, req resource.DeleteReques
 		return
 	}
 
-	status, err := r.client.DeleteGitStack(ctx, state.Env.ValueString(), state.ID.ValueString())
-	if err != nil && status != 404 {
+	env := strings.TrimSpace(r.client.resolveEnv(state.Env.ValueString()))
+	if err := destroyGitStack(ctx, r.client, env, state.ID.ValueString(), state.StackName.ValueString()); err != nil {
 		resp.Diagnostics.AddError("Error deleting Dockhand git stack", err.Error())
-		return
 	}
+}
+
+func destroyGitStack(ctx context.Context, client gitStackDestroyClient, env string, id string, stackName string) error {
+	stackName = strings.TrimSpace(stackName)
+	if stackName != "" {
+		// Remove runtime state first so a failed teardown does not orphan a running stack.
+		status, err := client.DeleteStack(ctx, env, stackName)
+		if err != nil && status != http.StatusNotFound {
+			_, found, readErr := client.GetStackByName(ctx, env, stackName)
+			if readErr != nil {
+				return fmt.Errorf("delete runtime stack %q: %w (confirm read failed: %v)", stackName, err, readErr)
+			}
+			if found {
+				return fmt.Errorf("delete runtime stack %q: %w", stackName, err)
+			}
+		}
+	}
+
+	status, err := client.DeleteGitStack(ctx, env, id)
+	if err != nil && status != http.StatusNotFound {
+		return fmt.Errorf("delete git stack record %q: %w", id, err)
+	}
+
+	return nil
 }
 
 func (r *gitStackResource) ImportState(ctx context.Context, req resource.ImportStateRequest, resp *resource.ImportStateResponse) {
