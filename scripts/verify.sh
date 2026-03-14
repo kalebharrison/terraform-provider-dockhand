@@ -6,6 +6,8 @@ cd "${ROOT_DIR}"
 
 export GOCACHE="${GOCACHE:-$ROOT_DIR/.cache/go-build}"
 export GOMODCACHE="${GOMODCACHE:-$ROOT_DIR/.cache/gomod}"
+STATICCHECK_VERSION="${STATICCHECK_VERSION:-v0.6.1}"
+STATICCHECK_BIN_DIR="${STATICCHECK_BIN_DIR:-$ROOT_DIR/.cache/bin}"
 mkdir -p "${GOCACHE}" "${GOMODCACHE}"
 
 RUN_QUALITY=false
@@ -103,11 +105,11 @@ if [[ "${RUN_QUALITY}" == "true" ]]; then
     echo "warning: golangci-lint not installed; skipping."
   fi
 
-  if ! command -v staticcheck >/dev/null 2>&1; then
-    echo "==> Installing staticcheck"
-    run go install honnef.co/go/tools/cmd/staticcheck@latest
-    gopath="$(go env GOPATH)"
-    export PATH="${PATH}:${gopath}/bin"
+  mkdir -p "${STATICCHECK_BIN_DIR}"
+  export PATH="${STATICCHECK_BIN_DIR}:${PATH}"
+  if ! command -v staticcheck >/dev/null 2>&1 || ! staticcheck -version 2>/dev/null | grep -q "${STATICCHECK_VERSION}"; then
+    echo "==> Installing staticcheck ${STATICCHECK_VERSION}"
+    GOBIN="${STATICCHECK_BIN_DIR}" run go install "honnef.co/go/tools/cmd/staticcheck@${STATICCHECK_VERSION}"
   fi
   run staticcheck ./...
 

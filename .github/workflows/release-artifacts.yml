@@ -15,6 +15,9 @@ permissions:
   id-token: write
   attestations: write
 
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+
 jobs:
   release:
     name: Build Zips And Publish Release
@@ -25,12 +28,12 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           fetch-depth: 0
 
       - name: Setup Go
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@v6
         with:
           go-version-file: go.mod
           check-latest: true
@@ -60,7 +63,7 @@ jobs:
           ./scripts/build-packages.sh --version "${{ steps.ver.outputs.version }}" --out-dir dist-local
 
       - name: Install syft
-        uses: anchore/sbom-action/download-syft@v0
+        uses: anchore/sbom-action/download-syft@v0.23.1
 
       - name: Generate SBOM (SPDX JSON)
         shell: bash
@@ -79,14 +82,14 @@ jobs:
 
       - name: Import GPG key (passphrase)
         if: ${{ env.HAS_GPG_PASSPHRASE == 'true' }}
-        uses: crazy-max/ghaction-import-gpg@v6
+        uses: crazy-max/ghaction-import-gpg@v7
         with:
           gpg_private_key: ${{ secrets.GPG_PRIVATE_KEY }}
           passphrase: ${{ env.GPG_PASSPHRASE }}
 
       - name: Import GPG key (no passphrase)
         if: ${{ env.HAS_GPG_PASSPHRASE != 'true' }}
-        uses: crazy-max/ghaction-import-gpg@v6
+        uses: crazy-max/ghaction-import-gpg@v7
         with:
           gpg_private_key: ${{ secrets.GPG_PRIVATE_KEY }}
 
@@ -117,7 +120,7 @@ jobs:
             dist-local/terraform-provider-dockhand_${{ steps.ver.outputs.version }}_SBOM.spdx.json
 
       - name: Publish GitHub Release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v2.5.0
         with:
           tag_name: ${{ steps.ver.outputs.tag }}
           name: ${{ steps.ver.outputs.tag }}
