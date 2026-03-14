@@ -153,3 +153,7 @@ jobs:
               --title "${tag}" \
               --generate-notes
           fi
+
+          # gh release create can leave the release in draft state depending on
+          # repository defaults, so publish it explicitly.
+          gh release edit "${tag}" --draft=false --latest
