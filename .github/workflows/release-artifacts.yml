@@ -135,15 +135,16 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          shopt -s nullglob
           tag="${{ steps.ver.outputs.tag }}"
           version="${{ steps.ver.outputs.version }}"
-          files=()
-          files+=(dist-local/terraform-provider-dockhand_${version}_*.zip)
-          files+=(dist-local/terraform-provider-dockhand_${version}_manifest.json)
-          files+=(dist-local/terraform-provider-dockhand_${version}_SHA256SUMS)
-          files+=(dist-local/terraform-provider-dockhand_${version}_SHA256SUMS.sig)
-          files+=(dist-local/terraform-provider-dockhand_${version}_SBOM.spdx.json)
+          mapfile -t zip_files < <(compgen -G "dist-local/terraform-provider-dockhand_${version}_*.zip" || true)
+          files=(
+            "${zip_files[@]}"
+            "dist-local/terraform-provider-dockhand_${version}_manifest.json"
+            "dist-local/terraform-provider-dockhand_${version}_SHA256SUMS"
+            "dist-local/terraform-provider-dockhand_${version}_SHA256SUMS.sig"
+            "dist-local/terraform-provider-dockhand_${version}_SBOM.spdx.json"
+          )
 
           if gh release view "${tag}" >/dev/null 2>&1; then
             gh release upload "${tag}" "${files[@]}" --clobber
