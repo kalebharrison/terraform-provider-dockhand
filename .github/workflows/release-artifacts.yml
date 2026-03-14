@@ -16,7 +16,7 @@ permissions:
   attestations: write
 
 env:
-  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+  SYFT_VERSION: v1.42.2
 
 jobs:
   release:
@@ -63,7 +63,17 @@ jobs:
           ./scripts/build-packages.sh --version "${{ steps.ver.outputs.version }}" --out-dir dist-local
 
       - name: Install syft
-        uses: anchore/sbom-action/download-syft@v0.23.1
+        shell: bash
+        run: |
+          set -euo pipefail
+          version="${SYFT_VERSION#v}"
+          archive="syft_${version}_linux_amd64.tar.gz"
+          url="https://github.com/anchore/syft/releases/download/${SYFT_VERSION}/${archive}"
+          mkdir -p "${RUNNER_TEMP}/syft-bin"
+          curl -fsSL "${url}" -o "${RUNNER_TEMP}/${archive}"
+          tar -xzf "${RUNNER_TEMP}/${archive}" -C "${RUNNER_TEMP}/syft-bin" syft
+          echo "${RUNNER_TEMP}/syft-bin" >> "${GITHUB_PATH}"
+          "${RUNNER_TEMP}/syft-bin/syft" version
 
       - name: Generate SBOM (SPDX JSON)
         shell: bash
@@ -120,14 +130,25 @@ jobs:
             dist-local/terraform-provider-dockhand_${{ steps.ver.outputs.version }}_SBOM.spdx.json
 
       - name: Publish GitHub Release
-        uses: softprops/action-gh-release@v2.5.0
-        with:
-          tag_name: ${{ steps.ver.outputs.tag }}
-          name: ${{ steps.ver.outputs.tag }}
-          generate_release_notes: true
-          files: |
-            dist-local/terraform-provider-dockhand_${{ steps.ver.outputs.version }}_*.zip
-            dist-local/terraform-provider-dockhand_${{ steps.ver.outputs.version }}_manifest.json
-            dist-local/terraform-provider-dockhand_${{ steps.ver.outputs.version }}_SHA256SUMS
-            dist-local/terraform-provider-dockhand_${{ steps.ver.outputs.version }}_SHA256SUMS.sig
-            dist-local/terraform-provider-dockhand_${{ steps.ver.outputs.version }}_SBOM.spdx.json
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          tag="${{ steps.ver.outputs.tag }}"
+          version="${{ steps.ver.outputs.version }}"
+          files=(
+            dist-local/terraform-provider-dockhand_${version}_*.zip
+            dist-local/terraform-provider-dockhand_${version}_manifest.json
+            dist-local/terraform-provider-dockhand_${version}_SHA256SUMS
+            dist-local/terraform-provider-dockhand_${version}_SHA256SUMS.sig
+            dist-local/terraform-provider-dockhand_${version}_SBOM.spdx.json
+          )
+
+          if gh release view "${tag}" >/dev/null 2>&1; then
+            gh release upload "${tag}" "${files[@]}" --clobber
+          else
+            gh release create "${tag}" "${files[@]}" \
+              --title "${tag}" \
+              --generate-notes
+          fi
