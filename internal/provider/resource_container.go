@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 
@@ -247,12 +248,18 @@ func (r *containerResource) Create(ctx context.Context, req resource.CreateReque
 		return
 	}
 
+	portsPayload, flattenErr := flattenContainerPorts(plan.Ports)
+	if flattenErr != nil {
+		resp.Diagnostics.AddError("Invalid container port mapping", flattenErr.Error())
+		return
+	}
+
 	payload := containerPayload{
 		Name:   plan.Name.ValueString(),
 		Image:  plan.Image.ValueString(),
 		Env:    flattenEnvVars(ctx, plan.EnvVars),
 		Labels: flattenStringMap(ctx, plan.Labels),
-		Ports:  flattenContainerPorts(plan.Ports),
+		Ports:  portsPayload,
 	}
 	if v := stringPtrFromStringValue(plan.Command); v != nil {
 		payload.Command = v
@@ -549,24 +556,35 @@ func flattenStringMap(ctx context.Context, value types.Map) map[string]string {
 	return out
 }
 
-func flattenContainerPorts(values []containerPortModel) []containerPortPayload {
+func flattenContainerPorts(values []containerPortModel) ([]containerPortPayload, error) {
 	if len(values) == 0 {
-		return nil
+		return nil, nil
 	}
 
 	out := make([]containerPortPayload, 0, len(values))
-	for _, p := range values {
+	for i, p := range values {
+		containerPort := p.ContainerPort.ValueInt64()
+		if containerPort <= 0 {
+			return nil, fmt.Errorf("ports[%d].container_port must be greater than zero", i)
+		}
+
+		hostPortRaw := strings.TrimSpace(p.HostPort.ValueString())
+		hostPort, err := strconv.ParseInt(hostPortRaw, 10, 64)
+		if err != nil || hostPort <= 0 {
+			return nil, fmt.Errorf("ports[%d].host_port must be a positive integer string", i)
+		}
+
 		protocol := strings.TrimSpace(p.Protocol.ValueString())
 		if protocol == "" {
 			protocol = "tcp"
 		}
 		out = append(out, containerPortPayload{
-			ContainerPort: p.ContainerPort.ValueInt64(),
-			HostPort:      p.HostPort.ValueString(),
+			ContainerPort: containerPort,
+			HostPort:      hostPort,
 			Protocol:      protocol,
 		})
 	}
-	return out
+	return out, nil
 }
 
 func stringPtrFromStringValue(value types.String) *string {
