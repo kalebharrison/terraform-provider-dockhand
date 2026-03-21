@@ -71,7 +71,7 @@ type stackResponse struct {
 
 type containerPortPayload struct {
 	ContainerPort int64  `json:"containerPort"`
-	HostPort      string `json:"hostPort"`
+	HostPort      int64  `json:"hostPort"`
 	Protocol      string `json:"protocol,omitempty"`
 }
 
