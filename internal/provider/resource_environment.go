@@ -606,7 +606,7 @@ func normalizeEnvironmentConnectionTypeForAPI(connectionType string) string {
 func normalizeEnvironmentConnectionTypeForState(connectionType string) string {
 	v := strings.ToLower(strings.TrimSpace(connectionType))
 	switch v {
-	case "hawser-edge", "hawser-standard":
+	case "hawser-edge":
 		return "agent"
 	default:
 		return strings.TrimSpace(connectionType)

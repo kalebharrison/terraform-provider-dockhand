@@ -98,6 +98,26 @@ func TestModelFromEnvironmentResponsePreservesPriorAgentTokenForAgentStandard(t 
 	}
 }
 
+func TestModelFromEnvironmentResponsePreservesHawserStandardConnectionType(t *testing.T) {
+	prior := environmentModel{
+		ConnectionType: types.StringValue("hawser-standard"),
+		AgentToken:     types.StringValue("configured-token"),
+	}
+	resp := &environmentResponse{
+		ID:             15,
+		Name:           "hawser-standard-env",
+		ConnectionType: "hawser-standard",
+	}
+
+	out := modelFromEnvironmentResponse(prior, resp)
+	if out.ConnectionType.IsNull() || out.ConnectionType.ValueString() != "hawser-standard" {
+		t.Fatalf("expected hawser-standard connection type to be preserved in state")
+	}
+	if out.AgentToken.IsNull() || out.AgentToken.ValueString() != "configured-token" {
+		t.Fatalf("expected prior agent_token to be preserved for hawser-standard")
+	}
+}
+
 func TestModelFromEnvironmentResponseClearsAgentTokenForNonAgentConnection(t *testing.T) {
 	prior := environmentModel{
 		AgentToken: types.StringValue("configured-token"),
