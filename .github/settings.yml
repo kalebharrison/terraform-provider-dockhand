@@ -1,0 +1,54 @@
+# Source of truth for repository-level GitHub settings.
+# Repositories that enable GitHub Advanced Security should also set the
+# Actions variable ENABLE_GITHUB_ADVANCED_SECURITY=true so optional uploads run.
+repository:
+  allow_auto_merge: true
+  allow_merge_commit: false
+  allow_rebase_merge: false
+  allow_squash_merge: true
+  default_branch: main
+  delete_branch_on_merge: true
+  has_issues: true
+  has_projects: false
+  has_wiki: false
+
+branches:
+  - name: main
+    protection:
+      allow_deletions: false
+      allow_force_pushes: false
+      enforce_admins: false
+      required_conversation_resolution: true
+      required_linear_history: true
+
+labels:
+  - name: bug
+    color: d73a4a
+    description: Something is broken or regressed
+  - name: enhancement
+    color: a2eeef
+    description: New capability or behavior request
+  - name: documentation
+    color: 0075ca
+    description: Documentation-only work
+  - name: dependencies
+    color: 0366d6
+    description: Dependency or pinned-version updates
+  - name: security
+    color: b60205
+    description: Security hardening or vulnerability work
+  - name: ci
+    color: 5319e7
+    description: CI, release, or automation work
+  - name: maintenance
+    color: c5def5
+    description: Refactors, cleanup, or repo hygiene
+  - name: question
+    color: d876e3
+    description: Usage or clarification requests
+  - name: status: blocked
+    color: 000000
+    description: Waiting on an external dependency or decision
+  - name: status: needs-info
+    color: fbca04
+    description: More detail is needed before work can continue
