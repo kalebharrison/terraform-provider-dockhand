@@ -46,9 +46,9 @@ labels:
   - name: question
     color: d876e3
     description: Usage or clarification requests
-  - name: status: blocked
-    color: 000000
+  - name: "status: blocked"
+    color: "000000"
     description: Waiting on an external dependency or decision
-  - name: status: needs-info
+  - name: "status: needs-info"
     color: fbca04
     description: More detail is needed before work can continue
