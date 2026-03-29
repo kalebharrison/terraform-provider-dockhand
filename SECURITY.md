@@ -23,3 +23,11 @@ Include:
 
 We will acknowledge reports as quickly as possible and coordinate remediation and disclosure timing.
 
+## Security Exception Policy
+
+If a scanner or policy needs an exception, keep it:
+
+- scoped to the exact rule, CVE, package, or path where possible
+- documented in-repo with a short justification
+- time-bounded with an expiration or review date
+- removed as soon as upstream or local fixes are available

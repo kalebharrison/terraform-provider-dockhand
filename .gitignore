@@ -1,4 +1,10 @@
+# OS / editor files
 .DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+*.swo
 
 # Go build/test artifacts
 bin/
@@ -9,6 +15,7 @@ mirror/
 *.test
 *.out
 coverage.out
+*.sarif
 
 # Terraform local state/cache
 terraform.tfstate
@@ -21,10 +28,6 @@ terraform.rc
 .terraformrc
 .terraformrc.dockhand-dev
 .terraformrc.*
-
-# IDE/editor
-.idea/
-.vscode/
 
 # Codex local environment config (machine-specific)
 .codex/
