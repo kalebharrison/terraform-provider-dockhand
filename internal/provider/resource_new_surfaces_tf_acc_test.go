@@ -126,19 +126,21 @@ func TestAccStackEnvResourceTerraform(t *testing.T) {
 		ProtoV6ProviderFactories: testAccProviderFactories(),
 		Steps: []resource.TestStep{
 			{
-				Config: testAccStackEnvConfig(defaultEnv, stackName, "API_KEY=abc\n", "TOKEN", "secret-1"),
+				Config: testAccStackEnvConfig(defaultEnv, stackName, "API_KEY=abc\n", "TOKEN", "secret-1", "acc-run-1"),
 				Check: resource.ComposeTestCheckFunc(
 					resource.TestCheckResourceAttr("dockhand_stack_env.test", "stack_name", stackName),
 					resource.TestCheckResourceAttr("dockhand_stack_env.test", "raw_content", "API_KEY=abc\n"),
 					resource.TestCheckResourceAttr("dockhand_stack_env.test", "secret_variables.0.key", "TOKEN"),
 					resource.TestCheckResourceAttr("dockhand_stack_env.test", "secret_variables.0.value", "secret-1"),
+					resource.TestCheckResourceAttr("dockhand_stack_env.test", "trigger", "acc-run-1"),
 				),
 			},
 			{
-				Config: testAccStackEnvConfig(defaultEnv, stackName, "API_KEY=xyz\n", "TOKEN", "secret-2"),
+				Config: testAccStackEnvConfig(defaultEnv, stackName, "API_KEY=xyz\n", "TOKEN", "secret-2", "acc-run-2"),
 				Check: resource.ComposeTestCheckFunc(
 					resource.TestCheckResourceAttr("dockhand_stack_env.test", "raw_content", "API_KEY=xyz\n"),
 					resource.TestCheckResourceAttr("dockhand_stack_env.test", "secret_variables.0.value", "secret-2"),
+					resource.TestCheckResourceAttr("dockhand_stack_env.test", "trigger", "acc-run-2"),
 				),
 			},
 		},
@@ -751,7 +753,7 @@ resource "dockhand_stack_action" "down" {
 `, env, stackName, env, trigger)
 }
 
-func testAccStackEnvConfig(env string, stackName string, raw string, key string, value string) string {
+func testAccStackEnvConfig(env string, stackName string, raw string, key string, value string, trigger string) string {
 	return fmt.Sprintf(`
 provider "dockhand" {}
 
@@ -770,6 +772,7 @@ YAML
 resource "dockhand_stack_env" "test" {
   env        = %q
   stack_name = dockhand_stack.test.name
+  trigger    = %q
   raw_content = %q
   secret_variables = [
     {
@@ -779,7 +782,7 @@ resource "dockhand_stack_env" "test" {
     }
   ]
 }
-`, env, stackName, env, raw, key, value)
+`, env, stackName, env, trigger, raw, key, value)
 }
 
 func testAccGitStackEnvFileConfig(stackID string, path string, trigger string) string {
