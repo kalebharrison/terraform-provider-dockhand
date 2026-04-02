@@ -1,6 +1,7 @@
 resource "dockhand_stack_env" "example" {
   env        = "2"
   stack_name = "my-stack"
+  trigger    = "stack-compose-sha256"
 
   raw_content = <<-EOT
 APP_ENV=prod

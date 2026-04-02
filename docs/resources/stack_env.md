@@ -8,6 +8,7 @@ Manages stack `.env` raw content and secret variables.
 resource "dockhand_stack_env" "example" {
   env        = "2"
   stack_name = "my-stack"
+  trigger    = "stack-compose-sha256"
 
   raw_content = <<-EOT
 APP_ENV=prod
@@ -35,6 +36,7 @@ EOT
 - `env` (String)
 - `raw_content` (String)
 - `secret_variables` (List of Object)
+- `trigger` (String) Arbitrary value to force an update/re-sync when changed.
 
 ### Read-Only
 

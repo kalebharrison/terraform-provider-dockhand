@@ -39,6 +39,7 @@ type stackEnvResourceModel struct {
 	ID              types.String `tfsdk:"id"`
 	Env             types.String `tfsdk:"env"`
 	StackName       types.String `tfsdk:"stack_name"`
+	Trigger         types.String `tfsdk:"trigger"`
 	RawContent      types.String `tfsdk:"raw_content"`
 	SecretVariables types.List   `tfsdk:"secret_variables"`
 }
@@ -71,6 +72,10 @@ func (r *stackEnvResource) Schema(_ context.Context, _ resource.SchemaRequest, r
 				PlanModifiers: []planmodifier.String{
 					stringplanmodifier.RequiresReplace(),
 				},
+			},
+			"trigger": schema.StringAttribute{
+				Optional:            true,
+				MarkdownDescription: "Arbitrary value to force an update/re-sync when changed.",
 			},
 			"raw_content": schema.StringAttribute{
 				Optional: true,
