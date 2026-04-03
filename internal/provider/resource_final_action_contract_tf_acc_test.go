@@ -168,7 +168,7 @@ resource "dockhand_environment" "test" {
   highlight_changes              = true
   timezone                       = "UTC"
   vulnerability_scanning_enabled = %t
-  vulnerability_scanner          = "grype"
+  vulnerability_scanner          = "both"
   ensure_grype_installed         = false
   ensure_trivy_installed         = false
 }
@@ -294,23 +294,28 @@ func testAccCheckRegistryCatalogEventuallyNonEmpty(registryHostURL string) resou
 		var lastRepos []string
 		var lastErr error
 		for {
+			//nolint:gosec // Acceptance test fixture URL is provisioned by the local harness, not user input.
 			req, err := http.NewRequestWithContext(context.Background(), http.MethodGet, strings.TrimRight(registryHostURL, "/")+"/v2/_catalog", nil)
 			if err == nil {
+				//nolint:gosec // Acceptance test fixture URL is provisioned by the local harness, not user input.
 				res, doErr := http.DefaultClient.Do(req)
 				if doErr == nil {
 					var payload struct {
 						Repositories []string `json:"repositories"`
 					}
 					decodeErr := json.NewDecoder(res.Body).Decode(&payload)
-					res.Body.Close()
-					if decodeErr == nil && res.StatusCode >= 200 && res.StatusCode <= 299 {
+					closeErr := res.Body.Close()
+					switch {
+					case decodeErr == nil && closeErr == nil && res.StatusCode >= 200 && res.StatusCode <= 299:
 						lastRepos = payload.Repositories
 						if len(lastRepos) > 0 {
 							return nil
 						}
-					} else if decodeErr != nil {
+					case decodeErr != nil:
 						lastErr = decodeErr
-					} else {
+					case closeErr != nil:
+						lastErr = closeErr
+					default:
 						lastErr = fmt.Errorf("registry catalog status %d", res.StatusCode)
 					}
 				} else {

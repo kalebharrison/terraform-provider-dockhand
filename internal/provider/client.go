@@ -2794,6 +2794,7 @@ func (c *Client) doJSONWithStatusUsingClient(ctx context.Context, httpClient *ht
 			req.Header.Set("Cookie", c.sessionCookie)
 		}
 
+		//nolint:gosec // Provider endpoint is an explicit user-configured Dockhand API target.
 		res, err := httpClient.Do(req)
 		if err != nil {
 			if shouldRetry(method, 0, err) && attempt < 2 {
