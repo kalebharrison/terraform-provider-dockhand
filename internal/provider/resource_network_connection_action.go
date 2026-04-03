@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
@@ -142,6 +143,11 @@ func (r *networkConnectionActionResource) Create(ctx context.Context, req resour
 		return
 	}
 
+	if err := r.waitForContainerNetworkState(ctx, env, containerID, networkID, action == "connect"); err != nil {
+		resp.Diagnostics.AddError("Error waiting for Dockhand network connection action", err.Error())
+		return
+	}
+
 	plan.ID = types.StringValue(fmt.Sprintf("%s:%s:%s:%s:%s", env, networkID, containerID, action, plan.Trigger.ValueString()))
 	plan.Action = types.StringValue(action)
 	resp.Diagnostics.Append(resp.State.Set(ctx, &plan)...)
@@ -168,4 +174,60 @@ func (r *networkConnectionActionResource) ImportState(ctx context.Context, req r
 		return
 	}
 	resp.Diagnostics.Append(resp.State.SetAttribute(ctx, path.Root("id"), raw)...)
+}
+
+func (r *networkConnectionActionResource) waitForContainerNetworkState(ctx context.Context, env string, containerID string, networkID string, expectedConnected bool) error {
+	networkName := ""
+	if inspected, _, err := r.client.GetNetworkInspect(ctx, env, networkID); err == nil && inspected != nil {
+		networkName = strings.TrimSpace(inspected.Name)
+	}
+	if networkName == "" {
+		if items, _, err := r.client.ListNetworks(ctx, env); err == nil {
+			for _, item := range items {
+				if item.ID == networkID {
+					networkName = strings.TrimSpace(item.Name)
+					break
+				}
+			}
+		}
+	}
+
+	deadline := time.Now().Add(20 * time.Second)
+	for time.Now().Before(deadline) {
+		inspect, _, err := r.client.GetContainerInspect(ctx, env, containerID)
+		if err == nil && containerInspectHasNetwork(inspect, networkID, networkName) == expectedConnected {
+			return nil
+		}
+		time.Sleep(1 * time.Second)
+	}
+
+	state := "disconnected"
+	if expectedConnected {
+		state = "connected"
+	}
+	return fmt.Errorf("container %q did not become %s to network %q before timeout", containerID, state, networkID)
+}
+
+func containerInspectHasNetwork(inspect map[string]any, networkID string, networkName string) bool {
+	networkSettings, ok := inspect["NetworkSettings"].(map[string]any)
+	if !ok {
+		return false
+	}
+	networks, ok := networkSettings["Networks"].(map[string]any)
+	if !ok {
+		return false
+	}
+	for name, raw := range networks {
+		if name == networkID || (networkName != "" && name == networkName) {
+			return true
+		}
+		networkMap, ok := raw.(map[string]any)
+		if !ok {
+			continue
+		}
+		if id, ok := networkMap["NetworkID"].(string); ok && id == networkID {
+			return true
+		}
+	}
+	return false
 }

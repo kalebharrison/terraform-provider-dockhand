@@ -390,7 +390,8 @@ func mergeGeneralSettings(ctx context.Context, plan generalSettingsModel, curren
 	// Nullable: allow explicit null to clear.
 	if !plan.PrimaryStackLocation.IsUnknown() {
 		if plan.PrimaryStackLocation.IsNull() {
-			payload.PrimaryStackLocation = nil
+			empty := ""
+			payload.PrimaryStackLocation = &empty
 		} else {
 			v := plan.PrimaryStackLocation.ValueString()
 			payload.PrimaryStackLocation = &v
@@ -447,7 +448,7 @@ func modelFromGeneralSettings(ctx context.Context, s *generalSettings) generalSe
 		DarkTheme:                 types.StringValue(s.DarkTheme),
 	}
 
-	if s.PrimaryStackLocation != nil {
+	if s.PrimaryStackLocation != nil && *s.PrimaryStackLocation != "" {
 		out.PrimaryStackLocation = types.StringValue(*s.PrimaryStackLocation)
 	} else {
 		out.PrimaryStackLocation = types.StringNull()

@@ -205,7 +205,7 @@ func (r *volumeResource) Read(ctx context.Context, req resource.ReadRequest, res
 
 	vol, status, err := r.client.GetVolumeInspect(ctx, strings.TrimSpace(state.Env.ValueString()), state.Name.ValueString())
 	if err != nil {
-		if status == 404 {
+		if status == 404 || isMissingVolumeInspectError(status, err) {
 			resp.State.RemoveResource(ctx)
 			return
 		}
@@ -297,4 +297,17 @@ func modelFromVolumeResponse(env types.String, vol *volumeResponse) volumeModel 
 		out.Labels = types.MapNull(types.StringType)
 	}
 	return out
+}
+
+func isMissingVolumeInspectError(status int, err error) bool {
+	if err == nil {
+		return false
+	}
+	if status == 404 {
+		return true
+	}
+	if status == 500 && strings.Contains(strings.ToLower(err.Error()), "failed to inspect volume") {
+		return true
+	}
+	return false
 }

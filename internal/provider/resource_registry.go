@@ -3,6 +3,7 @@ package provider
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
@@ -123,6 +124,11 @@ func (r *registryResource) Create(ctx context.Context, req resource.CreateReques
 	created, _, err := r.client.CreateRegistry(ctx, payload)
 	if err != nil {
 		resp.Diagnostics.AddError("Error creating Dockhand registry", err.Error())
+		return
+	}
+
+	if err := waitForRegistryListed(ctx, r.client, created.ID, created.Name); err != nil {
+		resp.Diagnostics.AddError("Error waiting for Dockhand registry visibility", err.Error())
 		return
 	}
 
@@ -283,4 +289,21 @@ func modelFromRegistryResponse(password types.String, reg *registryResponse) reg
 	}
 
 	return out
+}
+
+func waitForRegistryListed(ctx context.Context, client *Client, id int64, name string) error {
+	deadline := time.Now().Add(20 * time.Second)
+	for time.Now().Before(deadline) {
+		items, _, err := client.ListRegistries(ctx)
+		if err == nil {
+			for _, item := range items {
+				if item.ID == id || item.Name == name {
+					return nil
+				}
+			}
+		}
+		time.Sleep(1 * time.Second)
+	}
+
+	return fmt.Errorf("registry %q was not returned by /api/registries before timeout", name)
 }
