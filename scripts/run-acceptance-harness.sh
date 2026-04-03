@@ -7,6 +7,7 @@ cd "${ROOT_DIR}"
 DOCKHAND_IMAGE="${DOCKHAND_IMAGE:-fnsys/dockhand:latest}"
 DIND_IMAGE="${DIND_IMAGE:-docker:27-dind}"
 HAWSER_IMAGE="${HAWSER_IMAGE:-ghcr.io/finsys/hawser:latest}"
+REGISTRY_IMAGE="${REGISTRY_IMAGE:-registry:2}"
 TEST_REGEX="${TEST_REGEX:-TestAcc}"
 RUN_ENDPOINT_PROBE="${RUN_ENDPOINT_PROBE:-true}"
 RUN_WEBUI_AUDIT="${RUN_WEBUI_AUDIT:-false}"
@@ -20,23 +21,40 @@ DOCKHAND_TEST_DIND_HOST="${DOCKHAND_TEST_DIND_HOST:-}"
 DOCKHAND_TEST_DIND_PORT="${DOCKHAND_TEST_DIND_PORT:-2375}"
 DOCKHAND_TEST_ENABLE_PRUNE_ACTIONS="${DOCKHAND_TEST_ENABLE_PRUNE_ACTIONS:-true}"
 DOCKHAND_TEST_PRUNE_MODE="${DOCKHAND_TEST_PRUNE_MODE:-containers}"
+DOCKHAND_TEST_REGISTRY_URL="${DOCKHAND_TEST_REGISTRY_URL:-http://registry:5000}"
 
 SUFFIX="$(date +%s)"
 NETWORK_NAME="dockhand-ci-${SUFFIX}"
 DIND_CONTAINER="dind-${SUFFIX}"
 DOCKHAND_CONTAINER="dockhand-${SUFFIX}"
 HAWSER_CONTAINER="hawser-${SUFFIX}"
+REGISTRY_CONTAINER="registry-${SUFFIX}"
 
 if [[ -z "${DOCKHAND_TEST_DIND_HOST}" ]]; then
   DOCKHAND_TEST_DIND_HOST="${DIND_CONTAINER}"
 fi
 
+dump_logs() {
+  echo "Dockhand logs:"
+  docker logs "${DOCKHAND_CONTAINER}" || true
+  echo "DinD logs:"
+  docker logs "${DIND_CONTAINER}" || true
+  echo "Registry logs:"
+  docker logs "${REGISTRY_CONTAINER}" || true
+  echo "Hawser logs:"
+  docker --host "tcp://127.0.0.1:23750" logs "${HAWSER_CONTAINER}" || true
+}
+
 cleanup() {
+  local exit_code="${1:-0}"
+  if [[ "${exit_code}" -ne 0 ]]; then
+    dump_logs
+  fi
   docker --host "tcp://127.0.0.1:23750" rm -f "${HAWSER_CONTAINER}" >/dev/null 2>&1 || true
-  docker rm -f "${DOCKHAND_CONTAINER}" "${DIND_CONTAINER}" >/dev/null 2>&1 || true
+  docker rm -f "${DOCKHAND_CONTAINER}" "${DIND_CONTAINER}" "${REGISTRY_CONTAINER}" >/dev/null 2>&1 || true
   docker network rm "${NETWORK_NAME}" >/dev/null 2>&1 || true
 }
-trap cleanup EXIT
+trap 'exit_code=$?; cleanup "${exit_code}"; exit "${exit_code}"' EXIT
 
 login() {
   local code
@@ -51,6 +69,11 @@ login() {
 echo "Creating Docker network ${NETWORK_NAME}"
 docker network create "${NETWORK_NAME}" >/dev/null
 
+echo "Starting local registry ${REGISTRY_CONTAINER}"
+docker run -d --name "${REGISTRY_CONTAINER}" --network "${NETWORK_NAME}" \
+  --network-alias registry \
+  "${REGISTRY_IMAGE}" >/dev/null
+
 echo "Starting DinD ${DIND_CONTAINER}"
 docker run -d --name "${DIND_CONTAINER}" --network "${NETWORK_NAME}" --privileged \
   --network-alias "${DIND_CONTAINER}" \
@@ -58,6 +81,7 @@ docker run -d --name "${DIND_CONTAINER}" --network "${NETWORK_NAME}" --privilege
   -e DOCKER_TLS_CERTDIR= \
   -p 23750:2375 \
   "${DIND_IMAGE}" \
+  --insecure-registry=registry:5000 \
   --tls=false \
   --host=tcp://0.0.0.0:2375 \
   --host=unix:///var/run/docker.sock >/dev/null
@@ -130,6 +154,28 @@ if [[ -z "${existing_id}" ]]; then
   exit 1
 fi
 
+stack_adopt_name="tf-acc-adopt-${SUFFIX}"
+curl -sS -b /tmp/dh-cookies.txt \
+  "${DOCKHAND_TEST_ENDPOINT}/api/stacks/default-path?name=${stack_adopt_name}" >/tmp/dh-stack-adopt-path.json
+stack_adopt_compose_path="$(jq -r '.composePath // empty' /tmp/dh-stack-adopt-path.json)"
+if [[ -z "${stack_adopt_compose_path}" ]]; then
+  echo "Failed to resolve stack adopt compose path for ${stack_adopt_name}" >&2
+  cat /tmp/dh-stack-adopt-path.json >&2 || true
+  exit 1
+fi
+stack_adopt_dir="$(dirname "${stack_adopt_compose_path}")"
+cat > /tmp/dh-stack-adopt-compose.yaml <<EOF
+services:
+  app:
+    image: busybox:1.36.1
+    command:
+      - sh
+      - -c
+      - sleep 3600
+EOF
+docker exec "${DOCKHAND_CONTAINER}" mkdir -p "${stack_adopt_dir}"
+docker cp /tmp/dh-stack-adopt-compose.yaml "${DOCKHAND_CONTAINER}:${stack_adopt_compose_path}"
+
 agent_token="ci-agent-${SUFFIX}"
 dockhand_ip="$(docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' "${DOCKHAND_CONTAINER}")"
 dockhand_ws_url="ws://${dockhand_ip}:3000/api/hawser/connect"
@@ -144,6 +190,10 @@ export DOCKHAND_TEST_DIND_PORT="${DOCKHAND_TEST_DIND_PORT}"
 export DOCKHAND_TEST_ENABLE_PRUNE_ACTIONS="${DOCKHAND_TEST_ENABLE_PRUNE_ACTIONS}"
 export DOCKHAND_TEST_PRUNE_MODE="${DOCKHAND_TEST_PRUNE_MODE}"
 export DOCKHAND_TEST_DEFAULT_ENV="${existing_id}"
+export DOCKHAND_TEST_REGISTRY_URL="${DOCKHAND_TEST_REGISTRY_URL}"
+export DOCKHAND_TEST_STACK_ADOPT_ENV_ID="${existing_id}"
+export DOCKHAND_TEST_STACK_ADOPT_NAME="${stack_adopt_name}"
+export DOCKHAND_TEST_STACK_ADOPT_COMPOSE_PATH="${stack_adopt_compose_path}"
 export DOCKHAND_TEST_AGENT_TOKEN="${agent_token}"
 export DOCKHAND_TEST_AGENT_NAME="ci-hawser"
 export DOCKHAND_TEST_HAWSER_SERVER_URL="${dockhand_ws_url}"
