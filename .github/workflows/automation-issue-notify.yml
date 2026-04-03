@@ -1,0 +1,95 @@
+name: Automation Issue Notify
+
+on:
+  workflow_run:
+    workflows:
+      - Go CI
+      - Quality CI
+      - Acceptance Full
+      - Release Artifacts
+      - Dockhand Release Watch
+    types:
+      - completed
+
+permissions:
+  actions: read
+  contents: read
+  issues: write
+
+jobs:
+  notify:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Open or close automation failure issue
+        uses: actions/github-script@v8
+        with:
+          script: |
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+            const wr = context.payload.workflow_run;
+            const workflowName = wr.name || "Unknown workflow";
+            const eventName = wr.event || "unknown";
+            const conclusion = (wr.conclusion || "").toLowerCase();
+            const defaultBranch = context.payload.repository?.default_branch || "main";
+            const branch = wr.head_branch || defaultBranch;
+            const runUrl = wr.html_url || `https://github.com/${owner}/${repo}/actions/runs/${wr.id}`;
+            const issueTitle = `[Automation] Workflow failing: ${workflowName}`;
+            const failureStates = new Set(["action_required", "cancelled", "failure", "startup_failure", "timed_out"]);
+
+            if (eventName === "pull_request") return;
+            if (branch !== defaultBranch) return;
+
+            const ensureLabel = async (name, color, description) => {
+              try {
+                await github.rest.issues.getLabel({ owner, repo, name });
+              } catch (error) {
+                if (error.status !== 404) throw error;
+                await github.rest.issues.createLabel({ owner, repo, name, color, description });
+              }
+            };
+
+            await ensureLabel("ci", "5319e7", "CI, release, or automation work");
+            await ensureLabel("maintenance", "c5def5", "Refactors, cleanup, or repo hygiene");
+
+            const issues = await github.paginate(github.rest.issues.listForRepo, { owner, repo, state: "all", per_page: 100 });
+            const existingIssue = issues.filter((issue) => !issue.pull_request && issue.title === issueTitle).sort((a, b) => b.number - a.number)[0];
+
+            let failedJobs = [];
+            try {
+              const jobs = await github.paginate(github.rest.actions.listJobsForWorkflowRun, { owner, repo, run_id: wr.id, per_page: 100 });
+              failedJobs = jobs.filter((job) => failureStates.has((job.conclusion || "").toLowerCase()));
+            } catch (error) {
+              core.info(`Could not list jobs for workflow run ${wr.id}: ${error.message}`);
+            }
+
+            const failedJobLines = failedJobs.length > 0
+              ? failedJobs.map((job) => `- \`${job.name}\`${job.html_url ? `: ${job.html_url}` : ""}`).join("\n")
+              : "- Workflow failed before any individual job reported a failure.";
+
+            const issueBody = `Automation is failing on the default branch.
+
+            - Workflow: \`${workflowName}\`
+            - Conclusion: \`${conclusion || "unknown"}\`
+            - Event: \`${eventName}\`
+            - Branch: \`${branch}\`
+            - Commit: \`${wr.head_sha || "unknown"}\`
+            - Run: ${runUrl}
+
+            Failed jobs:
+            ${failedJobLines}
+
+            This issue is managed automatically. It is updated on repeated failures and closed when the workflow succeeds again.`;
+
+            if (failureStates.has(conclusion)) {
+              if (existingIssue) {
+                await github.rest.issues.update({ owner, repo, issue_number: existingIssue.number, title: issueTitle, body: issueBody, state: "open" });
+              } else {
+                await github.rest.issues.create({ owner, repo, title: issueTitle, body: issueBody, labels: ["ci", "maintenance"] });
+              }
+              return;
+            }
+
+            if (conclusion === "success" && existingIssue?.state === "open") {
+              await github.rest.issues.createComment({ owner, repo, issue_number: existingIssue.number, body: `Recovered in ${runUrl}. Closing this automatically managed issue.` });
+              await github.rest.issues.update({ owner, repo, issue_number: existingIssue.number, state: "closed" });
+            }
