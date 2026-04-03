@@ -107,7 +107,18 @@ func (d *containerShellsDataSource) Read(ctx context.Context, req datasource.Rea
 		return
 	}
 
-	shells := append([]string(nil), out.Shells...)
+	shells := make([]string, 0, len(out.Shells)+len(out.AllShells)+1)
+	shells = append(shells, out.Shells...)
+	if len(shells) == 0 && len(out.AllShells) > 0 {
+		for _, shell := range out.AllShells {
+			if shell.Available && shell.Path != "" {
+				shells = append(shells, shell.Path)
+			}
+		}
+	}
+	if len(shells) == 0 && out.DefaultShell != nil && *out.DefaultShell != "" {
+		shells = append(shells, *out.DefaultShell)
+	}
 	sort.Strings(shells)
 	shellsVal, diags := types.ListValueFrom(ctx, types.StringType, shells)
 	resp.Diagnostics.Append(diags...)

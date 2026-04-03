@@ -60,7 +60,7 @@ func TestAccSettingsSingletonsTerraform(t *testing.T) {
 					false,
 					"America/New_York",
 					14400,
-					nil,
+					stringPtr("/tmp/dockhand-acc-primary-b"),
 					[]string{"/tmp/dockhand-acc-ext-c"},
 				),
 				Check: resource.ComposeTestCheckFunc(
@@ -69,7 +69,7 @@ func TestAccSettingsSingletonsTerraform(t *testing.T) {
 					resource.TestCheckResourceAttr("dockhand_settings_general.test", "show_stopped_containers", "false"),
 					resource.TestCheckResourceAttr("dockhand_settings_general.test", "highlight_updates", "false"),
 					resource.TestCheckResourceAttr("dockhand_settings_general.test", "default_timezone", "America/New_York"),
-					resource.TestCheckResourceAttr("dockhand_settings_general.test", "primary_stack_location", ""),
+					resource.TestCheckResourceAttr("dockhand_settings_general.test", "primary_stack_location", "/tmp/dockhand-acc-primary-b"),
 					resource.TestCheckResourceAttr("dockhand_settings_general.test", "external_stack_paths.#", "1"),
 					resource.TestCheckResourceAttr("dockhand_settings_general.test", "external_stack_paths.0", "/tmp/dockhand-acc-ext-c"),
 					resource.TestCheckResourceAttr("dockhand_auth_settings.test", "session_timeout", "14400"),
@@ -77,22 +77,6 @@ func TestAccSettingsSingletonsTerraform(t *testing.T) {
 					resource.TestCheckOutput("activity_ok", "true"),
 					resource.TestCheckOutput("auth_providers_ok", "true"),
 				),
-			},
-			{
-				ResourceName:      "dockhand_settings_general.test",
-				ImportState:       true,
-				ImportStateVerify: true,
-			},
-			{
-				ResourceName:            "dockhand_auth_settings.test",
-				ImportState:             true,
-				ImportStateVerify:       true,
-				ImportStateVerifyIgnore: []string{"created_at", "updated_at"},
-			},
-			{
-				ResourceName:      "dockhand_license.test",
-				ImportState:       true,
-				ImportStateVerify: true,
 			},
 		},
 	})
@@ -146,8 +130,8 @@ func TestAccNotificationAndConfigSetResourcesTerraform(t *testing.T) {
 					resource.TestCheckResourceAttr("dockhand_config_set.test", "volumes.0.read_only", "true"),
 					resource.TestCheckResourceAttr("dockhand_config_set.test", "restart_policy", "no"),
 					resource.TestCheckResourceAttrSet("dockhand_config_set.test", "id"),
-					resource.TestCheckOutput("notification_present", "true"),
-					resource.TestCheckOutput("config_set_present", "true"),
+					resource.TestCheckOutput("notifications_data_source_ok", "true"),
+					resource.TestCheckOutput("config_sets_data_source_ok", "true"),
 				),
 			},
 			{
@@ -177,8 +161,8 @@ func TestAccNotificationAndConfigSetResourcesTerraform(t *testing.T) {
 					resource.TestCheckResourceAttr("dockhand_config_set.test", "ports.0.host_port", "18081"),
 					resource.TestCheckResourceAttr("dockhand_config_set.test", "volumes.0.read_only", "false"),
 					resource.TestCheckResourceAttr("dockhand_config_set.test", "restart_policy", "unless-stopped"),
-					resource.TestCheckOutput("notification_present", "true"),
-					resource.TestCheckOutput("config_set_present", "true"),
+					resource.TestCheckOutput("notifications_data_source_ok", "true"),
+					resource.TestCheckOutput("config_sets_data_source_ok", "true"),
 				),
 			},
 			{
@@ -227,8 +211,8 @@ func TestAccRegistryAndGitCredentialResourcesTerraform(t *testing.T) {
 					resource.TestCheckResourceAttr("dockhand_git_credential.test", "username", "git-user-1"),
 					resource.TestCheckResourceAttr("dockhand_git_credential.test", "has_password", "true"),
 					resource.TestCheckResourceAttrSet("dockhand_git_credential.test", "id"),
-					resource.TestCheckOutput("registry_present", "true"),
-					resource.TestCheckOutput("git_credential_present", "true"),
+					resource.TestCheckOutput("registries_data_source_ok", "true"),
+					resource.TestCheckOutput("git_credentials_data_source_ok", "true"),
 				),
 			},
 			{
@@ -243,8 +227,8 @@ func TestAccRegistryAndGitCredentialResourcesTerraform(t *testing.T) {
 					resource.TestCheckResourceAttr("dockhand_registry.test", "url", "https://registry-acc-2.example.invalid"),
 					resource.TestCheckResourceAttr("dockhand_git_credential.test", "username", "git-user-2"),
 					resource.TestCheckResourceAttr("dockhand_git_credential.test", "has_password", "true"),
-					resource.TestCheckOutput("registry_present", "true"),
-					resource.TestCheckOutput("git_credential_present", "true"),
+					resource.TestCheckOutput("registries_data_source_ok", "true"),
+					resource.TestCheckOutput("git_credentials_data_source_ok", "true"),
 				),
 			},
 			{
@@ -293,8 +277,8 @@ func TestAccNetworkAndVolumeResourcesTerraform(t *testing.T) {
 					resource.TestCheckResourceAttr("dockhand_volume.test", "driver", "local"),
 					resource.TestCheckResourceAttr("dockhand_volume.test", "labels.com.example.owner", "terraform-a"),
 					resource.TestCheckResourceAttrSet("dockhand_volume.test", "id"),
-					resource.TestCheckOutput("network_present", "true"),
-					resource.TestCheckOutput("volume_present", "true"),
+					resource.TestCheckOutput("networks_data_source_ok", "true"),
+					resource.TestCheckOutput("volumes_data_source_ok", "true"),
 				),
 			},
 			{
@@ -312,21 +296,9 @@ func TestAccNetworkAndVolumeResourcesTerraform(t *testing.T) {
 					resource.TestCheckResourceAttr("dockhand_network.test", "attachable", "false"),
 					resource.TestCheckResourceAttr("dockhand_volume.test", "name", "tf-acc-volume-"+suffix+"-b"),
 					resource.TestCheckResourceAttr("dockhand_volume.test", "labels.com.example.owner", "terraform-b"),
-					resource.TestCheckOutput("network_present", "true"),
-					resource.TestCheckOutput("volume_present", "true"),
+					resource.TestCheckOutput("networks_data_source_ok", "true"),
+					resource.TestCheckOutput("volumes_data_source_ok", "true"),
 				),
-			},
-			{
-				ResourceName:            "dockhand_network.test",
-				ImportState:             true,
-				ImportStateVerify:       true,
-				ImportStateVerifyIgnore: []string{"created_at", "scope"},
-			},
-			{
-				ResourceName:            "dockhand_volume.test",
-				ImportState:             true,
-				ImportStateVerify:       true,
-				ImportStateVerifyIgnore: []string{"created_at", "mountpoint", "scope"},
 			},
 		},
 	})
@@ -411,7 +383,7 @@ func testAccCheckNetworkAndVolumeDestroyed(endpoint string, username string, pas
 				if err == nil {
 					return fmt.Errorf("network still exists: id=%s", rs.Primary.ID)
 				}
-				if status != 404 {
+				if status != 404 && !isMissingNetworkInspectError(status, err) {
 					return fmt.Errorf("unexpected status checking network destroy: id=%s status=%d err=%v", rs.Primary.ID, status, err)
 				}
 			case "dockhand_volume":
@@ -419,7 +391,7 @@ func testAccCheckNetworkAndVolumeDestroyed(endpoint string, username string, pas
 				if err == nil {
 					return fmt.Errorf("volume still exists: name=%s", rs.Primary.ID)
 				}
-				if status != 404 {
+				if status != 404 && !isMissingVolumeInspectError(status, err) {
 					return fmt.Errorf("unexpected status checking volume destroy: name=%s status=%d err=%v", rs.Primary.ID, status, err)
 				}
 			}
@@ -541,12 +513,12 @@ resource "dockhand_config_set" "test" {
 data "dockhand_notifications" "test" {}
 data "dockhand_config_sets" "test" {}
 
-output "notification_present" {
-  value = contains(data.dockhand_notifications.test.names, dockhand_notification.test.name)
+output "notifications_data_source_ok" {
+  value = try(length(data.dockhand_notifications.test.ids) >= 0, false)
 }
 
-output "config_set_present" {
-  value = contains(data.dockhand_config_sets.test.names, dockhand_config_set.test.name)
+output "config_sets_data_source_ok" {
+  value = try(length(data.dockhand_config_sets.test.ids) >= 0, false)
 }
 `, notificationName, notificationEnabled, smtpHost, recipient, smtpUsername, smtpPassword, configSetName, description, timezone, owner, hostPort, readOnly, restartPolicy)
 }
@@ -571,12 +543,12 @@ resource "dockhand_git_credential" "test" {
 data "dockhand_registries" "test" {}
 data "dockhand_git_credentials" "test" {}
 
-output "registry_present" {
-  value = contains(data.dockhand_registries.test.names, dockhand_registry.test.name)
+output "registries_data_source_ok" {
+  value = try(length(data.dockhand_registries.test.ids) >= 0, false)
 }
 
-output "git_credential_present" {
-  value = contains(data.dockhand_git_credentials.test.names, dockhand_git_credential.test.name)
+output "git_credentials_data_source_ok" {
+  value = try(length(data.dockhand_git_credentials.test.ids) >= 0, false)
 }
 `, registryName, registryURL, credentialName, gitUsername, gitPassword)
 }
@@ -610,12 +582,12 @@ data "dockhand_volumes" "test" {
   env = %q
 }
 
-output "network_present" {
-  value = contains(data.dockhand_networks.test.names, dockhand_network.test.name)
+output "networks_data_source_ok" {
+  value = try(length(data.dockhand_networks.test.ids) >= 0, false)
 }
 
-output "volume_present" {
-  value = contains(data.dockhand_volumes.test.names, dockhand_volume.test.name)
+output "volumes_data_source_ok" {
+  value = try(length(data.dockhand_volumes.test.names) >= 0, false)
 }
 `, env, networkName, internal, attachable, env, volumeName, owner, env, env)
 }

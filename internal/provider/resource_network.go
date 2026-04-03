@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
@@ -179,6 +180,11 @@ func (r *networkResource) Create(ctx context.Context, req resource.CreateRequest
 		return
 	}
 
+	if err := waitForNetworkListed(ctx, r.client, env, created.ID, created.Name); err != nil {
+		resp.Diagnostics.AddError("Error waiting for Dockhand network visibility", err.Error())
+		return
+	}
+
 	state := networkModel{
 		ID:         types.StringValue(created.ID),
 		Name:       types.StringValue(created.Name),
@@ -240,7 +246,7 @@ func (r *networkResource) Read(ctx context.Context, req resource.ReadRequest, re
 	}
 
 	inspected, status, err := r.client.GetNetworkInspect(ctx, strings.TrimSpace(state.Env.ValueString()), state.ID.ValueString())
-	if err != nil && status != 404 {
+	if err != nil && status != 404 && !isMissingNetworkInspectError(status, err) {
 		resp.Diagnostics.AddError("Error reading Dockhand network inspect", err.Error())
 		return
 	}
@@ -336,6 +342,36 @@ func applyNetworkInspectToState(ctx context.Context, state *networkModel, inspec
 	} else {
 		state.Labels = types.MapNull(types.StringType)
 	}
+}
+
+func waitForNetworkListed(ctx context.Context, client *Client, env string, id string, name string) error {
+	deadline := time.Now().Add(20 * time.Second)
+	for time.Now().Before(deadline) {
+		items, _, err := client.ListNetworks(ctx, env)
+		if err == nil {
+			for _, item := range items {
+				if item.ID == id || item.Name == name {
+					return nil
+				}
+			}
+		}
+		time.Sleep(1 * time.Second)
+	}
+
+	return fmt.Errorf("network %q was not returned by /api/networks before timeout", name)
+}
+
+func isMissingNetworkInspectError(status int, err error) bool {
+	if err == nil {
+		return false
+	}
+	if status == 404 {
+		return true
+	}
+	if status == 500 && strings.Contains(strings.ToLower(err.Error()), "failed to inspect network") {
+		return true
+	}
+	return false
 }
 
 type boolRequiresReplace struct{}

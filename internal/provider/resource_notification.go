@@ -256,6 +256,12 @@ func (r *notificationResource) Update(ctx context.Context, req resource.UpdateRe
 	}
 
 	newState := modelFromNotificationResponse(plan, updated)
+	if !state.CreatedAt.IsNull() && !state.CreatedAt.IsUnknown() {
+		newState.CreatedAt = state.CreatedAt
+	}
+	if !state.UpdatedAt.IsNull() && !state.UpdatedAt.IsUnknown() {
+		newState.UpdatedAt = state.UpdatedAt
+	}
 	resp.Diagnostics.Append(resp.State.Set(ctx, &newState)...)
 }
 
@@ -565,13 +571,9 @@ func applySMTPConfig(out *notificationModel, prior notificationModel, cfg map[st
 		out.SMTPUsername = types.StringNull()
 	}
 
-	// If Dockhand returns a password, prefer it; otherwise preserve prior (so plans don't
-	// force replacement when Dockhand returns masked or empty secrets in the future).
-	if v, ok := cfg["password"].(string); ok {
-		out.SMTPPassword = types.StringValue(v)
-	} else {
-		out.SMTPPassword = prior.SMTPPassword
-	}
+	// SMTP password is write-only from Terraform's perspective. Dockhand may omit, mask,
+	// or transform it in API responses, so preserve prior state instead of trusting echo.
+	out.SMTPPassword = prior.SMTPPassword
 
 	out.SMTPUseTLS = boolFromConfig(cfg, "use_tls", prior.SMTPUseTLS)
 	out.SMTPStartTLS = boolFromConfig(cfg, "starttls", prior.SMTPStartTLS)
