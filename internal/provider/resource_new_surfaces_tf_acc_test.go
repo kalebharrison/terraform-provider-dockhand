@@ -9,16 +9,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/hashicorp/terraform-plugin-framework/providerserver"
-	"github.com/hashicorp/terraform-plugin-go/tfprotov6"
 	"github.com/hashicorp/terraform-plugin-testing/helper/resource"
 )
-
-func testAccProviderFactories() map[string]func() (tfprotov6.ProviderServer, error) {
-	return map[string]func() (tfprotov6.ProviderServer, error){
-		"dockhand": providerserver.NewProtocol6WithError(New("test")()),
-	}
-}
 
 func TestAccContainerFileDirectoryResourceTerraform(t *testing.T) {
 	endpoint, username, password := testAccEnv(t)

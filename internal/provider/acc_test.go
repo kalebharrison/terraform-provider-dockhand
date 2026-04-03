@@ -9,6 +9,9 @@ import (
 	"net/http/cookiejar"
 	"os"
 	"testing"
+
+	"github.com/hashicorp/terraform-plugin-framework/providerserver"
+	"github.com/hashicorp/terraform-plugin-go/tfprotov6"
 )
 
 func testAccEnv(t *testing.T) (endpoint string, username string, password string) {
@@ -30,6 +33,28 @@ func testAccDefaultEnv() string {
 		return v
 	}
 	return "1"
+}
+
+func testAccConfigureProviderEnv(t *testing.T) string {
+	t.Helper()
+
+	endpoint, username, password := testAccEnv(t)
+	t.Setenv("DOCKHAND_ENDPOINT", endpoint)
+	t.Setenv("DOCKHAND_USERNAME", username)
+	t.Setenv("DOCKHAND_PASSWORD", password)
+	t.Setenv("DOCKHAND_DEFAULT_ENV", testAccDefaultEnv())
+
+	if v := os.Getenv("DOCKHAND_TEST_AUTH_PROVIDER"); v != "" {
+		t.Setenv("DOCKHAND_AUTH_PROVIDER", v)
+	}
+
+	return testAccDefaultEnv()
+}
+
+func testAccProviderFactories() map[string]func() (tfprotov6.ProviderServer, error) {
+	return map[string]func() (tfprotov6.ProviderServer, error){
+		"dockhand": providerserver.NewProtocol6WithError(New("test")()),
+	}
 }
 
 func testAccLoginSessionCookie(t *testing.T, endpoint string, username string, password string) string {
