@@ -19,10 +19,10 @@ This project validates provider compatibility against Dockhand using two recurri
   - mode (`stateful`, `action`, `data_source`)
   - required lifecycle/read operations
   - acceptance test regex mapping
+- New manifest entries must point at an explicit targeted acceptance suite. Bare `TestAcc` catch-all mappings are only tolerated for the temporary legacy allowlist that is being worked down over time.
 
 If a new provider surface is added without manifest coverage, CI fails.
 
 ## Failure Policy
 
 If `Dockhand Release Watch` fails, the workflow opens a `compatibility` issue automatically.
-

@@ -27,6 +27,28 @@ type acceptanceManifestEntry struct {
 	AcceptanceTestRegex string   `json:"acceptance_test_regex"`
 }
 
+var temporaryGenericAcceptanceRegexAllowlist = map[string]struct{}{
+	"dockhand_git_stack_webhook_action":       {},
+	"dockhand_environment_scanner_action":     {},
+	"dockhand_network_connection_action":      {},
+	"dockhand_volume_clone_action":            {},
+	"dockhand_image_push_action":              {},
+	"dockhand_image_scan_action":              {},
+	"dockhand_container_action":               {},
+	"dockhand_container_check_updates_action": {},
+	"dockhand_schedule":                       {},
+	"dockhand_stack_scan_action":              {},
+	"dockhand_stack_adopt_action":             {},
+	"dockhand_images":                         {},
+	"dockhand_container_stats":                {},
+	"dockhand_container_pending_updates":      {},
+	"dockhand_stack_sources":                  {},
+	"dockhand_container_shells":               {},
+	"dockhand_container_logs":                 {},
+	"dockhand_container_inspect":              {},
+	"dockhand_stacks":                         {},
+}
+
 func TestAcceptanceManifestCoverage(t *testing.T) {
 	t.Helper()
 
@@ -176,6 +198,11 @@ func validateManifestEntry(t *testing.T, surfaceType string, e acceptanceManifes
 	testRegex := strings.TrimSpace(e.AcceptanceTestRegex)
 	if testRegex == "" {
 		t.Fatalf("%s %q missing acceptance_test_regex", surfaceType, e.Name)
+	}
+	if testRegex == "TestAcc" {
+		if _, ok := temporaryGenericAcceptanceRegexAllowlist[e.Name]; !ok {
+			t.Fatalf("%s %q uses bare generic acceptance_test_regex %q; add explicit TestAcc... coverage or a temporary allowlist entry", surfaceType, e.Name, testRegex)
+		}
 	}
 	re, err := regexp.Compile(testRegex)
 	if err != nil {
