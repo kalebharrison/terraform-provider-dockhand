@@ -2445,7 +2445,10 @@ func (c *Client) ScanImage(ctx context.Context, env string, imageName string) (s
 		query["env"] = resolvedEnv
 	}
 
-	status, err := c.doJSONWithStatus(ctx, http.MethodPost, "/api/images/scan", query, imageScanPayload{ImageName: imageName}, nil)
+	scanClient := *c.httpClient
+	scanClient.Timeout = 3 * time.Minute
+
+	status, err := c.doJSONWithStatusUsingClient(ctx, &scanClient, http.MethodPost, "/api/images/scan", query, imageScanPayload{ImageName: imageName}, nil)
 	if err != nil {
 		return "", status, err
 	}
@@ -2743,6 +2746,10 @@ func (c *Client) DeleteUser(ctx context.Context, id string) (int, error) {
 }
 
 func (c *Client) doJSONWithStatus(ctx context.Context, method string, path string, query map[string]string, in any, out any) (int, error) {
+	return c.doJSONWithStatusUsingClient(ctx, c.httpClient, method, path, query, in, out)
+}
+
+func (c *Client) doJSONWithStatusUsingClient(ctx context.Context, httpClient *http.Client, method string, path string, query map[string]string, in any, out any) (int, error) {
 	var payloadBytes []byte
 	if in != nil {
 		data, err := json.Marshal(in)
@@ -2787,7 +2794,7 @@ func (c *Client) doJSONWithStatus(ctx context.Context, method string, path strin
 			req.Header.Set("Cookie", c.sessionCookie)
 		}
 
-		res, err := c.httpClient.Do(req)
+		res, err := httpClient.Do(req)
 		if err != nil {
 			if shouldRetry(method, 0, err) && attempt < 2 {
 				if sleepErr := sleepBackoff(ctx, attempt); sleepErr != nil {

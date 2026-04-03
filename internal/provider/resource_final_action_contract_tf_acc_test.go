@@ -2,7 +2,9 @@ package provider
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
+	"net/http"
 	"os"
 	"strings"
 	"testing"
@@ -51,12 +53,15 @@ func TestAccScannerAndImageScanActionsTerraform(t *testing.T) {
 }
 
 func TestAccImagePushActionTerraform(t *testing.T) {
-	endpoint, username, password := testAccEnv(t)
 	env := testAccConfigureProviderEnv(t)
 
 	registryURL := strings.TrimSpace(os.Getenv("DOCKHAND_TEST_REGISTRY_URL"))
 	if registryURL == "" {
 		registryURL = "http://registry:5000"
+	}
+	registryHostURL := strings.TrimSpace(os.Getenv("DOCKHAND_TEST_REGISTRY_HOST_URL"))
+	if registryHostURL == "" {
+		registryHostURL = "http://127.0.0.1:25000"
 	}
 
 	suffix := strings.ToLower(time.Now().UTC().Format("20060102150405"))
@@ -72,14 +77,14 @@ func TestAccImagePushActionTerraform(t *testing.T) {
 					resource.TestCheckResourceAttr("dockhand_registry.test", "url", registryURL),
 					resource.TestCheckResourceAttr("dockhand_image_push_action.test", "result", "push_requested"),
 					resource.TestCheckResourceAttr("dockhand_image_push_action.test", "trigger", "acc-push-1"),
-					testAccCheckRegistryCatalogEventuallyNonEmpty(endpoint, username, password, "dockhand_registry.test"),
+					testAccCheckRegistryCatalogEventuallyNonEmpty(registryHostURL),
 				),
 			},
 			{
 				Config: testAccImagePushActionConfig(env, registryName, registryURL, imageName, "acc-push-2"),
 				Check: resource.ComposeTestCheckFunc(
 					resource.TestCheckResourceAttr("dockhand_image_push_action.test", "trigger", "acc-push-2"),
-					testAccCheckRegistryCatalogEventuallyNonEmpty(endpoint, username, password, "dockhand_registry.test"),
+					testAccCheckRegistryCatalogEventuallyNonEmpty(registryHostURL),
 				),
 			},
 		},
@@ -116,7 +121,7 @@ func TestAccStackAdoptActionTerraform(t *testing.T) {
 				Config: testAccStackAdoptCleanupConfig(envID, stackName, "acc-adopt-cleanup"),
 				Check: resource.ComposeTestCheckFunc(
 					resource.TestCheckResourceAttr("dockhand_stack_action.cleanup", "action", "down"),
-					testAccCheckRuntimeStackMissing(endpoint, username, password, envID, stackName),
+					testAccCheckRuntimeStackQuiesced(endpoint, username, password, envID, stackName),
 				),
 			},
 		},
@@ -283,50 +288,47 @@ func testAccCheckScannerAvailability(environmentResourceName string, endpoint st
 	}
 }
 
-func testAccCheckRegistryCatalogEventuallyNonEmpty(endpoint string, username string, password string, registryResourceName string) resource.TestCheckFunc {
-	return func(state *terraform.State) error {
-		rs, ok := state.RootModule().Resources[registryResourceName]
-		if !ok {
-			return fmt.Errorf("resource %q not found in state", registryResourceName)
-		}
-		registryID := strings.TrimSpace(rs.Primary.ID)
-		if registryID == "" {
-			return fmt.Errorf("resource %q has empty registry id", registryResourceName)
-		}
-
-		sessionCookie, err := testAccLoginSessionCookieForDestroy(endpoint, username, password)
-		if err != nil {
-			return err
-		}
-
-		client, err := NewClient(endpoint, sessionCookie, testAccDefaultEnv(), true)
-		if err != nil {
-			return err
-		}
-
+func testAccCheckRegistryCatalogEventuallyNonEmpty(registryHostURL string) resource.TestCheckFunc {
+	return func(_ *terraform.State) error {
 		deadline := time.Now().Add(2 * time.Minute)
 		var lastRepos []string
 		var lastErr error
 		for {
-			raw, _, err := client.GetRegistryCatalogRaw(context.Background(), registryID, 0, 0)
+			req, err := http.NewRequestWithContext(context.Background(), http.MethodGet, strings.TrimRight(registryHostURL, "/")+"/v2/_catalog", nil)
 			if err == nil {
-				lastRepos = extractCatalogRepositories(raw)
-				if len(lastRepos) > 0 {
-					return nil
+				res, doErr := http.DefaultClient.Do(req)
+				if doErr == nil {
+					var payload struct {
+						Repositories []string `json:"repositories"`
+					}
+					decodeErr := json.NewDecoder(res.Body).Decode(&payload)
+					res.Body.Close()
+					if decodeErr == nil && res.StatusCode >= 200 && res.StatusCode <= 299 {
+						lastRepos = payload.Repositories
+						if len(lastRepos) > 0 {
+							return nil
+						}
+					} else if decodeErr != nil {
+						lastErr = decodeErr
+					} else {
+						lastErr = fmt.Errorf("registry catalog status %d", res.StatusCode)
+					}
+				} else {
+					lastErr = doErr
 				}
 			} else {
 				lastErr = err
 			}
 
 			if time.Now().After(deadline) {
-				return fmt.Errorf("registry %s catalog remained empty after push (last_repositories=%v last_err=%v)", registryID, lastRepos, lastErr)
+				return fmt.Errorf("registry catalog at %s remained empty after push (last_repositories=%v last_err=%v)", registryHostURL, lastRepos, lastErr)
 			}
 			time.Sleep(5 * time.Second)
 		}
 	}
 }
 
-func testAccCheckRuntimeStackMissing(endpoint string, username string, password string, env string, stackName string) resource.TestCheckFunc {
+func testAccCheckRuntimeStackQuiesced(endpoint string, username string, password string, env string, stackName string) resource.TestCheckFunc {
 	return func(_ *terraform.State) error {
 		sessionCookie, err := testAccLoginSessionCookieForDestroy(endpoint, username, password)
 		if err != nil {
@@ -340,15 +342,18 @@ func testAccCheckRuntimeStackMissing(endpoint string, username string, password 
 
 		deadline := time.Now().Add(90 * time.Second)
 		for {
-			_, found, err := client.GetStackByName(context.Background(), env, stackName)
-			if err == nil && !found {
+			item, found, err := client.GetStackByName(context.Background(), env, stackName)
+			if err == nil && (!found || (item != nil && len(item.Containers) == 0)) {
 				return nil
 			}
 			if time.Now().After(deadline) {
 				if err != nil {
-					return fmt.Errorf("check runtime stack absence for %q: %w", stackName, err)
+					return fmt.Errorf("check runtime stack quiesced state for %q: %w", stackName, err)
 				}
-				return fmt.Errorf("runtime stack %q still exists after cleanup", stackName)
+				if item != nil {
+					return fmt.Errorf("runtime stack %q still has containers after cleanup (status=%q containers=%v)", stackName, item.Status, item.Containers)
+				}
+				return fmt.Errorf("runtime stack %q did not quiesce after cleanup", stackName)
 			}
 			time.Sleep(5 * time.Second)
 		}
