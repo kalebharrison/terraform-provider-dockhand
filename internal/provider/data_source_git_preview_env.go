@@ -166,8 +166,6 @@ func buildGitPreviewEnvPayload(data gitPreviewEnvDataSourceModel) (gitPreviewEnv
 	payload := gitPreviewEnvPayload{
 		ComposePath: composePath,
 	}
-	id := composePath
-
 	if repositoryID != "" {
 		if !data.Branch.IsNull() || !data.CredentialID.IsNull() {
 			return gitPreviewEnvPayload{}, "", fmt.Errorf("`branch` and `credential_id` cannot be set when `repository_id` is used")
@@ -177,8 +175,7 @@ func buildGitPreviewEnvPayload(data gitPreviewEnvDataSourceModel) (gitPreviewEnv
 			return gitPreviewEnvPayload{}, "", err
 		}
 		payload.RepositoryID = repoID
-		id = "repo:" + repositoryID + ":" + composePath
-		return payload, id, nil
+		return payload, "repo:" + repositoryID + ":" + composePath, nil
 	}
 
 	credentialID, err := optionalInt64StringValue("credential_id", data.CredentialID)
@@ -188,8 +185,7 @@ func buildGitPreviewEnvPayload(data gitPreviewEnvDataSourceModel) (gitPreviewEnv
 	payload.URL = &urlValue
 	payload.Branch = optionalStringValue(data.Branch)
 	payload.CredentialID = credentialID
-	id = "url:" + urlValue + ":" + composePath
-	return payload, id, nil
+	return payload, "url:" + urlValue + ":" + composePath, nil
 }
 
 func normalizedOptionalString(v types.String) types.String {
