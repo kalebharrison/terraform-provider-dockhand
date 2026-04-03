@@ -28,11 +28,9 @@ type acceptanceManifestEntry struct {
 }
 
 var temporaryGenericAcceptanceRegexAllowlist = map[string]struct{}{
-	"dockhand_git_stack_webhook_action":   {},
 	"dockhand_environment_scanner_action": {},
 	"dockhand_image_push_action":          {},
 	"dockhand_image_scan_action":          {},
-	"dockhand_schedule":                   {},
 	"dockhand_stack_adopt_action":         {},
 }
 
