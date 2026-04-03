@@ -16,7 +16,7 @@ Run from repo root.
 # API contract check against live Dockhand
 ./scripts/verify.sh --endpoint-probe
 
-# Full acceptance harness (ephemeral Dockhand + DinD + Hawser)
+# Full acceptance harness (ephemeral Dockhand + DinD + Hawser + local registry + adopt fixture)
 ./scripts/verify.sh --acceptance --test-regex 'TestAcc'
 ```
 
@@ -85,7 +85,7 @@ When adding/changing a resource or data source:
    - `docs/non-present-endpoints.md` (if still missing/not exposed)
 
 `/usr/bin/python3 scripts/check-doc-example-coverage.py` enforces docs/examples parity.
-`TestAcceptanceManifestCoverage` enforces manifest parity and now rejects new bare `TestAcc` mappings outside the temporary legacy allowlist. New surfaces should map to a targeted acceptance suite name, not the catch-all regex.
+`TestAcceptanceManifestCoverage` enforces manifest parity and rejects bare `TestAcc` mappings. Every provider surface must map to an explicit targeted acceptance suite name.
 
 ## Release-First Validation Flow
 

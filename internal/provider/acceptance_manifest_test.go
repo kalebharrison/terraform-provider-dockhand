@@ -27,12 +27,7 @@ type acceptanceManifestEntry struct {
 	AcceptanceTestRegex string   `json:"acceptance_test_regex"`
 }
 
-var temporaryGenericAcceptanceRegexAllowlist = map[string]struct{}{
-	"dockhand_environment_scanner_action": {},
-	"dockhand_image_push_action":          {},
-	"dockhand_image_scan_action":          {},
-	"dockhand_stack_adopt_action":         {},
-}
+var temporaryGenericAcceptanceRegexAllowlist = map[string]struct{}{}
 
 func TestAcceptanceManifestCoverage(t *testing.T) {
 	t.Helper()
