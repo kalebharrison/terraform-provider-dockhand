@@ -52,6 +52,6 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          TEST_REGEX='TestAcc(UserResourceTerraform|ContainerRenameActionTerraform|ContainerUpdateActionTerraform|EnvironmentResourceDirectDinDTerraform|EnvironmentResourceAgentTokenTerraform|ScannerAndImageScanActionsTerraform|ImagePushActionTerraform|StackAdoptActionTerraform)' \
+          TEST_REGEX='TestAcc(UserResourceTerraform|ContainerRenameActionTerraform|ContainerUpdateActionTerraform|EnvironmentResourceDirectDinDTerraform|EnvironmentResourceAgentTokenTerraform|ScannerAndImageScanActionsTerraform|ImagePushActionTerraform|StackAdoptActionTerraform|GitHelperSurfacesTerraform)' \
           RUN_ENDPOINT_PROBE=false \
           ./scripts/run-acceptance-harness.sh

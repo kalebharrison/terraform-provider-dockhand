@@ -63,6 +63,7 @@ Live verification artifacts:
 | `dockhand_git_repository` | Read | `GET /api/git/repositories/{id}` | `404` removes from state. | implemented |
 | `dockhand_git_repository` | Update | `PUT /api/git/repositories/{id}` | Updates repo integration settings. | partial |
 | `dockhand_git_repository` | Delete | `DELETE /api/git/repositories/{id}` | `404` treated as already deleted. | implemented |
+| `dockhand_git_repository_test_action` | Test connectivity | `POST /api/git/repositories/test` | One-shot repository connectivity test. Supports inline URL payloads or existing `repository_id` resolution. | implemented |
 | `dockhand_git_stack` | Create/Read/Update/Delete | `GET/POST/PUT/DELETE /api/git/stacks?env={env_id}` | Manages deployed Git-backed stacks (stack name + repo + compose path) in a target environment. | implemented |
 | `dockhand_git_stack_webhook_action` | Trigger webhook | `POST /api/git/stacks/{id}/webhook` | One-shot trigger for git stack deploy/sync webhook flow. | implemented |
 | `dockhand_git_stack_deploy_action` | Trigger deploy | `POST /api/git/stacks/{id}/deploy-stream` | One-shot deploy request for git-managed stacks. | implemented |
@@ -129,6 +130,7 @@ Live verification artifacts:
 | `dockhand_registry_search` | `GET /api/registry/search` | Searches remote registry repositories by `term` and optional `registry`. | implemented |
 | `dockhand_registry_tags` | `GET /api/registry/tags` | Lists tags for an image repository with optional paging and registry selector. | implemented |
 | `dockhand_registry_catalog` | `GET /api/registry/catalog` | Reads raw catalog payload and extracted repository names. | implemented |
+| `dockhand_git_preview_env` | `POST /api/git/preview-env` | Previews compose/environment variable requirements by repository URL or saved repository ID. | implemented |
 | `dockhand_schedules` | `GET /api/schedules` | Exposes schedule inventory (system cleanup + generated schedules). | implemented |
 | `dockhand_schedule_settings` | `GET /api/schedules/settings` | Reads singleton schedule settings payload. | implemented |
 | `dockhand_schedule_stream` | `GET /api/schedules/stream` | Captures bounded stream snapshot events for connectivity/observability workflows. | implemented |
@@ -152,6 +154,8 @@ Live verification artifacts:
 | `/api/schedules` | schedule details/advanced actions (`run`, executions history/stream/settings) | partial |
 | `/api/images` | image actions (`scan`, `push`) | partial |
 | `/api/containers` | exec websocket, upload/download streams, and advanced create/update options coverage | partial |
+| `/api/git/repositories/test` | git repository connectivity test action | implemented |
+| `/api/git/preview-env` | git preview env data source | implemented |
 | `/api/stacks/{name}/env` | broader non-secret env var editing semantics | partial |
 | `/api/stacks/base-path` + `/api/stacks/default-path` | stack path helper data sources | implemented |
 | `/api/volumes` | advanced volume operations (`clone`, `browse`, import/export) | partial |
