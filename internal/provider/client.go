@@ -341,6 +341,34 @@ type gitRepositoryResponse struct {
 	UpdatedAt          *string `json:"updatedAt"`
 }
 
+type gitRepositoryTestPayload struct {
+	URL          string  `json:"url"`
+	Branch       *string `json:"branch,omitempty"`
+	CredentialID *int64  `json:"credentialId,omitempty"`
+	ComposePath  *string `json:"composePath,omitempty"`
+}
+
+type gitRepositoryTestResponse struct {
+	Success    bool    `json:"success"`
+	Error      *string `json:"error"`
+	Branch     *string `json:"branch"`
+	LastCommit *string `json:"lastCommit"`
+}
+
+type gitPreviewEnvPayload struct {
+	RepositoryID *int64  `json:"repositoryId,omitempty"`
+	URL          *string `json:"url,omitempty"`
+	Branch       *string `json:"branch,omitempty"`
+	ComposePath  string  `json:"composePath"`
+	CredentialID *int64  `json:"credentialId,omitempty"`
+}
+
+type gitPreviewEnvResponse struct {
+	Vars    map[string]any `json:"vars"`
+	Sources map[string]any `json:"sources"`
+	Error   *string        `json:"error"`
+}
+
 type gitStackEnvVarPayload struct {
 	Key      string `json:"key"`
 	Value    string `json:"value"`
@@ -1179,6 +1207,30 @@ func (c *Client) UpdateGitRepository(ctx context.Context, id string, payload git
 
 func (c *Client) DeleteGitRepository(ctx context.Context, id string) (int, error) {
 	return c.doJSONWithStatus(ctx, http.MethodDelete, "/api/git/repositories/"+url.PathEscape(id), nil, nil, nil)
+}
+
+func (c *Client) TestGitRepository(ctx context.Context, payload gitRepositoryTestPayload) (*gitRepositoryTestResponse, int, error) {
+	var out gitRepositoryTestResponse
+	status, err := c.doJSONWithStatus(ctx, http.MethodPost, "/api/git/repositories/test", nil, payload, &out)
+	if err != nil {
+		return nil, status, err
+	}
+	return &out, status, nil
+}
+
+func (c *Client) PreviewGitEnv(ctx context.Context, payload gitPreviewEnvPayload) (*gitPreviewEnvResponse, int, error) {
+	var out gitPreviewEnvResponse
+	status, err := c.doJSONWithStatus(ctx, http.MethodPost, "/api/git/preview-env", nil, payload, &out)
+	if err != nil {
+		return nil, status, err
+	}
+	if out.Vars == nil {
+		out.Vars = map[string]any{}
+	}
+	if out.Sources == nil {
+		out.Sources = map[string]any{}
+	}
+	return &out, status, nil
 }
 
 func (c *Client) ListGitStacks(ctx context.Context, env string) ([]gitStackResponse, int, error) {

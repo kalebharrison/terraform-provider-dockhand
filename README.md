@@ -15,6 +15,7 @@ This provider currently includes:
 - Resource: `dockhand_registry_image_delete_action`
 - Resource: `dockhand_git_credential`
 - Resource: `dockhand_git_repository`
+- Resource: `dockhand_git_repository_test_action`
 - Resource: `dockhand_git_stack`
 - Resource: `dockhand_git_stack_webhook_action`
 - Resource: `dockhand_git_stack_deploy_action`
@@ -77,6 +78,7 @@ This provider currently includes:
 - Data source: `dockhand_registry_tags`
 - Data source: `dockhand_registry_catalog`
 - Data source: `dockhand_git_credentials`
+- Data source: `dockhand_git_preview_env`
 - Data source: `dockhand_git_repositories`
 - Data source: `dockhand_notifications`
 - Data source: `dockhand_config_sets`
@@ -113,6 +115,8 @@ This provider currently includes:
   - `DELETE /api/registry/image`
   - `GET /api/environments/detect-socket`
   - `POST /api/environments/test`
+  - `POST /api/git/repositories/test`
+  - `POST /api/git/preview-env`
   - `POST /api/git/stacks/{id}/webhook`
   - `GET /api/git/stacks/{id}/env-files`
   - `POST /api/git/stacks/{id}/env-files`
@@ -147,7 +151,7 @@ If your Dockhand API differs, update `internal/provider/client.go`.
 
 Requirements:
 
-- Go 1.22+
+- Go 1.25+
 - Terraform CLI
 
 Build:
