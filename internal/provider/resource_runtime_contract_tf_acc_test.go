@@ -1,16 +1,19 @@
 package provider
 
 import (
+	"context"
 	"fmt"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/hashicorp/terraform-plugin-testing/helper/resource"
+	"github.com/hashicorp/terraform-plugin-testing/terraform"
 )
 
 func TestAccContainerRuntimeSurfacesTerraform(t *testing.T) {
 	testAccConfigureProviderEnv(t)
+	endpoint, username, password := testAccEnv(t)
 	env := testAccDefaultEnv()
 	suffix := strings.ToLower(time.Now().UTC().Format("20060102150405"))
 	imageName := "busybox:1.36.1"
@@ -30,6 +33,7 @@ func TestAccContainerRuntimeSurfacesTerraform(t *testing.T) {
 					resource.TestCheckOutput("containers_have_target", "true"),
 					resource.TestCheckOutput("pending_updates_env_matches", "true"),
 					resource.TestCheckOutput("inspect_has_name", "true"),
+					testAccCheckContainerRuntimeEventually(endpoint, username, password, env, "dockhand_container.test", expectedContainerStates("stop"), false),
 				),
 			},
 			{
@@ -42,6 +46,7 @@ func TestAccContainerRuntimeSurfacesTerraform(t *testing.T) {
 					resource.TestCheckOutput("containers_have_target", "true"),
 					resource.TestCheckOutput("pending_updates_env_matches", "true"),
 					resource.TestCheckOutput("inspect_has_name", "true"),
+					testAccCheckContainerRuntimeEventually(endpoint, username, password, env, "dockhand_container.test", expectedContainerStates("start"), true),
 				),
 			},
 		},
@@ -161,10 +166,6 @@ data "dockhand_container_logs" "logs" {
   ]
 }
 
-output "stats_have_target" {
-  value = contains([for s in data.dockhand_container_stats.stats.stats : s.id], dockhand_container.test.id)
-}
-
 output "shells_have_sh" {
   value = try(contains(data.dockhand_container_shells.shells.shells, "/bin/sh"), false) || try(data.dockhand_container_shells.shells.default_shell == "/bin/sh", false) || try(length([for s in data.dockhand_container_shells.shells.all_shells : s.path if s.available && s.path == "/bin/sh"]) > 0, false)
 }
@@ -261,12 +262,8 @@ output "inspect_has_name" {
   value = strcontains(data.dockhand_container_inspect.inspect.inspect_json, dockhand_container.test.name)
 }
 
-output "container_state_matches_expectation" {
-  value = contains(%s, local.target_state)
-}
-
 %s
-`, env, imageName, env, containerName, "sh -c 'echo "+marker+"; sleep 3600'", env, action, trigger, env, trigger, env, env, env, env, env, expectedContainerStates(action), runningData)
+`, env, imageName, env, containerName, "sh -c 'echo "+marker+"; sleep 3600'", env, action, trigger, env, trigger, env, env, env, env, env, runningData)
 }
 
 func testAccNetworkConnectionActionConfig(env string, containerName string, networkName string, action string, trigger string) string {
@@ -416,4 +413,90 @@ func expectedContainerStates(action string) string {
 	default:
 		return `["running"]`
 	}
+}
+
+func testAccCheckContainerRuntimeEventually(endpoint string, username string, password string, env string, resourceName string, expectedStatesJSON string, requireStats bool) resource.TestCheckFunc {
+	return func(state *terraform.State) error {
+		rs, ok := state.RootModule().Resources[resourceName]
+		if !ok {
+			return fmt.Errorf("resource %q not found in state", resourceName)
+		}
+		containerID := strings.TrimSpace(rs.Primary.ID)
+		if containerID == "" {
+			return fmt.Errorf("resource %q has empty container id", resourceName)
+		}
+
+		sessionCookie, err := testAccLoginSessionCookieForDestroy(endpoint, username, password)
+		if err != nil {
+			return err
+		}
+		client, err := NewClient(endpoint, sessionCookie, env, true)
+		if err != nil {
+			return err
+		}
+
+		allowed := map[string]struct{}{}
+		for _, raw := range strings.Split(strings.Trim(expectedStatesJSON, "[]"), ",") {
+			s := strings.Trim(strings.TrimSpace(raw), `"`)
+			if s != "" {
+				allowed[s] = struct{}{}
+			}
+		}
+		if len(allowed) == 0 {
+			return fmt.Errorf("no expected container states parsed from %q", expectedStatesJSON)
+		}
+
+		deadline := time.Now().Add(60 * time.Second)
+		var (
+			lastState    string
+			lastFound    bool
+			lastStatsHit bool
+			lastErr      error
+		)
+		for {
+			item, found, err := client.GetContainerByID(context.Background(), env, containerID)
+			if err != nil {
+				lastErr = err
+			} else {
+				lastFound = found
+				if found && item != nil {
+					lastState = strings.ToLower(strings.TrimSpace(item.State))
+					_, stateOK := allowed[lastState]
+					statsOK := true
+					if requireStats {
+						statsOK = false
+						stats, _, statsErr := client.GetContainerStats(context.Background(), env)
+						if statsErr != nil {
+							lastErr = statsErr
+						} else {
+							for _, s := range stats {
+								if strings.TrimSpace(s.ID) == containerID {
+									lastStatsHit = true
+									statsOK = true
+									break
+								}
+							}
+						}
+					}
+
+					if stateOK && statsOK {
+						return nil
+					}
+				}
+			}
+
+			if time.Now().After(deadline) {
+				return fmt.Errorf("container %s runtime did not settle as expected (allowed_states=%v last_state=%q found=%t stats_match=%t require_stats=%t last_err=%v)", containerID, mapKeys(allowed), lastState, lastFound, lastStatsHit, requireStats, lastErr)
+			}
+			time.Sleep(2 * time.Second)
+		}
+	}
+}
+
+func mapKeys(in map[string]struct{}) []string {
+	out := make([]string, 0, len(in))
+	for k := range in {
+		out = append(out, k)
+	}
+	return out
 }
