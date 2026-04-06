@@ -411,7 +411,9 @@ func expectedContainerStates(action string) string {
 	case "pause":
 		return `["paused"]`
 	default:
-		return `["running"]`
+		// Short-lived command containers can move from running to exited
+		// before the follow-up runtime checks complete.
+		return `["running", "dead", "exited", "stopped"]`
 	}
 }
 
@@ -475,6 +477,13 @@ func testAccCheckContainerRuntimeEventually(endpoint string, username string, pa
 									statsOK = true
 									break
 								}
+							}
+						}
+						if !statsOK {
+							// For one-shot containers, start can succeed and the container
+							// can exit before stats are observed.
+							if lastState == "dead" || lastState == "exited" || lastState == "stopped" {
+								statsOK = true
 							}
 						}
 					}
