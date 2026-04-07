@@ -1,6 +1,67 @@
 # Dockhand Provider
 
-Use the Dockhand provider to manage stack definitions and query API health.
+Use the Dockhand provider to manage Dockhand itself as code: bootstrap auth, configure Dockhand settings, register environments, wire Git and registries, and manage stacks, containers, images, volumes, networks, schedules, and operational actions.
+
+## Quick Start
+
+```terraform
+terraform {
+  required_providers {
+    dockhand = {
+      source  = "kalebharrison/dockhand"
+      version = ">= 0.1.63"
+    }
+  }
+}
+
+provider "dockhand" {
+  endpoint    = var.dockhand_endpoint
+  username    = var.dockhand_username
+  password    = var.dockhand_password
+  default_env = var.dockhand_default_env
+}
+```
+
+For a fresh, unauthenticated Dockhand install, bootstrap the first admin with:
+
+```terraform
+provider "dockhand" {
+  endpoint              = var.dockhand_endpoint
+  allow_unauthenticated = true
+}
+
+resource "dockhand_user" "admin" {
+  username     = "admin"
+  password     = var.initial_admin_password
+  email        = "admin@example.com"
+  display_name = "Dockhand Admin"
+  is_admin     = true
+  is_active    = true
+}
+```
+
+## Recommended Starting Points
+
+- Bootstrap first admin: `examples/scenarios/bootstrap-admin/main.tf`
+- Register an environment and deploy a stack: `examples/scenarios/environment-and-stack/main.tf`
+- Configure Git-backed Dockhand automation: `examples/scenarios/gitops-stack/main.tf`
+- Configure registries and image actions: `examples/scenarios/registry-and-image/main.tf`
+
+## Coverage Highlights
+
+- Dockhand settings: `dockhand_settings_general`, `dockhand_auth_settings`, `dockhand_notification`, `dockhand_license`, `dockhand_config_set`
+- Environments: `dockhand_environment`, `dockhand_environment_test_action`, `dockhand_environment_scanner_action`
+- Git: `dockhand_git_credential`, `dockhand_git_repository`, `dockhand_git_repository_test_action`, `dockhand_git_preview_env`, `dockhand_git_stack`, `dockhand_git_stack_webhook_action`, `dockhand_git_stack_deploy_action`, `dockhand_git_stack_env_file`
+- Runtime resources: `dockhand_stack`, `dockhand_container`, `dockhand_image`, `dockhand_network`, `dockhand_volume`, `dockhand_schedule`
+- Operational actions: `dockhand_batch_action`, `dockhand_prune_action`, stack/container/image/network/volume/schedule action resources
+- Observability data sources: health, activity, users, environments, registries, containers, schedules, system, stack metadata, and jobs
+
+## Compatibility and Known Gaps
+
+- Compatibility policy: `docs/testing/compatibility-matrix.md`
+- Release gate: `docs/testing/release-gate.md`
+- Non-present endpoints and WebUI gaps: `docs/non-present-endpoints.md`
+- API surface matrix: `docs/api-matrix.md`
 
 ## Project Standards
 
@@ -8,20 +69,7 @@ Use the Dockhand provider to manage stack definitions and query API health.
 - Governance: `GOVERNANCE.md`
 - Maintainers: `MAINTAINERS.md`
 - Contributor support: `SUPPORT.md`
-- Compatibility matrix: `docs/testing/compatibility-matrix.md`
-- Release gate: `docs/testing/release-gate.md`
 - Maintenance playbook: `docs/MAINTENANCE_PLAYBOOK.md`
-
-## Example Usage
-
-```terraform
-provider "dockhand" {
-  endpoint       = "https://dockhand.example.com"
-  username       = var.dockhand_username
-  password       = var.dockhand_password
-  default_env    = "1"
-}
-```
 
 ## Resources
 
@@ -35,6 +83,7 @@ provider "dockhand" {
 - `dockhand_registry_image_delete_action`
 - `dockhand_git_credential`
 - `dockhand_git_repository`
+- `dockhand_git_repository_test_action`
 - `dockhand_git_stack`
 - `dockhand_git_stack_webhook_action`
 - `dockhand_git_stack_deploy_action`
@@ -78,6 +127,7 @@ provider "dockhand" {
 - `dockhand_registry_tags`
 - `dockhand_registry_catalog`
 - `dockhand_git_credentials`
+- `dockhand_git_preview_env`
 - `dockhand_git_repositories`
 - `dockhand_notifications`
 - `dockhand_config_sets`
@@ -116,7 +166,7 @@ provider "dockhand" {
 - `username` (String) Username for login-based auth. Can also be set with `DOCKHAND_USERNAME`.
 - `password` (String, Sensitive) Password for login-based auth. Can also be set with `DOCKHAND_PASSWORD`.
 - `mfa_token` (String, Sensitive) Optional MFA token for login-based auth. Can also be set with `DOCKHAND_MFA_TOKEN`.
-- `auth_provider` (String) Auth provider id (default `local`). Can also be set with `DOCKHAND_AUTH_PROVIDER`.
+- `auth_provider` (String) Auth provider ID (default `local`). Can also be set with `DOCKHAND_AUTH_PROVIDER`.
 - `default_env` (String) Default environment ID used when resources omit `env`. Can also be set with `DOCKHAND_DEFAULT_ENV`.
 - `insecure` (Boolean) Disable TLS verification.
 - `allow_unauthenticated` (Boolean) Allow provider initialization without login credentials for first-install bootstrap flows. Can also be set with `DOCKHAND_ALLOW_UNAUTHENTICATED`.

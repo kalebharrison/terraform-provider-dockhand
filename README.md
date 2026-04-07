@@ -1,335 +1,192 @@
 # Terraform Provider Dockhand
 
-Terraform provider for managing Dockhand resources.
+Manage Dockhand itself with Terraform: bootstrap the first admin, configure Dockhand settings, register environments, wire Git and registries, and manage stacks, containers, images, networks, volumes, schedules, and operational actions through one provider.
 
-## Current Scope
+## Why This Provider
 
-This provider currently includes:
+Dockhand already centralizes Docker operations. This provider lets you treat Dockhand as code as well:
 
-- Provider config with `endpoint`, `username`/`password` (login-based), `default_env`, `insecure`, and `allow_unauthenticated` (bootstrap mode).
-- Resource: `dockhand_stack`
-- Resource: `dockhand_stack_action`
-- Resource: `dockhand_user`
-- Resource: `dockhand_settings_general`
-- Resource: `dockhand_registry`
-- Resource: `dockhand_registry_image_delete_action`
-- Resource: `dockhand_git_credential`
-- Resource: `dockhand_git_repository`
-- Resource: `dockhand_git_repository_test_action`
-- Resource: `dockhand_git_stack`
-- Resource: `dockhand_git_stack_webhook_action`
-- Resource: `dockhand_git_stack_deploy_action`
-- Resource: `dockhand_git_stack_env_file`
-- Resource: `dockhand_config_set`
-- Resource: `dockhand_network`
-- Resource: `dockhand_volume`
-- Resource: `dockhand_image`
-- Resource: `dockhand_image_scan_action`
-- Resource: `dockhand_container`
-- Resource: `dockhand_container_file`
-- Resource: `dockhand_container_action`
-- Resource: `dockhand_schedule`
-- Resource: `dockhand_schedule_settings`
-- Resource: `dockhand_schedule_run_action`
-- Resource: `dockhand_prune_action`
-- Resource: `dockhand_batch_action`
-- Resource: `dockhand_stack_env`
-- Resource: `dockhand_stack_scan_action`
-- Resource: `dockhand_stack_adopt_action`
-- Resource: `dockhand_auth_settings`
-- Resource: `dockhand_license`
-- Resource: `dockhand_notification`
-- Resource: `dockhand_notification_test_action`
-- Resource: `dockhand_environment`
-- Resource: `dockhand_environment_test_action`
-- Resource: `dockhand_environment_scanner_action`
-- Resource: `dockhand_network_connection_action`
-- Resource: `dockhand_volume_clone_action`
-- Resource: `dockhand_image_push_action`
-- Resource: `dockhand_container_rename_action`
-- Resource: `dockhand_container_update_action`
-- Resource: `dockhand_container_check_updates_action`
-- Data source: `dockhand_health`
-- Data source: `dockhand_activity`
-- Data source: `dockhand_hawser_status`
-- Data source: `dockhand_auth_providers`
-- Data source: `dockhand_schedules`
-- Data source: `dockhand_schedule_settings`
-- Data source: `dockhand_schedule_stream`
-- Data source: `dockhand_schedules_executions`
-- Data source: `dockhand_system`
-- Data source: `dockhand_system_disk`
-- Data source: `dockhand_system_files`
-- Data source: `dockhand_system_file_content`
-- Data source: `dockhand_containers`
-- Data source: `dockhand_container_stats`
-- Data source: `dockhand_container_pending_updates`
-- Data source: `dockhand_container_shells`
-- Data source: `dockhand_stack_sources`
-- Data source: `dockhand_stack_base_path`
-- Data source: `dockhand_stack_default_path`
-- Data source: `dockhand_container_logs`
-- Data source: `dockhand_container_inspect`
-- Data source: `dockhand_container_processes`
-- Data source: `dockhand_stacks`
-- Data source: `dockhand_users`
-- Data source: `dockhand_registries`
-- Data source: `dockhand_registry_search`
-- Data source: `dockhand_registry_tags`
-- Data source: `dockhand_registry_catalog`
-- Data source: `dockhand_git_credentials`
-- Data source: `dockhand_git_preview_env`
-- Data source: `dockhand_git_repositories`
-- Data source: `dockhand_notifications`
-- Data source: `dockhand_config_sets`
-- Data source: `dockhand_environments`
-- Data source: `dockhand_environment_detect_socket`
-- Data source: `dockhand_networks`
-- Data source: `dockhand_volumes`
-- Data source: `dockhand_images`
-- Data source: `dockhand_job`
-- HTTP client wiring against:
-  - `POST /api/auth/login` (session-based auth)
-  - `GET /api/auth/session` (session check)
-  - `GET /api/stacks`
-  - `POST /api/stacks`
-  - `POST /api/stacks/{name}/start`
-  - `POST /api/stacks/{name}/stop`
-  - `DELETE /api/stacks/{name}?force=true`
-  - `GET /api/containers/{id}/logs`
-  - `GET /api/dashboard/stats` (health signal)
-  - `GET/POST/DELETE /api/networks`
-  - `GET/POST/DELETE /api/volumes`
-  - `GET/POST/DELETE /api/images`
-  - `POST /api/images/scan`
-  - `GET/POST/DELETE /api/containers`
-  - `POST /api/containers/{id}/start`
-  - `POST /api/containers/{id}/stop`
-  - `POST /api/containers/{id}/restart`
-  - `GET /api/activity`
-  - `GET /api/hawser/connect`
-  - `POST /api/notifications/test`
-  - `GET /api/registry/search`
-  - `GET /api/registry/tags`
-  - `GET /api/registry/catalog`
-  - `DELETE /api/registry/image`
-  - `GET /api/environments/detect-socket`
-  - `POST /api/environments/test`
-  - `POST /api/git/repositories/test`
-  - `POST /api/git/preview-env`
-  - `POST /api/git/stacks/{id}/webhook`
-  - `GET /api/git/stacks/{id}/env-files`
-  - `POST /api/git/stacks/{id}/env-files`
-  - `GET /api/stacks/{name}/env`
-  - `PUT /api/stacks/{name}/env`
-  - `GET /api/stacks/{name}/env/raw`
-  - `PUT /api/stacks/{name}/env/raw`
-  - `GET /api/stacks/base-path`
-  - `GET /api/stacks/default-path`
-  - `GET /api/schedules`
-  - `GET /api/schedules/settings`
-  - `PUT /api/schedules/settings`
-  - `GET /api/schedules/stream`
-  - `GET /api/system`
-  - `GET /api/system/disk`
-  - `GET /api/system/files`
-  - `GET /api/system/files/content`
-  - `POST /api/schedules/{type}/{id}/run`
-  - `POST /api/schedules/system/{id}/toggle`
-  - `POST /api/schedules/{type}/{id}/toggle`
-  - `POST /api/prune/all`
-  - `POST /api/prune/containers`
-  - `POST /api/prune/images`
-  - `POST /api/prune/networks`
-  - `POST /api/prune/volumes`
-  - `POST /api/batch`
-  - `GET /api/jobs/{id}`
+- Bootstrap a fresh Dockhand install and create the first admin user.
+- Manage Dockhand settings, authentication, notifications, license, and config sets.
+- Register and test Docker environments, including socket, TCP/TLS, and Hawser agent connectivity.
+- Manage registries, Git credentials, Git repositories, Git stacks, and stack environment files.
+- Manage stacks, containers, images, networks, volumes, schedules, prune jobs, and batch actions.
+- Query operational state with data sources for health, activity, containers, schedules, system state, registries, and more.
 
-If your Dockhand API differs, update `internal/provider/client.go`.
-
-## Development
-
-Requirements:
-
-- Go 1.25+
-- Terraform CLI
-
-Build:
-
-```bash
-./scripts/verify.sh
-# or:
-make verify
-```
-
-Run locally with Terraform:
+## Quick Start
 
 ```hcl
 terraform {
   required_providers {
     dockhand = {
-      # Address this provider serves as today (see main.go ServeOpts.Address).
-      # This does not require publishing when using Terraform dev_overrides.
-      source = "kalebharrison/dockhand"
+      source  = "kalebharrison/dockhand"
+      version = ">= 0.1.63"
     }
   }
 }
 
 provider "dockhand" {
-  endpoint       = "https://dockhand.example.com"
-  username       = var.dockhand_username
-  password       = var.dockhand_password
-  default_env    = "1"
+  endpoint    = var.dockhand_endpoint
+  username    = var.dockhand_username
+  password    = var.dockhand_password
+  default_env = var.dockhand_default_env
 }
 
-# Fresh-install bootstrap mode (auth disabled): allow unauthenticated calls so the first admin can be created.
-provider "dockhand" {
-  endpoint              = "https://dockhand.example.com"
-  allow_unauthenticated = true
+resource "dockhand_environment" "docker_socket" {
+  name            = "truenas02"
+  connection_type = "socket"
+  socket_path     = "/var/run/docker.sock"
 }
-```
 
-Local development (private, no registry publish):
-
-```bash
-REPO="/path/to/terraform-provider-dockhand"
-(cd "$REPO" && make tf-dev-build)
-
-# In your Terraform config directory:
-export DOCKHAND_ENDPOINT="http://dockhand.example.internal:13001"
-export DOCKHAND_USERNAME="your-username"
-export DOCKHAND_PASSWORD="your-password"
-export DOCKHAND_DEFAULT_ENV="1"
-
-"$REPO/scripts/tf-dev.sh" plan
-"$REPO/scripts/tf-dev.sh" apply
-```
-
-Private distribution (team-friendly, still private):
-
-- Filesystem mirror workflow: `docs/PRIVATE_DISTRIBUTION.md`
-- Endpoint contract probe workflow: `docs/ENDPOINT_PROBE.md`
-- Public/registry readiness checklist: `docs/REGISTRY_READINESS.md`
-- Compatibility matrix and recursive validation: `docs/testing/compatibility-matrix.md`
-- Release gate policy: `docs/testing/release-gate.md`
-- Maintainer runbook (standard change/release loop): `docs/MAINTENANCE_PLAYBOOK.md`
-
-Repository policy and governance:
-
-- `SECURITY.md`
-- `CODE_OF_CONDUCT.md`
-- `SUPPORT.md`
-- `GOVERNANCE.md`
-- `MAINTAINERS.md`
-
-Example resource:
-
-```hcl
-resource "dockhand_stack" "example" {
-  name = "nextcloud"
-  env  = "1"
+resource "dockhand_stack" "whoami" {
+  env  = dockhand_environment.docker_socket.id
+  name = "whoami"
   compose = <<-YAML
     services:
-      app:
-        image: nextcloud:latest
+      whoami:
+        image: traefik/whoami:latest
+        ports:
+          - "8080:80"
   YAML
   enabled = true
 }
+
+data "dockhand_health" "this" {}
 ```
 
-User resource example:
+## Authentication Modes
 
-```hcl
-resource "dockhand_user" "example" {
-  username     = "tf-example-user"
-  password     = var.dockhand_user_password
-  email        = "tf-example-user@example.local"
-  display_name = "Terraform Example User"
-  is_admin     = false
-  is_active    = true
-}
-```
+The provider supports Dockhand's login-based authentication flow.
 
-Bootstrap (fresh install with auth disabled):
+- Standard login: `endpoint`, `username`, `password`
+- Optional MFA: `mfa_token`
+- Optional provider selection: `auth_provider`
+- First-install bootstrap: `allow_unauthenticated = true`
+
+Bootstrap example for a fresh Dockhand instance with no auth configured yet:
 
 ```hcl
 provider "dockhand" {
-  endpoint              = "http://dockhand.example.internal:13001"
+  endpoint              = var.dockhand_endpoint
   allow_unauthenticated = true
 }
 
-resource "dockhand_user" "initial_admin" {
+resource "dockhand_user" "admin" {
   username     = "admin"
   password     = var.initial_admin_password
-  email        = "admin@example.local"
-  display_name = "Initial Admin"
+  email        = "admin@example.com"
+  display_name = "Dockhand Admin"
   is_admin     = true
   is_active    = true
 }
 ```
 
-After the initial admin exists, switch back to normal provider auth (`username`/`password`) for ongoing Terraform management.
+## Coverage Summary
 
-## Acceptance Tests
+The provider currently covers these Dockhand areas:
 
-User acceptance tests are environment-gated and require real Dockhand access:
+| Area | Coverage |
+| --- | --- |
+| Dockhand core settings | `dockhand_settings_general`, `dockhand_auth_settings`, `dockhand_notification`, `dockhand_license`, `dockhand_config_set` |
+| Environments | `dockhand_environment`, `dockhand_environment_test_action`, `dockhand_environment_scanner_action`, `dockhand_environment_detect_socket` |
+| Git and Git stacks | `dockhand_git_credential`, `dockhand_git_repository`, `dockhand_git_repository_test_action`, `dockhand_git_preview_env`, `dockhand_git_stack`, `dockhand_git_stack_webhook_action`, `dockhand_git_stack_deploy_action`, `dockhand_git_stack_env_file` |
+| Registries and images | `dockhand_registry`, `dockhand_registry_image_delete_action`, `dockhand_registry_search`, `dockhand_registry_tags`, `dockhand_registry_catalog`, `dockhand_image`, `dockhand_image_push_action`, `dockhand_image_scan_action` |
+| Networks and volumes | `dockhand_network`, `dockhand_network_connection_action`, `dockhand_volume`, `dockhand_volume_clone_action` |
+| Containers | `dockhand_container`, `dockhand_container_file`, `dockhand_container_action`, `dockhand_container_rename_action`, `dockhand_container_update_action`, `dockhand_container_check_updates_action` |
+| Stacks | `dockhand_stack`, `dockhand_stack_action`, `dockhand_stack_env`, `dockhand_stack_scan_action`, `dockhand_stack_adopt_action` |
+| Schedules and operations | `dockhand_schedule`, `dockhand_schedule_settings`, `dockhand_schedule_run_action`, `dockhand_prune_action`, `dockhand_batch_action`, `dockhand_job`, `dockhand_activity`, `dockhand_system*`, `dockhand_health` |
+
+Full resource and data source coverage is documented in `docs/index.md` and `docs/api-matrix.md`.
+
+## Scenario Examples
+
+Task-oriented examples live under `examples/scenarios`:
+
+- `examples/scenarios/bootstrap-admin` — first-install bootstrap of the initial admin user
+- `examples/scenarios/environment-and-stack` — create an environment and deploy a stack into it
+- `examples/scenarios/gitops-stack` — configure Git credentials, repository integration, Git stack, and env file management
+- `examples/scenarios/registry-and-image` — configure a registry and manage an image lifecycle action flow
+
+Per-resource examples remain under `examples/resources` and `examples/data-sources`.
+
+## Known Gaps
+
+This provider aims for broad Dockhand coverage, but not every WebUI surface maps cleanly to stable Terraform semantics yet.
+
+Current known limitations and non-present endpoints are tracked in:
+
+- `docs/non-present-endpoints.md`
+- `docs/reports/webui-endpoint-gap-audit.md`
+- `docs/testing/compatibility-matrix.md`
+
+## Compatibility and Validation
+
+The provider is continuously validated against real Dockhand instances.
+
+- Recursive acceptance coverage runs through the Dockhand + Docker-in-Docker harness.
+- A scheduled compatibility watcher checks new Dockhand releases and opens compatibility issues on drift.
+- Endpoint, WebUI, docs-reference, and private-endpoint probes are tracked in repository reports.
+
+Operational references:
+
+- `docs/testing/compatibility-matrix.md`
+- `docs/testing/release-gate.md`
+- `docs/MAINTENANCE_PLAYBOOK.md`
+
+## Development and Local Testing
+
+Requirements:
+
+- Go 1.25+
+- Terraform CLI or OpenTofu
+- Dockhand test target for acceptance work
+
+Standard local validation:
 
 ```bash
-export DOCKHAND_TEST_ENDPOINT="http://dockhand.example.internal:13001"
-export DOCKHAND_TEST_USERNAME="your-username"
-export DOCKHAND_TEST_PASSWORD="your-password"
-export DOCKHAND_TEST_DEFAULT_ENV="1"
-go test -v ./internal/provider -run 'TestAcc(UserResource|ContainerRenameAction)'
-
-# Optional container update action acceptance test (uses an existing container fixture):
-export DOCKHAND_TEST_UPDATE_CONTAINER_ID="existing-container-id"
-go test -v ./internal/provider -run 'TestAccContainerUpdateAction'
-
-# New surfaces acceptance tests (optional env-gated cases):
-# - Requires an existing running container for directory tests:
-export DOCKHAND_TEST_FILE_CONTAINER_ID="existing-container-id"
-# - Requires a git-managed stack id and an env-file path in that stack repo:
-export DOCKHAND_TEST_GIT_STACK_ID="12"
-export DOCKHAND_TEST_GIT_STACK_ENV_PATH="stacks/app/.env"
-# - Requires a resolvable host name for Docker-in-Docker direct environment tests:
-export DOCKHAND_TEST_DIND_HOST="dind"
-# - Requires an active Hawser edge agent token for agent-environment connectivity tests:
-export DOCKHAND_TEST_AGENT_TOKEN="ci-agent-token"
-go test -v ./internal/provider -run 'TestAcc(ContainerFileDirectoryResourceTerraform|ContainerProcessesDataSourceTerraform|StackActionDownTerraform|StackEnvResourceTerraform|GitStackEnvFileResourceTerraform|BatchActionAndJobDataSourceTerraform|BatchActionNoWaitTerraform|SystemDataSourcesTerraform)'
-
-# Direct environment connectivity acceptance test (Dockhand -> DinD):
-go test -v ./internal/provider -run 'TestAccEnvironmentResourceDirectDinDTerraform'
-
-# Agent-token + Hawser connectivity acceptance test:
-go test -v ./internal/provider -run 'TestAccEnvironmentResourceAgentTokenTerraform'
+./scripts/verify.sh --quality
 ```
 
-GitHub Actions acceptance workflow:
+When provider behavior changes:
 
-- Workflow: `.github/workflows/acceptance-ci.yml`
-- Spins up:
-  - `fnsys/dockhand:latest`
-  - `docker:27-dind`
-- Bootstraps first admin credentials for the ephemeral Dockhand instance.
-- Creates a dedicated direct environment (`ci-dind`) targeting the DinD container.
-- Launches a Hawser edge agent inside DinD with a generated token.
-- Runs targeted acceptance tests, including environment connectivity coverage.
+```bash
+./scripts/verify.sh --endpoint-probe
+./scripts/verify.sh --acceptance --test-regex 'TestAcc(<targeted-regex>)'
+```
 
-Full recursive acceptance harness:
+Local development workflows:
 
-- Local script: `scripts/run-acceptance-harness.sh`
-- Nightly workflow: `.github/workflows/acceptance-full.yml`
-- Dockhand release watcher: `.github/workflows/dockhand-release-watch.yml`
+- `docs/LOCAL_DEV.md`
+- `docs/PRIVATE_DISTRIBUTION.md`
+- `docs/REGISTRY_READINESS.md`
 
-## Release
+## Provider Configuration Reference
 
-This repo currently focuses on private/local development and private distribution.
+Provider arguments:
 
-To publish versioned zip artifacts to a GitHub Release (useful for downloading and then installing into a local/team mirror), push a tag like `v0.1.0`.
+- `endpoint` — Dockhand API base URL
+- `username` — login username
+- `password` — login password
+- `mfa_token` — optional MFA token
+- `auth_provider` — optional auth provider ID, defaults to `local`
+- `default_env` — default environment ID for resources that omit `env`
+- `insecure` — disable TLS verification
+- `allow_unauthenticated` — permit bootstrap flows before auth is configured
 
-For Terraform Registry readiness, configure GitHub repository secrets used by the release workflow:
+Environment variable fallbacks:
 
-- `GPG_PRIVATE_KEY` (ASCII-armored private key)
-- `GPG_PASSPHRASE` (private key passphrase)
+- `DOCKHAND_ENDPOINT`
+- `DOCKHAND_USERNAME`
+- `DOCKHAND_PASSWORD`
+- `DOCKHAND_MFA_TOKEN`
+- `DOCKHAND_AUTH_PROVIDER`
+- `DOCKHAND_DEFAULT_ENV`
+- `DOCKHAND_ALLOW_UNAUTHENTICATED`
 
-See `docs/PRIVATE_DISTRIBUTION.md` for installing from a filesystem mirror.
+## Additional Repository Policy
+
+- `SECURITY.md`
+- `GOVERNANCE.md`
+- `MAINTAINERS.md`
+- `SUPPORT.md`
+- `CODE_OF_CONDUCT.md`
