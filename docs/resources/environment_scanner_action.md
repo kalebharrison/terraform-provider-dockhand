@@ -42,6 +42,7 @@ resource "dockhand_environment_scanner_action" "check_updates" {
 ### Read-Only
 
 - `id` (String) Internal action instance ID (`<env>:<action>:<trigger>`).
+- `success` (Boolean) Whether Dockhand accepted the action request.
 - `grype_installed` (Boolean) Scanner availability state after action.
 - `trivy_installed` (Boolean) Scanner availability state after action.
 - `grype_version` (String) Scanner version reported by Dockhand.
