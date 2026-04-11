@@ -32,6 +32,7 @@ type environmentScannerActionModel struct {
 	Env            types.String `tfsdk:"env"`
 	Action         types.String `tfsdk:"action"`
 	Trigger        types.String `tfsdk:"trigger"`
+	Success        types.Bool   `tfsdk:"success"`
 	GrypeInstalled types.Bool   `tfsdk:"grype_installed"`
 	TrivyInstalled types.Bool   `tfsdk:"trivy_installed"`
 	GrypeVersion   types.String `tfsdk:"grype_version"`
@@ -62,6 +63,7 @@ func (r *environmentScannerActionResource) Schema(_ context.Context, _ resource.
 				Optional:      true,
 				PlanModifiers: []planmodifier.String{stringplanmodifier.RequiresReplace()},
 			},
+			"success":         schema.BoolAttribute{Computed: true},
 			"grype_installed": schema.BoolAttribute{Computed: true},
 			"trivy_installed": schema.BoolAttribute{Computed: true},
 			"grype_version":   schema.StringAttribute{Computed: true},
@@ -112,6 +114,7 @@ func (r *environmentScannerActionResource) Create(ctx context.Context, req resou
 		"action": action,
 		"env":    envID,
 	}
+	success := true
 
 	switch action {
 	case "install_grype":
@@ -131,21 +134,21 @@ func (r *environmentScannerActionResource) Create(ctx context.Context, req resou
 		result["status_code"] = status
 		result["success"] = true
 	case "remove_grype":
-		success, status, err := r.client.RemoveScannerImage(ctx, envID, "grype")
+		removeSuccess, status, err := r.client.RemoveScannerImage(ctx, envID, "grype")
 		if err != nil {
 			resp.Diagnostics.AddError("Error removing Grype scanner image", err.Error())
 			return
 		}
 		result["status_code"] = status
-		result["success"] = success
+		success = removeSuccess
 	case "remove_trivy":
-		success, status, err := r.client.RemoveScannerImage(ctx, envID, "trivy")
+		removeSuccess, status, err := r.client.RemoveScannerImage(ctx, envID, "trivy")
 		if err != nil {
 			resp.Diagnostics.AddError("Error removing Trivy scanner image", err.Error())
 			return
 		}
 		result["status_code"] = status
-		result["success"] = success
+		success = removeSuccess
 	case "check_updates":
 		updates, status, err := r.client.CheckScannerUpdates(ctx, envID)
 		if err != nil {
@@ -157,10 +160,12 @@ func (r *environmentScannerActionResource) Create(ctx context.Context, req resou
 			result["updates"] = updates.Updates
 			applyScannerUpdateState(&plan, updates)
 		}
+		success = true
 	default:
 		resp.Diagnostics.AddError("Invalid scanner action", fmt.Sprintf("Unsupported action %q", action))
 		return
 	}
+	result["success"] = success
 
 	scanState, _, err := r.client.GetScannerSettings(ctx, envID, false)
 	if err != nil {
@@ -192,6 +197,7 @@ func (r *environmentScannerActionResource) Create(ctx context.Context, req resou
 	plan.ID = types.StringValue(fmt.Sprintf("%s:%s:%s", envID, action, plan.Trigger.ValueString()))
 	plan.Env = types.StringValue(envID)
 	plan.Action = types.StringValue(action)
+	plan.Success = types.BoolValue(success)
 	plan.ResultJSON = types.StringValue(mustJSON(result))
 
 	resp.Diagnostics.Append(resp.State.Set(ctx, &plan)...)

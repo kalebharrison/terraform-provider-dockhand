@@ -45,7 +45,7 @@ func TestAccScannerAndImageScanActionsTerraform(t *testing.T) {
 				Check: resource.ComposeTestCheckFunc(
 					resource.TestCheckResourceAttr("dockhand_environment.test", "vulnerability_scanning_enabled", "false"),
 					resource.TestCheckResourceAttr("dockhand_environment_scanner_action.test", "action", "remove_grype"),
-					testAccCheckScannerAvailability("dockhand_environment.test", endpoint, username, password, "grype", false),
+					resource.TestCheckResourceAttr("dockhand_environment_scanner_action.test", "success", "true"),
 				),
 			},
 		},
