@@ -1,1 +1,262 @@
-@scripts/run-acceptance-harness.sh
+#!/usr/bin/env bash
+# shellcheck shell=bash
+set -euo pipefail
+
+ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+cd "${ROOT_DIR}"
+
+DOCKHAND_IMAGE="${DOCKHAND_IMAGE:-fnsys/dockhand:latest}"
+DIND_IMAGE="${DIND_IMAGE:-docker:27-dind}"
+HAWSER_IMAGE="${HAWSER_IMAGE:-ghcr.io/finsys/hawser:latest}"
+REGISTRY_IMAGE="${REGISTRY_IMAGE:-registry:2}"
+TEST_REGEX="${TEST_REGEX:-TestAcc}"
+RUN_ENDPOINT_PROBE="${RUN_ENDPOINT_PROBE:-true}"
+RUN_WEBUI_AUDIT="${RUN_WEBUI_AUDIT:-false}"
+RUN_DOCS_REFERENCE_AUDIT="${RUN_DOCS_REFERENCE_AUDIT:-false}"
+RUN_PRIVATE_ENDPOINT_PROBE="${RUN_PRIVATE_ENDPOINT_PROBE:-false}"
+DOCKHAND_TEST_ENDPOINT="${DOCKHAND_TEST_ENDPOINT:-http://127.0.0.1:13001}"
+DOCKHAND_TEST_USERNAME="${DOCKHAND_TEST_USERNAME:-tfacc}"
+DOCKHAND_TEST_PASSWORD="${DOCKHAND_TEST_PASSWORD:-tfaccpass123!}"
+DOCKHAND_TEST_AUTH_PROVIDER="${DOCKHAND_TEST_AUTH_PROVIDER:-local}"
+DOCKHAND_TEST_DIND_HOST="${DOCKHAND_TEST_DIND_HOST:-}"
+DOCKHAND_TEST_DIND_PORT="${DOCKHAND_TEST_DIND_PORT:-2375}"
+DOCKHAND_TEST_ENABLE_PRUNE_ACTIONS="${DOCKHAND_TEST_ENABLE_PRUNE_ACTIONS:-true}"
+DOCKHAND_TEST_PRUNE_MODE="${DOCKHAND_TEST_PRUNE_MODE:-containers}"
+DOCKHAND_TEST_REGISTRY_URL="${DOCKHAND_TEST_REGISTRY_URL:-http://registry:5000}"
+DOCKHAND_TEST_REGISTRY_HOST_PORT="${DOCKHAND_TEST_REGISTRY_HOST_PORT:-25000}"
+DOCKHAND_TEST_GIT_HELPER_REPO_URL="${DOCKHAND_TEST_GIT_HELPER_REPO_URL:-https://github.com/docker/awesome-compose.git}"
+DOCKHAND_TEST_GIT_HELPER_BRANCH="${DOCKHAND_TEST_GIT_HELPER_BRANCH:-master}"
+DOCKHAND_TEST_GIT_HELPER_COMPOSE_PATH="${DOCKHAND_TEST_GIT_HELPER_COMPOSE_PATH:-nginx-flask-mysql/compose.yaml}"
+TF_ACC_TERRAFORM_PATH="${TF_ACC_TERRAFORM_PATH:-}"
+TF_ACC_TERRAFORM_VERSION="${TF_ACC_TERRAFORM_VERSION:-1.14.8}"
+
+if [[ -z "${TF_ACC_TERRAFORM_PATH}" ]]; then
+  if command -v terraform >/dev/null 2>&1; then
+    TF_ACC_TERRAFORM_PATH="$(command -v terraform)"
+  fi
+fi
+
+if [[ -n "${TF_ACC_TERRAFORM_PATH}" ]]; then
+  export TF_ACC_TERRAFORM_PATH
+fi
+
+if [[ -n "${TF_ACC_TERRAFORM_VERSION}" ]]; then
+  export TF_ACC_TERRAFORM_VERSION
+fi
+
+SUFFIX="$(date +%s)"
+NETWORK_NAME="dockhand-ci-${SUFFIX}"
+DIND_CONTAINER="dind-${SUFFIX}"
+DOCKHAND_CONTAINER="dockhand-${SUFFIX}"
+HAWSER_CONTAINER="hawser-${SUFFIX}"
+REGISTRY_CONTAINER="registry-${SUFFIX}"
+
+if [[ -z "${DOCKHAND_TEST_DIND_HOST}" ]]; then
+  DOCKHAND_TEST_DIND_HOST="${DIND_CONTAINER}"
+fi
+
+dump_logs() {
+  echo "Dockhand logs:"
+  docker logs "${DOCKHAND_CONTAINER}" || true
+  echo "DinD logs:"
+  docker logs "${DIND_CONTAINER}" || true
+  echo "Registry logs:"
+  docker logs "${REGISTRY_CONTAINER}" || true
+  echo "Hawser logs:"
+  docker --host "tcp://127.0.0.1:23750" logs "${HAWSER_CONTAINER}" || true
+}
+
+cleanup() {
+  local exit_code="${1:-0}"
+  if [[ "${exit_code}" -ne 0 ]]; then
+    dump_logs
+  fi
+  docker --host "tcp://127.0.0.1:23750" rm -f "${HAWSER_CONTAINER}" >/dev/null 2>&1 || true
+  docker rm -f "${DOCKHAND_CONTAINER}" "${DIND_CONTAINER}" "${REGISTRY_CONTAINER}" >/dev/null 2>&1 || true
+  docker network rm "${NETWORK_NAME}" >/dev/null 2>&1 || true
+}
+trap 'exit_code=$?; cleanup "${exit_code}"; exit "${exit_code}"' EXIT
+
+login() {
+  local code
+  code="$(curl -sS -o /tmp/dh-login.json -w "%{http_code}" \
+    -c /tmp/dh-cookies.txt \
+    -H "Content-Type: application/json" \
+    -d "{\"username\":\"${DOCKHAND_TEST_USERNAME}\",\"password\":\"${DOCKHAND_TEST_PASSWORD}\",\"authProvider\":\"${DOCKHAND_TEST_AUTH_PROVIDER}\"}" \
+    "${DOCKHAND_TEST_ENDPOINT}/api/auth/login" || true)"
+  [[ "${code}" =~ ^2[0-9][0-9]$ ]]
+}
+
+echo "Creating Docker network ${NETWORK_NAME}"
+docker network create "${NETWORK_NAME}" >/dev/null
+
+echo "Starting local registry ${REGISTRY_CONTAINER}"
+docker run -d --name "${REGISTRY_CONTAINER}" --network "${NETWORK_NAME}" \
+  --network-alias registry \
+  -p "${DOCKHAND_TEST_REGISTRY_HOST_PORT}:5000" \
+  "${REGISTRY_IMAGE}" >/dev/null
+
+echo "Starting DinD ${DIND_CONTAINER}"
+docker run -d --name "${DIND_CONTAINER}" --network "${NETWORK_NAME}" --privileged \
+  --network-alias "${DIND_CONTAINER}" \
+  --network-alias dind \
+  -e DOCKER_TLS_CERTDIR= \
+  -p 23750:2375 \
+  "${DIND_IMAGE}" \
+  --insecure-registry=registry:5000 \
+  --tls=false \
+  --host=tcp://0.0.0.0:2375 \
+  --host=unix:///var/run/docker.sock >/dev/null
+
+echo "Waiting for DinD API"
+for _ in $(seq 1 90); do
+  if docker --host "tcp://127.0.0.1:23750" version >/dev/null 2>&1; then
+    break
+  fi
+  sleep 2
+done
+docker --host "tcp://127.0.0.1:23750" version >/dev/null
+
+echo "Starting Dockhand ${DOCKHAND_CONTAINER} with image ${DOCKHAND_IMAGE}"
+docker run -d --name "${DOCKHAND_CONTAINER}" --network "${NETWORK_NAME}" \
+  -p 13001:3000 \
+  -v /var/run/docker.sock:/var/run/docker.sock \
+  "${DOCKHAND_IMAGE}" >/dev/null
+
+echo "Waiting for Dockhand API"
+for _ in $(seq 1 60); do
+  code="$(curl -sS -o /dev/null -w "%{http_code}" "${DOCKHAND_TEST_ENDPOINT}/api/auth/session" || true)"
+  if [[ "${code}" != "000" && "${code}" != "502" && "${code}" != "503" ]]; then
+    break
+  fi
+  sleep 2
+done
+
+if ! login; then
+  echo "Bootstrapping first admin"
+  user_payload="$(jq -nc --arg u "${DOCKHAND_TEST_USERNAME}" --arg p "${DOCKHAND_TEST_PASSWORD}" \
+    '{username:$u,password:$p,email:"tfacc@example.local",displayName:"TF Acc CI",isAdmin:true,isActive:true}')"
+  curl -sS -o /tmp/dh-bootstrap-user.json -w "%{http_code}\n" \
+    -H "Content-Type: application/json" \
+    -d "${user_payload}" \
+    "${DOCKHAND_TEST_ENDPOINT}/api/users" >/tmp/dh-bootstrap-user.code || true
+
+  auth_payload='{"authEnabled":true,"defaultProvider":"local","sessionTimeout":86400}'
+  curl -sS -o /tmp/dh-bootstrap-auth.json -w "%{http_code}\n" \
+    -X PUT \
+    -H "Content-Type: application/json" \
+    -d "${auth_payload}" \
+    "${DOCKHAND_TEST_ENDPOINT}/api/auth/settings" >/tmp/dh-bootstrap-auth.code || true
+
+  for _ in $(seq 1 20); do
+    if login; then
+      break
+    fi
+    sleep 2
+  done
+fi
+login
+
+existing_id="$(
+  curl -sS -b /tmp/dh-cookies.txt "${DOCKHAND_TEST_ENDPOINT}/api/environments" \
+    | jq -r '.[] | select(.name=="ci-dind") | .id' \
+    | head -n 1
+)"
+if [[ -z "${existing_id}" ]]; then
+  payload="$(jq -nc --arg host "${DOCKHAND_TEST_DIND_HOST}" --argjson port "${DOCKHAND_TEST_DIND_PORT}" \
+    '{name:"ci-dind",connectionType:"direct",host:$host,port:$port,protocol:"http",tlsSkipVerify:false,collectActivity:true,collectMetrics:true,highlightChanges:true,icon:"globe"}')"
+  curl -sS -b /tmp/dh-cookies.txt \
+    -H "Content-Type: application/json" \
+    -d "${payload}" \
+    "${DOCKHAND_TEST_ENDPOINT}/api/environments" >/tmp/dh-created-env.json
+  existing_id="$(jq -r '.id // empty' /tmp/dh-created-env.json)"
+fi
+if [[ -z "${existing_id}" ]]; then
+  echo "Failed to resolve ci-dind environment id" >&2
+  exit 1
+fi
+
+stack_adopt_name="tf-acc-adopt-${SUFFIX}"
+curl -sS -b /tmp/dh-cookies.txt \
+  "${DOCKHAND_TEST_ENDPOINT}/api/stacks/default-path?name=${stack_adopt_name}" >/tmp/dh-stack-adopt-path.json
+stack_adopt_compose_path="$(jq -r '.composePath // empty' /tmp/dh-stack-adopt-path.json)"
+if [[ -z "${stack_adopt_compose_path}" ]]; then
+  echo "Failed to resolve stack adopt compose path for ${stack_adopt_name}" >&2
+  cat /tmp/dh-stack-adopt-path.json >&2 || true
+  exit 1
+fi
+stack_adopt_dir="$(dirname "${stack_adopt_compose_path}")"
+cat > /tmp/dh-stack-adopt-compose.yaml <<EOF
+services:
+  app:
+    image: busybox:1.36.1
+    command:
+      - sh
+      - -c
+      - sleep 3600
+EOF
+docker exec "${DOCKHAND_CONTAINER}" mkdir -p "${stack_adopt_dir}"
+docker cp /tmp/dh-stack-adopt-compose.yaml "${DOCKHAND_CONTAINER}:${stack_adopt_compose_path}"
+
+agent_token="ci-agent-${SUFFIX}"
+dockhand_ip="$(docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' "${DOCKHAND_CONTAINER}")"
+dockhand_ws_url="ws://${dockhand_ip}:3000/api/hawser/connect"
+
+export TF_ACC=1
+export DOCKHAND_TEST_ENDPOINT="${DOCKHAND_TEST_ENDPOINT}"
+export DOCKHAND_TEST_USERNAME="${DOCKHAND_TEST_USERNAME}"
+export DOCKHAND_TEST_PASSWORD="${DOCKHAND_TEST_PASSWORD}"
+export DOCKHAND_TEST_AUTH_PROVIDER="${DOCKHAND_TEST_AUTH_PROVIDER}"
+export DOCKHAND_TEST_DIND_HOST="${DOCKHAND_TEST_DIND_HOST}"
+export DOCKHAND_TEST_DIND_PORT="${DOCKHAND_TEST_DIND_PORT}"
+export DOCKHAND_TEST_ENABLE_PRUNE_ACTIONS="${DOCKHAND_TEST_ENABLE_PRUNE_ACTIONS}"
+export DOCKHAND_TEST_PRUNE_MODE="${DOCKHAND_TEST_PRUNE_MODE}"
+export DOCKHAND_TEST_DEFAULT_ENV="${existing_id}"
+export DOCKHAND_TEST_REGISTRY_URL="${DOCKHAND_TEST_REGISTRY_URL}"
+export DOCKHAND_TEST_REGISTRY_HOST_URL="http://127.0.0.1:${DOCKHAND_TEST_REGISTRY_HOST_PORT}"
+export DOCKHAND_TEST_GIT_HELPER_REPO_URL="${DOCKHAND_TEST_GIT_HELPER_REPO_URL}"
+export DOCKHAND_TEST_GIT_HELPER_BRANCH="${DOCKHAND_TEST_GIT_HELPER_BRANCH}"
+export DOCKHAND_TEST_GIT_HELPER_COMPOSE_PATH="${DOCKHAND_TEST_GIT_HELPER_COMPOSE_PATH}"
+export DOCKHAND_TEST_STACK_ADOPT_ENV_ID="${existing_id}"
+export DOCKHAND_TEST_STACK_ADOPT_NAME="${stack_adopt_name}"
+export DOCKHAND_TEST_STACK_ADOPT_COMPOSE_PATH="${stack_adopt_compose_path}"
+export DOCKHAND_TEST_AGENT_TOKEN="${agent_token}"
+export DOCKHAND_TEST_AGENT_NAME="ci-hawser"
+export DOCKHAND_TEST_HAWSER_SERVER_URL="${dockhand_ws_url}"
+export DOCKHAND_TEST_HAWSER_CONTAINER="${HAWSER_CONTAINER}"
+export DOCKHAND_TEST_HAWSER_DOCKER_HOST="tcp://127.0.0.1:23750"
+export DOCKHAND_TEST_HAWSER_IMAGE="${HAWSER_IMAGE}"
+
+export DOCKHAND_ENDPOINT="${DOCKHAND_TEST_ENDPOINT}"
+export DOCKHAND_USERNAME="${DOCKHAND_TEST_USERNAME}"
+export DOCKHAND_PASSWORD="${DOCKHAND_TEST_PASSWORD}"
+export DOCKHAND_AUTH_PROVIDER="${DOCKHAND_TEST_AUTH_PROVIDER}"
+export DOCKHAND_DEFAULT_ENV="${existing_id}"
+export DOCKHAND_INSECURE="${DOCKHAND_INSECURE:-false}"
+
+echo "Running acceptance tests with regex: ${TEST_REGEX}"
+GOCACHE="${GOCACHE:-$PWD/.cache/go-build}" \
+GOMODCACHE="${GOMODCACHE:-$PWD/.cache/gomod}" \
+go test -v ./internal/provider -run "${TEST_REGEX}"
+
+if [[ "${RUN_ENDPOINT_PROBE}" == "true" ]]; then
+  echo "Running endpoint compatibility probe"
+  DOCKHAND_PROBE_ALLOW_MUTATION=false /usr/bin/python3 scripts/endpoint-probe.py
+fi
+
+if [[ "${RUN_WEBUI_AUDIT}" == "true" ]]; then
+  echo "Running WebUI endpoint audit"
+  DOCKHAND_ENDPOINT="${DOCKHAND_TEST_ENDPOINT}" /usr/bin/python3 scripts/webui-endpoint-audit.py
+fi
+
+if [[ "${RUN_DOCS_REFERENCE_AUDIT}" == "true" ]]; then
+  echo "Running docs-reference endpoint audit"
+  /usr/bin/python3 scripts/docs-reference-audit.py
+fi
+
+if [[ "${RUN_PRIVATE_ENDPOINT_PROBE}" == "true" ]]; then
+  echo "Running private endpoint probe"
+  /usr/bin/python3 scripts/private-endpoint-probe.py
+fi
+
+echo "Acceptance harness completed successfully"
