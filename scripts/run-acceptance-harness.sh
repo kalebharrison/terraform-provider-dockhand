@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# shellcheck shell=bash
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -26,6 +27,22 @@ DOCKHAND_TEST_REGISTRY_HOST_PORT="${DOCKHAND_TEST_REGISTRY_HOST_PORT:-25000}"
 DOCKHAND_TEST_GIT_HELPER_REPO_URL="${DOCKHAND_TEST_GIT_HELPER_REPO_URL:-https://github.com/docker/awesome-compose.git}"
 DOCKHAND_TEST_GIT_HELPER_BRANCH="${DOCKHAND_TEST_GIT_HELPER_BRANCH:-master}"
 DOCKHAND_TEST_GIT_HELPER_COMPOSE_PATH="${DOCKHAND_TEST_GIT_HELPER_COMPOSE_PATH:-nginx-flask-mysql/compose.yaml}"
+TF_ACC_TERRAFORM_PATH="${TF_ACC_TERRAFORM_PATH:-}"
+TF_ACC_TERRAFORM_VERSION="${TF_ACC_TERRAFORM_VERSION:-1.14.8}"
+
+if [[ -z "${TF_ACC_TERRAFORM_PATH}" ]]; then
+  if command -v terraform >/dev/null 2>&1; then
+    TF_ACC_TERRAFORM_PATH="$(command -v terraform)"
+  fi
+fi
+
+if [[ -n "${TF_ACC_TERRAFORM_PATH}" ]]; then
+  export TF_ACC_TERRAFORM_PATH
+fi
+
+if [[ -n "${TF_ACC_TERRAFORM_VERSION}" ]]; then
+  export TF_ACC_TERRAFORM_VERSION
+fi
 
 SUFFIX="$(date +%s)"
 NETWORK_NAME="dockhand-ci-${SUFFIX}"
