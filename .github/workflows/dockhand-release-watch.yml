@@ -185,7 +185,10 @@ jobs:
             "https://releases.hashicorp.com/terraform/${version}/terraform_${version}_SHA256SUMS" \
             -o "${RUNNER_TEMP}/terraform_SHA256SUMS"
 
-          grep "terraform_${version}_linux_${arch}.zip" "${RUNNER_TEMP}/terraform_SHA256SUMS" | sha256sum --check --status
+          (
+            cd "${RUNNER_TEMP}"
+            grep "terraform_${version}_linux_${arch}.zip" terraform_SHA256SUMS | sha256sum --check --status
+          )
           unzip -q "${RUNNER_TEMP}/terraform.zip" -d "${install_dir}"
 
           terraform_path="${install_dir}/terraform"
