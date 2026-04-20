@@ -70,7 +70,7 @@ jobs:
 
           curl -fsSL \
             "https://releases.hashicorp.com/terraform/${version}/terraform_${version}_linux_${arch}.zip" \
-            -o "${RUNNER_TEMP}/terraform.zip"
+            -o "${RUNNER_TEMP}/terraform_${version}_linux_${arch}.zip"
           curl -fsSL \
             "https://releases.hashicorp.com/terraform/${version}/terraform_${version}_SHA256SUMS" \
             -o "${RUNNER_TEMP}/terraform_SHA256SUMS"
@@ -79,7 +79,7 @@ jobs:
             cd "${RUNNER_TEMP}"
             grep "terraform_${version}_linux_${arch}.zip" terraform_SHA256SUMS | sha256sum --check --status
           )
-          unzip -q "${RUNNER_TEMP}/terraform.zip" -d "${install_dir}"
+          unzip -q "${RUNNER_TEMP}/terraform_${version}_linux_${arch}.zip" -d "${install_dir}"
 
           terraform_path="${install_dir}/terraform"
           echo "TF_ACC_TERRAFORM_PATH=${terraform_path}" >> "${GITHUB_ENV}"
