@@ -152,6 +152,49 @@ jobs:
           check-latest: true
           cache: true
 
+      - name: Ensure Terraform CLI
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          if command -v terraform >/dev/null 2>&1; then
+            terraform_path="$(command -v terraform)"
+            echo "TF_ACC_TERRAFORM_PATH=${terraform_path}" >> "${GITHUB_ENV}"
+            "${terraform_path}" version
+            exit 0
+          fi
+
+          version="1.14.8"
+          arch="$(uname -m)"
+          case "${arch}" in
+            x86_64) arch="amd64" ;;
+            arm64|aarch64) arch="arm64" ;;
+            *)
+              echo "unsupported architecture for Terraform download: ${arch}" >&2
+              exit 1
+              ;;
+          esac
+
+          install_dir="${RUNNER_TEMP}/terraform-${version}"
+          mkdir -p "${install_dir}"
+
+          curl -fsSL \
+            "https://releases.hashicorp.com/terraform/${version}/terraform_${version}_linux_${arch}.zip" \
+            -o "${RUNNER_TEMP}/terraform_${version}_linux_${arch}.zip"
+          curl -fsSL \
+            "https://releases.hashicorp.com/terraform/${version}/terraform_${version}_SHA256SUMS" \
+            -o "${RUNNER_TEMP}/terraform_SHA256SUMS"
+
+          (
+            cd "${RUNNER_TEMP}"
+            grep "terraform_${version}_linux_${arch}.zip" terraform_SHA256SUMS | sha256sum --check --status
+          )
+          unzip -q "${RUNNER_TEMP}/terraform_${version}_linux_${arch}.zip" -d "${install_dir}"
+
+          terraform_path="${install_dir}/terraform"
+          echo "TF_ACC_TERRAFORM_PATH=${terraform_path}" >> "${GITHUB_ENV}"
+          "${terraform_path}" version
+
       - name: Validate acceptance manifest parity
         shell: bash
         run: |
@@ -249,7 +292,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Create issue for failed compatibility run
-        uses: actions/github-script@v8
+        uses: actions/github-script@v9
         with:
           script: |
             const owner = context.repo.owner;

@@ -45,7 +45,7 @@ func TestAccScannerAndImageScanActionsTerraform(t *testing.T) {
 				Check: resource.ComposeTestCheckFunc(
 					resource.TestCheckResourceAttr("dockhand_environment.test", "vulnerability_scanning_enabled", "false"),
 					resource.TestCheckResourceAttr("dockhand_environment_scanner_action.test", "action", "remove_grype"),
-					testAccCheckScannerAvailability("dockhand_environment.test", endpoint, username, password, "grype", false),
+					testAccCheckScannerActionSuccess("dockhand_environment_scanner_action.test"),
 				),
 			},
 		},
@@ -285,6 +285,31 @@ func testAccCheckScannerAvailability(environmentResourceName string, endpoint st
 			}
 			time.Sleep(5 * time.Second)
 		}
+	}
+}
+
+func testAccCheckScannerActionSuccess(resourceName string) resource.TestCheckFunc {
+	return func(state *terraform.State) error {
+		rs, ok := state.RootModule().Resources[resourceName]
+		if !ok {
+			return fmt.Errorf("resource %q not found in state", resourceName)
+		}
+
+		raw := strings.TrimSpace(rs.Primary.Attributes["result_json"])
+		if raw == "" {
+			return fmt.Errorf("resource %q has empty result_json", resourceName)
+		}
+
+		var payload struct {
+			Success bool `json:"success"`
+		}
+		if err := json.Unmarshal([]byte(raw), &payload); err != nil {
+			return fmt.Errorf("parse %q result_json: %w", resourceName, err)
+		}
+		if !payload.Success {
+			return fmt.Errorf("resource %q reported unsuccessful scanner action: %s", resourceName, raw)
+		}
+		return nil
 	}
 }
 

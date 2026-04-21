@@ -12,6 +12,9 @@ repository:
   has_projects: false
   has_wiki: false
 
+vulnerability_alerts: true
+automated_security_fixes: true
+
 branches:
   - name: main
     protection:
