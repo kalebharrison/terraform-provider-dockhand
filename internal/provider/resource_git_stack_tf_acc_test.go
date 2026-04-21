@@ -63,12 +63,15 @@ func testAccGitStackConfig(env string, stackName string, repoURL string, branch 
 provider "dockhand" {}
 
 resource "dockhand_git_stack" "test" {
-  env          = %q
-  stack_name   = %q
-  url          = %q
-  branch       = %q
-  compose_path = %q
-  deploy_now   = true%s
+  env             = %q
+  stack_name      = %q
+  url             = %q
+  branch          = %q
+  compose_path    = %q
+  deploy_now      = true
+  build_on_deploy = true
+  repull_images   = false
+  force_redeploy  = false%s
 }
 `, env, stackName, repoURL, branch, composePath, credentialBlock)
 }

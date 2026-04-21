@@ -8,11 +8,14 @@ Use this resource when you want Dockhand to deploy/manage a stack from a Git rep
 
 ```terraform
 resource "dockhand_git_stack" "ollama" {
-  env           = "11"
-  stack_name    = "jetson01-ollama"
-  repository_id = "1"
-  compose_path  = "stacks/jetson01/enabled/ollama/stack.yaml"
-  deploy_now    = true
+  env            = "11"
+  stack_name     = "jetson01-ollama"
+  repository_id  = "1"
+  compose_path   = "stacks/jetson01/enabled/ollama/stack.yaml"
+  deploy_now     = true
+  build_on_deploy = true
+  repull_images   = false
+  force_redeploy  = false
 }
 ```
 
@@ -37,6 +40,9 @@ resource "dockhand_git_stack" "ollama" {
 - `webhook_enabled` (Boolean, default: `false`)
 - `webhook_secret` (String, Sensitive)
 - `deploy_now` (Boolean, default: `false`)
+- `build_on_deploy` (Boolean, default: `false`)
+- `repull_images` (Boolean, default: `false`)
+- `force_redeploy` (Boolean, default: `false`)
 - `env_vars_json` (String, default: `[]`)
 
 `repository_id` is preferred when you already manage the repository with `dockhand_git_repository`.

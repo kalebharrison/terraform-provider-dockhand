@@ -136,6 +136,42 @@ func TestBuildGitStackPayloadSetsBothAutoUpdateKeys(t *testing.T) {
 	}
 }
 
+func TestBuildGitStackPayloadIncludesDeployOptions(t *testing.T) {
+	plan := gitStackModel{
+		StackName:                 types.StringValue("test-stack"),
+		ComposePath:               types.StringValue("docker-compose.yml"),
+		WebhookEnabled:            types.BoolValue(false),
+		WebhookSecretAutoGenerate: types.BoolValue(false),
+		WebhookSecret:             types.StringNull(),
+		AutoUpdateEnabled:         types.BoolValue(false),
+		AutoUpdateCron:            types.StringValue("0 3 * * *"),
+		DeployNow:                 types.BoolValue(true),
+		BuildOnDeploy:             types.BoolValue(true),
+		RepullImages:              types.BoolValue(false),
+		ForceRedeploy:             types.BoolValue(true),
+		EnvVarsJSON:               types.StringValue("[]"),
+		URL:                       types.StringValue("https://example.com/repo.git"),
+		Branch:                    types.StringValue("main"),
+	}
+
+	payload, err := buildGitStackPayload(plan)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !payload.DeployNow {
+		t.Fatalf("expected DeployNow true in payload")
+	}
+	if !payload.BuildOnDeploy {
+		t.Fatalf("expected BuildOnDeploy true in payload")
+	}
+	if payload.RepullImages {
+		t.Fatalf("expected RepullImages false in payload")
+	}
+	if !payload.ForceRedeploy {
+		t.Fatalf("expected ForceRedeploy true in payload")
+	}
+}
+
 func TestMergeGitStackStateWebhookSecretExplicitEmptyWins(t *testing.T) {
 	preferred := gitStackModel{WebhookSecret: types.StringValue("")}
 	remote := gitStackModel{WebhookSecret: types.StringValue("server-generated")}
@@ -208,6 +244,56 @@ func TestModelFromGitStackResponseFallsBackToAutoUpdate(t *testing.T) {
 	}
 	if !model.AutoUpdateEnabled.ValueBool() {
 		t.Fatalf("expected AutoUpdateEnabled=true when falling back to autoUpdate")
+	}
+}
+
+func TestModelFromGitStackResponseMapsDeployOptions(t *testing.T) {
+	buildOnDeploy := true
+	repullImages := false
+	forceRedeploy := true
+	resp := &gitStackResponse{
+		ID:             1,
+		StackName:      "test-stack",
+		AutoUpdate:     true,
+		WebhookEnabled: false,
+		BuildOnDeploy:  &buildOnDeploy,
+		RepullImages:   &repullImages,
+		ForceRedeploy:  &forceRedeploy,
+	}
+
+	model := modelFromGitStackResponse(resp)
+	if model.BuildOnDeploy.IsNull() || !model.BuildOnDeploy.ValueBool() {
+		t.Fatalf("expected BuildOnDeploy=true from response")
+	}
+	if model.RepullImages.IsNull() || model.RepullImages.ValueBool() {
+		t.Fatalf("expected RepullImages=false from response")
+	}
+	if model.ForceRedeploy.IsNull() || !model.ForceRedeploy.ValueBool() {
+		t.Fatalf("expected ForceRedeploy=true from response")
+	}
+}
+
+func TestMergeGitStackStatePreservesDeployOptionsWhenRemoteOmitsThem(t *testing.T) {
+	preferred := gitStackModel{
+		BuildOnDeploy: types.BoolValue(true),
+		RepullImages:  types.BoolValue(false),
+		ForceRedeploy: types.BoolValue(true),
+	}
+	remote := gitStackModel{
+		BuildOnDeploy: types.BoolNull(),
+		RepullImages:  types.BoolNull(),
+		ForceRedeploy: types.BoolNull(),
+	}
+
+	merged := mergeGitStackState(preferred, remote)
+	if merged.BuildOnDeploy.IsNull() || !merged.BuildOnDeploy.ValueBool() {
+		t.Fatalf("expected BuildOnDeploy to preserve configured true")
+	}
+	if merged.RepullImages.IsNull() || merged.RepullImages.ValueBool() {
+		t.Fatalf("expected RepullImages to preserve configured false")
+	}
+	if merged.ForceRedeploy.IsNull() || !merged.ForceRedeploy.ValueBool() {
+		t.Fatalf("expected ForceRedeploy to preserve configured true")
 	}
 }
 
