@@ -55,6 +55,9 @@ type gitStackModel struct {
 	WebhookSecretAutoGenerate types.Bool   `tfsdk:"webhook_secret_auto_generate"`
 	WebhookSecret             types.String `tfsdk:"webhook_secret"`
 	DeployNow                 types.Bool   `tfsdk:"deploy_now"`
+	BuildOnDeploy             types.Bool   `tfsdk:"build_on_deploy"`
+	RepullImages              types.Bool   `tfsdk:"repull_images"`
+	ForceRedeploy             types.Bool   `tfsdk:"force_redeploy"`
 	EnvVarsJSON               types.String `tfsdk:"env_vars_json"`
 	LastSync                  types.String `tfsdk:"last_sync"`
 	LastCommit                types.String `tfsdk:"last_commit"`
@@ -158,6 +161,24 @@ func (r *gitStackResource) Schema(_ context.Context, _ resource.SchemaRequest, r
 			},
 			"deploy_now": schema.BoolAttribute{
 				MarkdownDescription: "Whether to request immediate deployment when creating/updating this git stack.",
+				Optional:            true,
+				Computed:            true,
+				Default:             booldefault.StaticBool(false),
+			},
+			"build_on_deploy": schema.BoolAttribute{
+				MarkdownDescription: "Whether Dockhand should build images on deploy.",
+				Optional:            true,
+				Computed:            true,
+				Default:             booldefault.StaticBool(false),
+			},
+			"repull_images": schema.BoolAttribute{
+				MarkdownDescription: "Whether Dockhand should repull images on deploy.",
+				Optional:            true,
+				Computed:            true,
+				Default:             booldefault.StaticBool(false),
+			},
+			"force_redeploy": schema.BoolAttribute{
+				MarkdownDescription: "Whether Dockhand should force a redeploy on deploy.",
 				Optional:            true,
 				Computed:            true,
 				Default:             booldefault.StaticBool(false),
@@ -384,6 +405,18 @@ func buildGitStackPayload(plan gitStackModel) (gitStackPayload, error) {
 	if !plan.DeployNow.IsNull() && !plan.DeployNow.IsUnknown() {
 		deployNow = plan.DeployNow.ValueBool()
 	}
+	buildOnDeploy := false
+	if !plan.BuildOnDeploy.IsNull() && !plan.BuildOnDeploy.IsUnknown() {
+		buildOnDeploy = plan.BuildOnDeploy.ValueBool()
+	}
+	repullImages := false
+	if !plan.RepullImages.IsNull() && !plan.RepullImages.IsUnknown() {
+		repullImages = plan.RepullImages.ValueBool()
+	}
+	forceRedeploy := false
+	if !plan.ForceRedeploy.IsNull() && !plan.ForceRedeploy.IsUnknown() {
+		forceRedeploy = plan.ForceRedeploy.ValueBool()
+	}
 
 	payload := gitStackPayload{
 		StackName:         stackName,
@@ -392,6 +425,9 @@ func buildGitStackPayload(plan gitStackModel) (gitStackPayload, error) {
 		AutoUpdateCron:    autoUpdateCron,
 		WebhookEnabled:    webhookEnabled,
 		DeployNow:         deployNow,
+		BuildOnDeploy:     buildOnDeploy,
+		RepullImages:      repullImages,
+		ForceRedeploy:     forceRedeploy,
 	}
 	// Support Dockhand API variants that use either autoUpdateEnabled or autoUpdate.
 	payload.AutoUpdate = &autoUpdateEnabled
@@ -532,6 +568,21 @@ func modelFromGitStackResponse(in *gitStackResponse) gitStackModel {
 	} else {
 		out.WebhookSecret = types.StringNull()
 	}
+	if in.BuildOnDeploy != nil {
+		out.BuildOnDeploy = types.BoolValue(*in.BuildOnDeploy)
+	} else {
+		out.BuildOnDeploy = types.BoolNull()
+	}
+	if in.RepullImages != nil {
+		out.RepullImages = types.BoolValue(*in.RepullImages)
+	} else {
+		out.RepullImages = types.BoolNull()
+	}
+	if in.ForceRedeploy != nil {
+		out.ForceRedeploy = types.BoolValue(*in.ForceRedeploy)
+	} else {
+		out.ForceRedeploy = types.BoolNull()
+	}
 	if in.LastSync != nil {
 		out.LastSync = types.StringValue(*in.LastSync)
 	} else {
@@ -619,6 +670,15 @@ func mergeGitStackState(preferred gitStackModel, remote gitStackModel) gitStackM
 	}
 	if !preferred.WebhookSecretAutoGenerate.IsNull() && !preferred.WebhookSecretAutoGenerate.IsUnknown() {
 		out.WebhookSecretAutoGenerate = preferred.WebhookSecretAutoGenerate
+	}
+	if (out.BuildOnDeploy.IsNull() || out.BuildOnDeploy.IsUnknown()) && !preferred.BuildOnDeploy.IsNull() && !preferred.BuildOnDeploy.IsUnknown() {
+		out.BuildOnDeploy = preferred.BuildOnDeploy
+	}
+	if (out.RepullImages.IsNull() || out.RepullImages.IsUnknown()) && !preferred.RepullImages.IsNull() && !preferred.RepullImages.IsUnknown() {
+		out.RepullImages = preferred.RepullImages
+	}
+	if (out.ForceRedeploy.IsNull() || out.ForceRedeploy.IsUnknown()) && !preferred.ForceRedeploy.IsNull() && !preferred.ForceRedeploy.IsUnknown() {
+		out.ForceRedeploy = preferred.ForceRedeploy
 	}
 	if (out.CredentialID.IsNull() || out.CredentialID.IsUnknown()) && !preferred.CredentialID.IsNull() && !preferred.CredentialID.IsUnknown() {
 		out.CredentialID = preferred.CredentialID

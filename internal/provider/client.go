@@ -391,6 +391,9 @@ type gitStackPayload struct {
 	WebhookEnabled    bool                    `json:"webhookEnabled"`
 	WebhookSecret     *string                 `json:"webhookSecret,omitempty"`
 	DeployNow         bool                    `json:"deployNow"`
+	BuildOnDeploy     bool                    `json:"buildOnDeploy"`
+	RepullImages      bool                    `json:"repullImages"`
+	ForceRedeploy     bool                    `json:"forceRedeploy"`
 	EnvVars           []gitStackEnvVarPayload `json:"envVars,omitempty"`
 }
 
@@ -415,6 +418,9 @@ type gitStackResponse struct {
 	AutoUpdateCron     *string                     `json:"autoUpdateCron"`
 	WebhookEnabled     bool                        `json:"webhookEnabled"`
 	WebhookSecret      *string                     `json:"webhookSecret"`
+	BuildOnDeploy      *bool                       `json:"buildOnDeploy"`
+	RepullImages       *bool                       `json:"repullImages"`
+	ForceRedeploy      *bool                       `json:"forceRedeploy"`
 	LastSync           *string                     `json:"lastSync"`
 	LastCommit         *string                     `json:"lastCommit"`
 	SyncStatus         *string                     `json:"syncStatus"`
