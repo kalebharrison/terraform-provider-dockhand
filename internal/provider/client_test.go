@@ -1,16 +1,52 @@
 package provider
 
-import "testing"
+import (
+	"net/http"
+	"net/http/httptest"
+	"testing"
+)
 
 func TestNewClientAllowsEmptySessionCookie(t *testing.T) {
 	t.Parallel()
 
-	client, err := NewClient("http://example.com", "", "1", true)
+	client, err := NewClient("http://example.com", "", "", "1", true)
 	if err != nil {
 		t.Fatalf("expected no error creating client without session cookie, got: %v", err)
 	}
 	if client == nil {
 		t.Fatalf("expected client instance, got nil")
+	}
+}
+
+func TestClientUsesBearerTokenAuthHeader(t *testing.T) {
+	t.Parallel()
+
+	var gotCookie string
+	var gotAuth string
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		gotCookie = r.Header.Get("Cookie")
+		gotAuth = r.Header.Get("Authorization")
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"ok":true}`))
+	}))
+	defer server.Close()
+
+	client, err := NewClient(server.URL, "", "Bearer test-token", "1", false)
+	if err != nil {
+		t.Fatalf("NewClient() error = %v", err)
+	}
+
+	var out map[string]any
+	if _, err := client.doJSONWithStatus(t.Context(), http.MethodGet, "/api/settings/general", nil, nil, &out); err != nil {
+		t.Fatalf("request failed: %v", err)
+	}
+
+	if gotCookie != "" {
+		t.Fatalf("expected no cookie auth header, got %q", gotCookie)
+	}
+	if gotAuth != "Bearer test-token" {
+		t.Fatalf("expected bearer auth header, got %q", gotAuth)
 	}
 }
 

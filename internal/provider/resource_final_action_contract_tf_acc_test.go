@@ -261,7 +261,7 @@ func testAccCheckScannerAvailability(environmentResourceName string, endpoint st
 			return err
 		}
 
-		client, err := NewClient(endpoint, sessionCookie, envID, true)
+		client, err := NewClient(endpoint, sessionCookie, "", envID, true)
 		if err != nil {
 			return err
 		}
@@ -365,7 +365,7 @@ func testAccCheckRuntimeStackQuiesced(endpoint string, username string, password
 			return err
 		}
 
-		client, err := NewClient(endpoint, sessionCookie, env, true)
+		client, err := NewClient(endpoint, sessionCookie, "", env, true)
 		if err != nil {
 			return err
 		}

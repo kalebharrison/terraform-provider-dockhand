@@ -9,7 +9,7 @@ func TestAccUserResource(t *testing.T) {
 	endpoint, username, password := testAccEnv(t)
 	sessionCookie := testAccLoginSessionCookie(t, endpoint, username, password)
 
-	client, err := NewClient(endpoint, sessionCookie, "1", true)
+	client, err := NewClient(endpoint, sessionCookie, "", "1", true)
 	if err != nil {
 		t.Fatalf("new client: %v", err)
 	}

@@ -56,9 +56,10 @@ data "dockhand_health" "this" {}
 
 ## Authentication Modes
 
-The provider supports Dockhand's login-based authentication flow.
+The provider supports Dockhand's login-based authentication flow and bearer-token API auth.
 
 - Standard login: `endpoint`, `username`, `password`
+- API token auth: `endpoint`, `api_token`
 - Optional MFA: `mfa_token`
 - Optional provider selection: `auth_provider`
 - First-install bootstrap: `allow_unauthenticated = true`
@@ -167,6 +168,7 @@ Provider arguments:
 - `endpoint` — Dockhand API base URL
 - `username` — login username
 - `password` — login password
+- `api_token` — Dockhand API token for bearer-token auth
 - `mfa_token` — optional MFA token
 - `auth_provider` — optional auth provider ID, defaults to `local`
 - `default_env` — default environment ID for resources that omit `env`
@@ -178,6 +180,7 @@ Environment variable fallbacks:
 - `DOCKHAND_ENDPOINT`
 - `DOCKHAND_USERNAME`
 - `DOCKHAND_PASSWORD`
+- `DOCKHAND_API_TOKEN`
 - `DOCKHAND_MFA_TOKEN`
 - `DOCKHAND_AUTH_PROVIDER`
 - `DOCKHAND_DEFAULT_ENV`

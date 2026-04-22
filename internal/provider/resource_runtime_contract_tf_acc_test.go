@@ -432,7 +432,7 @@ func testAccCheckContainerRuntimeEventually(endpoint string, username string, pa
 		if err != nil {
 			return err
 		}
-		client, err := NewClient(endpoint, sessionCookie, env, true)
+		client, err := NewClient(endpoint, sessionCookie, "", env, true)
 		if err != nil {
 			return err
 		}

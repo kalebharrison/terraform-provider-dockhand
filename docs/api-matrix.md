@@ -23,6 +23,7 @@ Live verification artifacts:
 | `provider.dockhand.endpoint` | Base URL | Supports `DOCKHAND_ENDPOINT`. | implemented |
 | `provider.dockhand.username` | Username | Supports `DOCKHAND_USERNAME`. | implemented |
 | `provider.dockhand.password` | Password | Supports `DOCKHAND_PASSWORD`. | implemented |
+| `provider.dockhand.api_token` | API token | Supports `DOCKHAND_API_TOKEN`; used as bearer-token auth. | implemented |
 | `provider.dockhand.mfa_token` | MFA token | Supports `DOCKHAND_MFA_TOKEN`. | implemented |
 | `provider.dockhand.auth_provider` | Auth provider | Supports `DOCKHAND_AUTH_PROVIDER`; defaults to `local`. | implemented |
 | `provider.dockhand.default_env` | `env` query default | Supports `DOCKHAND_DEFAULT_ENV`. | implemented |

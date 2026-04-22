@@ -406,7 +406,7 @@ func testAccDestroyClient(endpoint string, username string, password string) (*C
 	if err != nil {
 		return nil, err
 	}
-	return NewClient(endpoint, sessionCookie, testAccDefaultEnv(), true)
+	return NewClient(endpoint, sessionCookie, "", testAccDefaultEnv(), true)
 }
 
 func testAccSettingsSingletonsConfig(timeFormat string, dateFormat string, showStopped bool, highlight bool, timezone string, sessionTimeout int64, primaryStackLocation *string, externalStackPaths []string) string {

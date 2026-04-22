@@ -123,7 +123,7 @@ func testAccCreateContainerFixture(t *testing.T, endpoint string, username strin
 
 	ctx := context.Background()
 	sessionCookie := testAccLoginSessionCookie(t, endpoint, username, password)
-	client, err := NewClient(endpoint, sessionCookie, env, false)
+	client, err := NewClient(endpoint, sessionCookie, "", env, false)
 	if err != nil {
 		t.Fatalf("create client: %v", err)
 	}
