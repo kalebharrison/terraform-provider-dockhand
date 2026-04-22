@@ -160,9 +160,10 @@ func (p *dockhandProvider) Configure(ctx context.Context, req provider.Configure
 
 	sessionCookie := ""
 	authHeader := ""
-	if apiToken != "" {
+	switch {
+	case apiToken != "":
 		authHeader = "Bearer " + apiToken
-	} else if username == "" && password == "" {
+	case username == "" && password == "":
 		if !allowUnauthenticated {
 			resp.Diagnostics.AddError(
 				"Missing Dockhand authentication",
@@ -174,7 +175,7 @@ func (p *dockhandProvider) Configure(ctx context.Context, req provider.Configure
 			"Unauthenticated provider mode enabled",
 			"The provider was initialized without login credentials. Only endpoints that Dockhand exposes without auth will work (for example initial bootstrap flows).",
 		)
-	} else {
+	default:
 		if username != "" && password == "" {
 			resp.Diagnostics.AddError(
 				"Incomplete Dockhand authentication",

@@ -1,8 +1,9 @@
 package provider
 
 import (
+	"io"
 	"net/http"
-	"net/http/httptest"
+	"strings"
 	"testing"
 )
 
@@ -24,18 +25,21 @@ func TestClientUsesBearerTokenAuthHeader(t *testing.T) {
 	var gotCookie string
 	var gotAuth string
 
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		gotCookie = r.Header.Get("Cookie")
-		gotAuth = r.Header.Get("Authorization")
-		w.Header().Set("Content-Type", "application/json")
-		_, _ = w.Write([]byte(`{"ok":true}`))
-	}))
-	defer server.Close()
-
-	client, err := NewClient(server.URL, "", "Bearer test-token", "1", false)
+	client, err := NewClient("http://example.com", "", "Bearer test-token", "1", false)
 	if err != nil {
 		t.Fatalf("NewClient() error = %v", err)
 	}
+
+	client.httpClient.Transport = roundTripFunc(func(r *http.Request) (*http.Response, error) {
+		gotCookie = r.Header.Get("Cookie")
+		gotAuth = r.Header.Get("Authorization")
+		return &http.Response{
+			StatusCode: http.StatusOK,
+			Body:       io.NopCloser(strings.NewReader(`{"ok":true}`)),
+			Header:     make(http.Header),
+			Request:    r,
+		}, nil
+	})
 
 	var out map[string]any
 	if _, err := client.doJSONWithStatus(t.Context(), http.MethodGet, "/api/settings/general", nil, nil, &out); err != nil {
@@ -48,6 +52,12 @@ func TestClientUsesBearerTokenAuthHeader(t *testing.T) {
 	if gotAuth != "Bearer test-token" {
 		t.Fatalf("expected bearer auth header, got %q", gotAuth)
 	}
+}
+
+type roundTripFunc func(*http.Request) (*http.Response, error)
+
+func (f roundTripFunc) RoundTrip(r *http.Request) (*http.Response, error) {
+	return f(r)
 }
 
 func TestImagePullStreamError(t *testing.T) {
