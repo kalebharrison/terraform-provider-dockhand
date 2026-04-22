@@ -21,6 +21,7 @@ type Client struct {
 	baseURL       *url.URL
 	httpClient    *http.Client
 	sessionCookie string
+	authHeader    string
 	defaultEnv    string
 }
 
@@ -915,7 +916,7 @@ type generalSettings struct {
 	TimeFormat                string   `json:"timeFormat"`
 }
 
-func NewClient(endpoint string, sessionCookie string, defaultEnv string, insecure bool) (*Client, error) {
+func NewClient(endpoint string, sessionCookie string, authHeader string, defaultEnv string, insecure bool) (*Client, error) {
 	if endpoint == "" {
 		return nil, fmt.Errorf("endpoint is required")
 	}
@@ -954,6 +955,7 @@ func NewClient(endpoint string, sessionCookie string, defaultEnv string, insecur
 			Transport: transport,
 		},
 		sessionCookie: sessionCookie,
+		authHeader:    authHeader,
 		defaultEnv:    defaultEnv,
 	}, nil
 }
@@ -1818,9 +1820,7 @@ func (c *Client) PullImage(ctx context.Context, env string, image string, scanAf
 	}
 	req.Header.Set("Accept", "application/json")
 	req.Header.Set("Content-Type", "application/json")
-	if c.sessionCookie != "" {
-		req.Header.Set("Cookie", c.sessionCookie)
-	}
+	c.applyAuthHeaders(req)
 
 	res, err := c.httpClient.Do(req)
 	if err != nil {
@@ -2071,9 +2071,7 @@ func (c *Client) ReadScheduleStream(ctx context.Context, maxEvents int64, timeou
 		return nil, 0, err
 	}
 	req.Header.Set("Accept", "text/event-stream")
-	if c.sessionCookie != "" {
-		req.Header.Set("Cookie", c.sessionCookie)
-	}
+	c.applyAuthHeaders(req)
 
 	res, err := c.httpClient.Do(req)
 	if err != nil {
@@ -2736,9 +2734,7 @@ func (c *Client) DeployGitStack(ctx context.Context, id string) (int, string, er
 	if err != nil {
 		return 0, "", err
 	}
-	if c.sessionCookie != "" {
-		req.Header.Set("Cookie", c.sessionCookie)
-	}
+	c.applyAuthHeaders(req)
 
 	res, err := c.httpClient.Do(req)
 	if err != nil {
@@ -2848,9 +2844,7 @@ func (c *Client) doJSONWithStatusUsingClient(ctx context.Context, httpClient *ht
 		if payloadBytes != nil {
 			req.Header.Set("Content-Type", "application/json")
 		}
-		if c.sessionCookie != "" {
-			req.Header.Set("Cookie", c.sessionCookie)
-		}
+		c.applyAuthHeaders(req)
 
 		//nolint:gosec // Provider endpoint is an explicit user-configured Dockhand API target.
 		res, err := httpClient.Do(req)
@@ -2915,6 +2909,15 @@ func (c *Client) resolveEnv(value string) string {
 		return value
 	}
 	return c.defaultEnv
+}
+
+func (c *Client) applyAuthHeaders(req *http.Request) {
+	if c.sessionCookie != "" {
+		req.Header.Set("Cookie", c.sessionCookie)
+	}
+	if c.authHeader != "" {
+		req.Header.Set("Authorization", c.authHeader)
+	}
 }
 
 func parseStacks(raw json.RawMessage) ([]stackResponse, error) {

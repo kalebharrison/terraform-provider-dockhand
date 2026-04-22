@@ -83,7 +83,7 @@ func testAccCheckRuntimeStackExists(endpoint string, username string, password s
 			return err
 		}
 
-		client, err := NewClient(endpoint, sessionCookie, env, true)
+		client, err := NewClient(endpoint, sessionCookie, "", env, true)
 		if err != nil {
 			return err
 		}
@@ -112,7 +112,7 @@ func testAccCheckGitStackDestroyed(endpoint string, username string, password st
 			return err
 		}
 
-		client, err := NewClient(endpoint, sessionCookie, "", true)
+		client, err := NewClient(endpoint, sessionCookie, "", "", true)
 		if err != nil {
 			return err
 		}

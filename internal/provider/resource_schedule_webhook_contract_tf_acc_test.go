@@ -92,7 +92,7 @@ func testAccScheduleFixture(t *testing.T, endpoint string, username string, pass
 	t.Helper()
 
 	sessionCookie := testAccLoginSessionCookie(t, endpoint, username, password)
-	client, err := NewClient(endpoint, sessionCookie, testAccDefaultEnv(), true)
+	client, err := NewClient(endpoint, sessionCookie, "", testAccDefaultEnv(), true)
 	if err != nil {
 		t.Fatalf("new client: %v", err)
 	}

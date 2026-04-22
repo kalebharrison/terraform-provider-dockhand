@@ -30,6 +30,7 @@ type dockhandProviderModel struct {
 	Endpoint             types.String `tfsdk:"endpoint"`
 	Username             types.String `tfsdk:"username"`
 	Password             types.String `tfsdk:"password"`
+	APIToken             types.String `tfsdk:"api_token"`
 	MFAToken             types.String `tfsdk:"mfa_token"`
 	AuthProvider         types.String `tfsdk:"auth_provider"`
 	DefaultEnv           types.String `tfsdk:"default_env"`
@@ -55,6 +56,11 @@ func (p *dockhandProvider) Schema(_ context.Context, _ provider.SchemaRequest, r
 			},
 			"password": schema.StringAttribute{
 				MarkdownDescription: "Dockhand password for login-based auth. Can also be set with `DOCKHAND_PASSWORD`.",
+				Optional:            true,
+				Sensitive:           true,
+			},
+			"api_token": schema.StringAttribute{
+				MarkdownDescription: "Dockhand API token for bearer-token auth. Can also be set with `DOCKHAND_API_TOKEN`.",
 				Optional:            true,
 				Sensitive:           true,
 			},
@@ -105,6 +111,11 @@ func (p *dockhandProvider) Configure(ctx context.Context, req provider.Configure
 		password = config.Password.ValueString()
 	}
 
+	apiToken := os.Getenv("DOCKHAND_API_TOKEN")
+	if !config.APIToken.IsNull() && !config.APIToken.IsUnknown() {
+		apiToken = config.APIToken.ValueString()
+	}
+
 	mfaToken := os.Getenv("DOCKHAND_MFA_TOKEN")
 	if !config.MFAToken.IsNull() && !config.MFAToken.IsUnknown() {
 		mfaToken = config.MFAToken.ValueString()
@@ -148,11 +159,15 @@ func (p *dockhandProvider) Configure(ctx context.Context, req provider.Configure
 	}
 
 	sessionCookie := ""
-	if username == "" && password == "" {
+	authHeader := ""
+	switch {
+	case apiToken != "":
+		authHeader = "Bearer " + apiToken
+	case username == "" && password == "":
 		if !allowUnauthenticated {
 			resp.Diagnostics.AddError(
 				"Missing Dockhand authentication",
-				"Set provider `username` and `password` (or export `DOCKHAND_USERNAME`/`DOCKHAND_PASSWORD`). For first-install bootstrap flows, set `allow_unauthenticated = true` (or `DOCKHAND_ALLOW_UNAUTHENTICATED=true`).",
+				"Set provider `username` and `password` (or export `DOCKHAND_USERNAME`/`DOCKHAND_PASSWORD`), or set `api_token` (or export `DOCKHAND_API_TOKEN`). For first-install bootstrap flows, set `allow_unauthenticated = true` (or `DOCKHAND_ALLOW_UNAUTHENTICATED=true`).",
 			)
 			return
 		}
@@ -160,7 +175,7 @@ func (p *dockhandProvider) Configure(ctx context.Context, req provider.Configure
 			"Unauthenticated provider mode enabled",
 			"The provider was initialized without login credentials. Only endpoints that Dockhand exposes without auth will work (for example initial bootstrap flows).",
 		)
-	} else {
+	default:
 		if username != "" && password == "" {
 			resp.Diagnostics.AddError(
 				"Incomplete Dockhand authentication",
@@ -183,7 +198,7 @@ func (p *dockhandProvider) Configure(ctx context.Context, req provider.Configure
 		}
 	}
 
-	client, err := NewClient(endpoint, sessionCookie, defaultEnv, insecure)
+	client, err := NewClient(endpoint, sessionCookie, authHeader, defaultEnv, insecure)
 	if err != nil {
 		resp.Diagnostics.AddError(
 			"Invalid provider configuration",

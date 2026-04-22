@@ -22,6 +22,15 @@ provider "dockhand" {
 }
 ```
 
+If you are using a Dockhand 1.0.25+ API token, use `api_token` instead of username/password:
+
+```terraform
+provider "dockhand" {
+  endpoint  = var.dockhand_endpoint
+  api_token = var.dockhand_api_token
+}
+```
+
 For a fresh, unauthenticated Dockhand install, bootstrap the first admin with:
 
 ```terraform
@@ -165,6 +174,7 @@ resource "dockhand_user" "admin" {
 - `endpoint` (String) Dockhand API base URL. Can also be set with `DOCKHAND_ENDPOINT`.
 - `username` (String) Username for login-based auth. Can also be set with `DOCKHAND_USERNAME`.
 - `password` (String, Sensitive) Password for login-based auth. Can also be set with `DOCKHAND_PASSWORD`.
+- `api_token` (String, Sensitive) Dockhand API token for bearer-token auth. Can also be set with `DOCKHAND_API_TOKEN`.
 - `mfa_token` (String, Sensitive) Optional MFA token for login-based auth. Can also be set with `DOCKHAND_MFA_TOKEN`.
 - `auth_provider` (String) Auth provider ID (default `local`). Can also be set with `DOCKHAND_AUTH_PROVIDER`.
 - `default_env` (String) Default environment ID used when resources omit `env`. Can also be set with `DOCKHAND_DEFAULT_ENV`.

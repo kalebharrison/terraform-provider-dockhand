@@ -180,7 +180,7 @@ func testAccCheckHawserConnected(resourceName string, endpoint string, username 
 				continue
 			}
 
-			client, err := NewClient(endpoint, sessionCookie, testAccDefaultEnv(), false)
+			client, err := NewClient(endpoint, sessionCookie, "", testAccDefaultEnv(), false)
 			if err != nil {
 				lastErr = err
 				time.Sleep(3 * time.Second)

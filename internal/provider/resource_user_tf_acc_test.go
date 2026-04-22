@@ -87,7 +87,7 @@ func testAccCheckUserDestroyed(endpoint string, username string, password string
 		if err != nil {
 			return err
 		}
-		client, err := NewClient(endpoint, sessionCookie, "1", true)
+		client, err := NewClient(endpoint, sessionCookie, "", "1", true)
 		if err != nil {
 			return err
 		}

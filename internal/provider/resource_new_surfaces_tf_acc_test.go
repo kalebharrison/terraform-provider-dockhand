@@ -298,7 +298,7 @@ func TestAccJobDataSourceTerraform(t *testing.T) {
 	if err != nil {
 		t.Fatalf("login for job data source fixture: %v", err)
 	}
-	client, err := NewClient(endpoint, sessionCookie, defaultEnv, false)
+	client, err := NewClient(endpoint, sessionCookie, "", defaultEnv, false)
 	if err != nil {
 		t.Fatalf("new client for job data source fixture: %v", err)
 	}
