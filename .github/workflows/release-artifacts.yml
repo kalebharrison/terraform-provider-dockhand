@@ -46,6 +46,7 @@ jobs:
           set -euo pipefail
           if [[ -n "${{ inputs.version }}" ]]; then
             v="${{ inputs.version }}"
+            v="${v#v}"
           else
             # refs/tags/vX.Y.Z -> X.Y.Z
             ref="${GITHUB_REF#refs/tags/}"
