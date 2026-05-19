@@ -19,7 +19,7 @@ Before creating `vX.Y.Z`:
 2. Confirm `TestAcceptanceManifestCoverage` passes.
 3. Confirm docs/examples parity check passes (`/usr/bin/python3 scripts/check-doc-example-coverage.py`).
 4. Confirm endpoint probe report is clean for current Dockhand target.
-5. Confirm latest `Dockhand Release Watch` run produced compatibility artifacts (`endpoint-probe.*`, `webui-api-endpoints.txt`, `webui-endpoint-gap-audit.md`, `docs-reference-*`, `private-endpoint-probe.*`).
+5. Confirm latest `Dockhand Release Watch` run produced compatibility artifacts (`endpoint-probe.*`, `webui-api-endpoints.txt`, `webui-endpoint-gap-audit.md`, `docs-reference-*`, `private-endpoint-probe.*`, `api-drift-gate.md`).
 6. Cut signed tag:
 
 ```bash
@@ -42,3 +42,24 @@ git push origin vX.Y.Z
 - On success, updates the release-watch state issue using `GITHUB_TOKEN` (`issues:write`), so no extra repository secret is required.
 - Includes docs-reference drift audit from `https://dockhand.pro/manual/#api-reference`.
 - Includes a targeted authenticated private endpoint probe (`GET /api/environments` by default).
+- Includes API drift gating that opens/updates an issue when new relevant endpoints are discovered and not yet tracked/allowlisted.
+
+## API Drift Baseline Refresh
+
+When a compatibility run fails on new API drift:
+
+1. Review `api-drift-gate.md` artifact from the failed run.
+2. Integrate new routes into provider/probe coverage where appropriate.
+3. For accepted backlog gaps, add them to `docs/non-present-endpoints.md`.
+4. Refresh baseline snapshots in `docs/reports/` after triage:
+
+```bash
+DOCKHAND_ENDPOINT=<endpoint> \
+DOCKHAND_USERNAME=<username> \
+DOCKHAND_PASSWORD=<password> \
+DOCKHAND_AUTH_PROVIDER=local \
+RUN_ENDPOINT_PROBE=true \
+RUN_WEBUI_AUDIT=true \
+RUN_DOCS_REFERENCE_AUDIT=true \
+./scripts/run-acceptance-harness.sh
+```

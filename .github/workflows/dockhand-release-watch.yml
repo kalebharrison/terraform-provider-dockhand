@@ -136,6 +136,7 @@ jobs:
       RUN_WEBUI_AUDIT: "true"
       RUN_DOCS_REFERENCE_AUDIT: "true"
       RUN_PRIVATE_ENDPOINT_PROBE: "true"
+      API_DRIFT_FAIL_ON_NEW: "false"
       WEBUI_AUDIT_OUT_DIR: ${{ github.workspace }}/.compat-reports
       DOCS_AUDIT_OUT_DIR: ${{ github.workspace }}/.compat-reports
       PRIVATE_PROBE_OUT_DIR: ${{ github.workspace }}/.compat-reports
@@ -209,6 +210,100 @@ jobs:
           set -euo pipefail
           ./scripts/run-acceptance-harness.sh
 
+      - name: Enforce API drift gate
+        shell: bash
+        env:
+          API_DRIFT_OUT_DIR: ${{ github.workspace }}/.compat-reports
+          WEBUI_ENDPOINTS_FILE: ${{ github.workspace }}/.compat-reports/webui-api-endpoints.txt
+          DOCS_ENDPOINTS_FILE: ${{ github.workspace }}/.compat-reports/docs-reference-api-endpoints.txt
+          DOCS_REPORT_FILE: ${{ github.workspace }}/.compat-reports/docs-reference-gap-audit.md
+          API_DRIFT_REPORT_FILE: ${{ github.workspace }}/.compat-reports/api-drift-gate.md
+          API_DRIFT_JSON_FILE: ${{ github.workspace }}/.compat-reports/api-drift-gate.json
+          API_DRIFT_FAIL_ON_NEW: ${{ env.API_DRIFT_FAIL_ON_NEW }}
+        run: |
+          set -euo pipefail
+          /usr/bin/python3 scripts/api-drift-gate.py
+
+      - name: Open issue when API drift is detected
+        uses: actions/github-script@v9
+        env:
+          DRIFT_JSON_FILE: ${{ github.workspace }}/.compat-reports/api-drift-gate.json
+          IMAGE_REF: ${{ needs.discover.outputs.image }}
+          IMAGE_TAG: ${{ needs.discover.outputs.tag }}
+        with:
+          script: |
+            const fs = require("fs");
+            const path = process.env.DRIFT_JSON_FILE;
+            if (!fs.existsSync(path)) {
+              core.warning(`drift json file not found: ${path}`);
+              return;
+            }
+
+            const drift = JSON.parse(fs.readFileSync(path, "utf8"));
+            const endpoints = drift.unknown_relevant_unallowlisted || [];
+            if (endpoints.length === 0) {
+              core.info("No new unallowlisted relevant API drift.");
+              return;
+            }
+
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+            const title = `API drift detected: dockhand ${process.env.IMAGE_TAG}`;
+            const runUrl = `${context.serverUrl}/${owner}/${repo}/actions/runs/${context.runId}`;
+            const endpointLines = endpoints.slice(0, 100).map((e) => `- \`${e}\``).join("\n");
+            const body = [
+              `Detected new Dockhand API routes not currently tracked by provider probe coverage.`,
+              ``,
+              `- Image: \`${process.env.IMAGE_REF}\``,
+              `- Run: ${runUrl}`,
+              `- Count: \`${endpoints.length}\``,
+              ``,
+              `## Endpoints`,
+              endpointLines || "- None",
+              ``,
+              `Action: add provider/probe coverage or explicitly allowlist intentional gaps in \`docs/non-present-endpoints.md\`.`,
+            ].join("\n");
+
+            const ensureLabel = async (name, color, description) => {
+              try {
+                await github.rest.issues.getLabel({ owner, repo, name });
+              } catch (error) {
+                if (error.status === 404) {
+                  await github.rest.issues.createLabel({ owner, repo, name, color, description });
+                } else {
+                  throw error;
+                }
+              }
+            };
+
+            await ensureLabel("compatibility", "5319E7", "Dockhand compatibility validation and drift tracking");
+            await ensureLabel("api-drift", "D93F0B", "New Dockhand API drift detected by scheduled audits");
+
+            const search = await github.rest.search.issuesAndPullRequests({
+              q: `repo:${owner}/${repo} is:issue is:open in:title "${title}"`,
+            });
+
+            if (search.data.total_count > 0) {
+              const issue = search.data.items[0];
+              await github.rest.issues.createComment({
+                owner,
+                repo,
+                issue_number: issue.number,
+                body,
+              });
+              core.info(`Updated existing issue #${issue.number}`);
+              return;
+            }
+
+            const created = await github.rest.issues.create({
+              owner,
+              repo,
+              title,
+              body,
+              labels: ["bug", "compatibility", "api-drift"],
+            });
+            core.info(`Created issue #${created.data.number}`);
+
       - name: Collect compatibility reports
         if: always()
         shell: bash
@@ -223,6 +318,8 @@ jobs:
           cp "${DOCS_AUDIT_OUT_DIR}/docs-reference-gap-audit.md" artifacts/docs-reference-gap-audit.md || true
           cp "${PRIVATE_PROBE_OUT_DIR}/private-endpoint-probe.json" artifacts/private-endpoint-probe.json || true
           cp "${PRIVATE_PROBE_OUT_DIR}/private-endpoint-probe.md" artifacts/private-endpoint-probe.md || true
+          cp "${WEBUI_AUDIT_OUT_DIR}/api-drift-gate.md" artifacts/api-drift-gate.md || true
+          cp "${WEBUI_AUDIT_OUT_DIR}/api-drift-gate.json" artifacts/api-drift-gate.json || true
 
       - name: Upload compatibility reports
         if: always()
