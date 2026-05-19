@@ -13,6 +13,8 @@ from typing import Any, Dict, List, Optional, Tuple
 ENDPOINTS: List[Dict[str, Any]] = [
     {"method": "POST", "path": "/api/auth/login"},
     {"method": "GET", "path": "/api/auth/session"},
+    {"method": "GET", "path": "/api/auth/tokens"},
+    {"method": "POST", "path": "/api/auth/tokens"},
     {"method": "GET", "path": "/api/settings/general"},
     {"method": "POST", "path": "/api/settings/general"},
     {"method": "GET", "path": "/api/auth/settings"},
