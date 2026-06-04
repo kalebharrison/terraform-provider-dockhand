@@ -11,6 +11,7 @@ STATICCHECK_BIN_DIR="${STATICCHECK_BIN_DIR:-$ROOT_DIR/.cache/bin}"
 mkdir -p "${GOCACHE}" "${GOMODCACHE}"
 
 RUN_QUALITY=false
+RUN_SECURITY=false
 RUN_ENDPOINT_PROBE=false
 RUN_ACCEPTANCE=false
 TEST_REGEX="${TEST_REGEX:-TestAcc}"
@@ -21,6 +22,7 @@ Usage: ./scripts/verify.sh [options]
 
 Options:
   --quality         Run extended quality checks (vet, golangci-lint, staticcheck, shellcheck if installed)
+  --security        Run local security checks (govulncheck, plus gitleaks if installed)
   --endpoint-probe  Run endpoint probe (requires Dockhand auth env vars)
   --acceptance      Run acceptance harness (Docker + Dockhand + DinD)
   --test-regex REG  Regex for acceptance tests (default: $TEST_REGEX or TestAcc)
@@ -32,6 +34,10 @@ while [[ $# -gt 0 ]]; do
   case "$1" in
     --quality)
       RUN_QUALITY=true
+      shift
+      ;;
+    --security)
+      RUN_SECURITY=true
       shift
       ;;
     --endpoint-probe)
@@ -117,6 +123,25 @@ if [[ "${RUN_QUALITY}" == "true" ]]; then
     run shellcheck scripts/*.sh
   else
     echo "warning: shellcheck not installed; skipping."
+  fi
+fi
+
+if [[ "${RUN_SECURITY}" == "true" ]]; then
+  echo "==> Security checks"
+  SECURITY_TOOLCHAIN="${VERIFY_SECURITY_GOTOOLCHAIN:-${GOTOOLCHAIN:-go$(awk '/^go / {print $2; exit}' go.mod)}}"
+
+  mkdir -p "${STATICCHECK_BIN_DIR}"
+  export PATH="${STATICCHECK_BIN_DIR}:${PATH}"
+  if ! command -v govulncheck >/dev/null 2>&1; then
+    echo "==> Installing govulncheck"
+    env GOTOOLCHAIN="${SECURITY_TOOLCHAIN}" GOBIN="${STATICCHECK_BIN_DIR}" go install "golang.org/x/vuln/cmd/govulncheck@latest"
+  fi
+  run env GOTOOLCHAIN="${SECURITY_TOOLCHAIN}" govulncheck -C . -format text ./...
+
+  if command -v gitleaks >/dev/null 2>&1; then
+    run gitleaks git --no-banner --redact .
+  else
+    echo "warning: gitleaks not installed; skipping local secret scan."
   fi
 fi
 

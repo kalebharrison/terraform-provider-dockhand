@@ -148,6 +148,12 @@ Standard local validation:
 ./scripts/verify.sh --quality
 ```
 
+When dependency, toolchain, or security posture changes:
+
+```bash
+./scripts/verify.sh --security
+```
+
 When provider behavior changes:
 
 ```bash
