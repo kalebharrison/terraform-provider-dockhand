@@ -13,6 +13,9 @@ Run from repo root.
 # Extended gate (matches CI quality checks where local tools exist)
 ./scripts/verify.sh --quality
 
+# Dependency/toolchain/security gate
+./scripts/verify.sh --security
+
 # API contract check against live Dockhand
 ./scripts/verify.sh --endpoint-probe
 
@@ -41,6 +44,7 @@ git checkout -b codex/<short-change-name>
 
 ```bash
 ./scripts/verify.sh --quality
+./scripts/verify.sh --security
 ```
 
 5. If API behavior changed, run live probe
