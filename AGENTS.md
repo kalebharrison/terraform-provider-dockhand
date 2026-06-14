@@ -1,4 +1,17 @@
-# AGENTS.md
+# Agent context
+
+Start here for AI agents working in this repo.
+
+## Repository
+
+- Open this repo at its root, not a parent folder.
+- Do not commit secrets, local Terraform state, or `.codex/` machine config.
+- Match existing Go and Terraform provider conventions in this repo.
+
+## Cursor
+
+- **Rules:** `.cursor/rules/repo-basics.mdc`
+- **Ignore:** `.cursorignore` — excludes build artifacts, Terraform cache, secrets from indexing
 
 ## Purpose
 

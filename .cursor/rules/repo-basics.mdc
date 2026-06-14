@@ -1,0 +1,11 @@
+---
+description: Repository conventions for agents
+alwaysApply: true
+---
+
+# Repository basics
+
+- Do not commit secrets, `.env` files, or local overrides.
+- Match existing code style, naming, and CI patterns in this repo.
+- Keep changes focused; avoid unrelated refactors.
+- See `AGENTS.md` for Terraform provider development conventions.

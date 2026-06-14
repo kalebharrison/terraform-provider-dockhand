@@ -1,0 +1,37 @@
+# Go build/test artifacts
+bin/
+dist/
+dist-local/
+.cache/
+mirror/
+*.test
+*.out
+coverage.out
+
+# Terraform local state/cache
+.terraform/
+*.tfstate
+*.tfstate.*
+terraform.tfstate
+terraform.tfstate.backup
+terraform.rc
+.terraformrc
+.terraformrc.*
+
+# Codex local config
+.codex/
+
+# Logs and scan output
+*.log
+*.sarif
+
+# OS / editor noise
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+
+# Local secret overrides
+.env
+.env.*
+secrets/
