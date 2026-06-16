@@ -538,6 +538,7 @@ type environmentPayload struct {
 	UpdateCheckEnabled    *bool   `json:"updateCheckEnabled,omitempty"`
 	UpdateCheckAutoUpdate *bool   `json:"updateCheckAutoUpdate,omitempty"`
 	ImagePruneEnabled     *bool   `json:"imagePruneEnabled,omitempty"`
+	PublicIP              *string `json:"publicIp,omitempty"`
 }
 
 type environmentResponse struct {
@@ -563,6 +564,7 @@ type environmentResponse struct {
 	ImagePruneEnabled     *bool    `json:"imagePruneEnabled"`
 	CreatedAt             *string  `json:"createdAt"`
 	UpdatedAt             *string  `json:"updatedAt"`
+	PublicIP              *string  `json:"publicIp"`
 	Labels                []string `json:"labels"`
 }
 

@@ -187,3 +187,48 @@ func TestShouldProvisionAgentTokenForAgentStandard(t *testing.T) {
 		t.Fatalf("expected unchanged token to skip reprovision for agent-standard")
 	}
 }
+
+func TestBuildEnvironmentPayloadIncludesPublicIP(t *testing.T) {
+	ip := "203.0.113.10"
+	plan := environmentModel{
+		Name:           types.StringValue("edge"),
+		ConnectionType: types.StringValue("direct"),
+		PublicIP:       types.StringValue(ip),
+	}
+
+	payload, err := buildEnvironmentPayload(plan, environmentModel{})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if payload.PublicIP == nil || *payload.PublicIP != ip {
+		t.Fatalf("expected publicIp %q in payload, got %#v", ip, payload.PublicIP)
+	}
+}
+
+func TestModelFromEnvironmentResponsePublicIPDefaultsEmpty(t *testing.T) {
+	resp := &environmentResponse{
+		ID:             1,
+		Name:           "socket-env",
+		ConnectionType: "socket",
+	}
+
+	out := modelFromEnvironmentResponse(environmentModel{}, resp)
+	if out.PublicIP.ValueString() != "" {
+		t.Fatalf("expected empty public_ip default, got %q", out.PublicIP.ValueString())
+	}
+}
+
+func TestModelFromEnvironmentResponsePublicIPFromAPI(t *testing.T) {
+	ip := "198.51.100.4"
+	resp := &environmentResponse{
+		ID:             2,
+		Name:           "remote-env",
+		ConnectionType: "direct",
+		PublicIP:       &ip,
+	}
+
+	out := modelFromEnvironmentResponse(environmentModel{}, resp)
+	if out.PublicIP.ValueString() != ip {
+		t.Fatalf("expected public_ip %q, got %q", ip, out.PublicIP.ValueString())
+	}
+}

@@ -44,6 +44,7 @@ type environmentModel struct {
 	ClientCert     types.String `tfsdk:"client_cert"`
 	ClientKey      types.String `tfsdk:"client_key"`
 	Icon           types.String `tfsdk:"icon"`
+	PublicIP       types.String `tfsdk:"public_ip"`
 
 	CollectActivity  types.Bool `tfsdk:"collect_activity"`
 	CollectMetrics   types.Bool `tfsdk:"collect_metrics"`
@@ -141,6 +142,11 @@ func (r *environmentResource) Schema(_ context.Context, _ resource.SchemaRequest
 			"icon": schema.StringAttribute{
 				Optional: true,
 				Computed: true,
+			},
+			"public_ip": schema.StringAttribute{
+				MarkdownDescription: "Public IP address advertised for this environment. Defaults to an empty string when unset.",
+				Optional:            true,
+				Computed:            true,
 			},
 			"collect_activity": schema.BoolAttribute{
 				Optional: true,
@@ -417,6 +423,10 @@ func buildEnvironmentPayload(plan environmentModel, prior environmentModel) (env
 	if v := firstKnownString(plan.Icon, prior.Icon); v != "" {
 		payload.Icon = &v
 	}
+	if !plan.PublicIP.IsNull() || !prior.PublicIP.IsNull() {
+		v := firstKnownString(plan.PublicIP, prior.PublicIP)
+		payload.PublicIP = &v
+	}
 	if v, ok := firstKnownBoolPtr(plan.CollectActivity, prior.CollectActivity); ok {
 		payload.CollectActivity = &v
 	}
@@ -457,6 +467,7 @@ func modelFromEnvironmentResponse(prior environmentModel, in *environmentRespons
 		Protocol:         types.StringValue(in.Protocol),
 		TLSSkipVerify:    types.BoolValue(in.TLSSkipVerify),
 		Icon:             types.StringValue(in.Icon),
+		PublicIP:         environmentPublicIPValue(in.PublicIP),
 		CollectActivity:  types.BoolValue(in.CollectActivity),
 		CollectMetrics:   types.BoolValue(in.CollectMetrics),
 		HighlightChanges: types.BoolValue(in.HighlightChanges),
@@ -592,6 +603,13 @@ func modelFromEnvironmentResponse(prior environmentModel, in *environmentRespons
 	out.TrivyVersion = types.StringNull()
 
 	return out
+}
+
+func environmentPublicIPValue(v *string) types.String {
+	if v == nil {
+		return types.StringValue("")
+	}
+	return types.StringValue(*v)
 }
 
 func normalizeEnvironmentConnectionTypeForAPI(connectionType string) string {

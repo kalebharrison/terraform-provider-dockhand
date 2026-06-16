@@ -46,6 +46,7 @@ resource "dockhand_environment" "agent" {
 ## Notes
 
 - `socket_path` is required when `connection_type = "socket"`.
+- `public_ip` defaults to an empty string when unset.
 - `connection_type = "agent"` maps to Dockhand `hawser-edge`.
 - `agent_token` for `connection_type = "agent"` is provisioned through Dockhand `/api/hawser/tokens` with the configured raw token.
 - mTLS fields are available:

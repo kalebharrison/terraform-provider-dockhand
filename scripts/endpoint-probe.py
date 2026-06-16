@@ -57,6 +57,7 @@ ENDPOINTS: List[Dict[str, Any]] = [
     {"method": "GET", "path": "/api/registries/{id}"},
     {"method": "PUT", "path": "/api/registries/{id}"},
     {"method": "DELETE", "path": "/api/registries/{id}"},
+    {"method": "POST", "path": "/api/registries/test"},
     {"method": "GET", "path": "/api/registry/search"},
     {"method": "GET", "path": "/api/registry/tags"},
     {"method": "GET", "path": "/api/registry/catalog"},

@@ -34,6 +34,7 @@ type environmentsDataSourceEnvironmentModel struct {
 	SocketPath            types.String `tfsdk:"socket_path"`
 	TLSSkipVerify         types.Bool   `tfsdk:"tls_skip_verify"`
 	Icon                  types.String `tfsdk:"icon"`
+	PublicIP              types.String `tfsdk:"public_ip"`
 	CollectActivity       types.Bool   `tfsdk:"collect_activity"`
 	CollectMetrics        types.Bool   `tfsdk:"collect_metrics"`
 	HighlightChanges      types.Bool   `tfsdk:"highlight_changes"`
@@ -72,6 +73,7 @@ func (d *environmentsDataSource) Schema(_ context.Context, _ datasource.SchemaRe
 						"socket_path":              schema.StringAttribute{Computed: true},
 						"tls_skip_verify":          schema.BoolAttribute{Computed: true},
 						"icon":                     schema.StringAttribute{Computed: true},
+						"public_ip":                schema.StringAttribute{Computed: true},
 						"collect_activity":         schema.BoolAttribute{Computed: true},
 						"collect_metrics":          schema.BoolAttribute{Computed: true},
 						"highlight_changes":        schema.BoolAttribute{Computed: true},
@@ -147,6 +149,7 @@ func (d *environmentsDataSource) Read(ctx context.Context, req datasource.ReadRe
 			SocketPath:            stringValueOrNull(item.SocketPath),
 			TLSSkipVerify:         types.BoolValue(item.TLSSkipVerify),
 			Icon:                  types.StringValue(item.Icon),
+			PublicIP:              environmentPublicIPValue(item.PublicIP),
 			CollectActivity:       types.BoolValue(item.CollectActivity),
 			CollectMetrics:        types.BoolValue(item.CollectMetrics),
 			HighlightChanges:      types.BoolValue(item.HighlightChanges),
