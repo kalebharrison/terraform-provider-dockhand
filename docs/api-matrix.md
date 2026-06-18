@@ -20,7 +20,7 @@ Live verification artifacts:
 
 | Terraform Surface | API Input | Notes | Status |
 | --- | --- | --- | --- |
-| `provider.dockhand.endpoint` | Base URL | Supports `DOCKHAND_ENDPOINT`. | implemented |
+| `provider.dockhand.endpoint` | Base URL | Supports `DOCKHAND_ENDPOINT`. Defers provider configuration during plan when the endpoint value is unknown (for example when it references another resource's computed attribute). Login retries transient connection failures during apply. | implemented |
 | `provider.dockhand.username` | Username | Supports `DOCKHAND_USERNAME`. | implemented |
 | `provider.dockhand.password` | Password | Supports `DOCKHAND_PASSWORD`. | implemented |
 | `provider.dockhand.api_token` | API token | Supports `DOCKHAND_API_TOKEN`; used as bearer-token auth. | implemented |
