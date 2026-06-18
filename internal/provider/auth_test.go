@@ -59,7 +59,13 @@ func TestLoginRetriesTransientHTTPFailures(t *testing.T) {
 			http.Error(w, "upstream unavailable", http.StatusServiceUnavailable)
 			return
 		}
-		http.SetCookie(w, &http.Cookie{Name: "dockhand_session", Value: "session-token"})
+		http.SetCookie(w, &http.Cookie{
+			Name:     "dockhand_session",
+			Value:    "session-token",
+			HttpOnly: true,
+			Secure:   true,
+			SameSite: http.SameSiteLaxMode,
+		})
 		_ = json.NewEncoder(w).Encode(loginResponse{Success: true})
 	}))
 	defer server.Close()
