@@ -47,7 +47,7 @@ func (p *dockhandProvider) Schema(_ context.Context, _ provider.SchemaRequest, r
 	resp.Schema = schema.Schema{
 		Attributes: map[string]schema.Attribute{
 			"endpoint": schema.StringAttribute{
-				MarkdownDescription: "Dockhand API base URL. Can also be set with `DOCKHAND_ENDPOINT`.",
+				MarkdownDescription: "Dockhand API base URL. Can also be set with `DOCKHAND_ENDPOINT`. When this value is unknown during plan (for example when it references another resource's computed attribute), provider configuration is deferred until apply.",
 				Optional:            true,
 			},
 			"username": schema.StringAttribute{
@@ -96,9 +96,9 @@ func (p *dockhandProvider) Configure(ctx context.Context, req provider.Configure
 		return
 	}
 
-	endpoint := os.Getenv("DOCKHAND_ENDPOINT")
-	if !config.Endpoint.IsNull() && !config.Endpoint.IsUnknown() {
-		endpoint = config.Endpoint.ValueString()
+	endpoint := providerEndpointValue(config)
+	if providerEndpointDeferred(config) {
+		return
 	}
 
 	username := os.Getenv("DOCKHAND_USERNAME")

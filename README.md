@@ -63,6 +63,7 @@ The provider supports Dockhand's login-based authentication flow and bearer-toke
 - Optional MFA: `mfa_token`
 - Optional provider selection: `auth_provider`
 - First-install bootstrap: `allow_unauthenticated = true`
+- Computed endpoints: when `endpoint` references another resource's output, plan defers provider configuration until apply; login retries transient connection failures
 
 Bootstrap example for a fresh Dockhand instance with no auth configured yet:
 

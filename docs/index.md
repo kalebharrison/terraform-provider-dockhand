@@ -49,6 +49,21 @@ resource "dockhand_user" "admin" {
 }
 ```
 
+When `endpoint` references another resource's computed attribute (for example a VM IP created in the same apply), the provider defers configuration during `terraform plan` and connects during apply. Login retries transient connection failures while Dockhand becomes reachable:
+
+```terraform
+provider "dockhand" {
+  endpoint              = example_vm.dockhand.ip_address
+  allow_unauthenticated = true
+}
+
+resource "dockhand_user" "initial_admin" {
+  username = "admin"
+  password = var.initial_admin_password
+  is_admin = true
+}
+```
+
 ## Recommended Starting Points
 
 - Bootstrap first admin: `examples/scenarios/bootstrap-admin/main.tf`
