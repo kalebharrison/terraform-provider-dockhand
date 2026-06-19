@@ -14,10 +14,10 @@ import (
 
 const (
 	defaultRequestRetryAttempts   = 6
-	defaultRequestRetryMinDelay     = 500 * time.Millisecond
-	defaultRequestRetryMaxDelay     = 5 * time.Second
-	defaultRequestRetryMinSeconds   = 1
-	defaultRequestRetryMaxSeconds   = 5
+	defaultRequestRetryMinDelay   = 500 * time.Millisecond
+	defaultRequestRetryMaxDelay   = 5 * time.Second
+	defaultRequestRetryMinSeconds = 1
+	defaultRequestRetryMaxSeconds = 5
 )
 
 type requestRetryConfig struct {

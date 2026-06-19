@@ -1,31 +1,19 @@
 package provider
 
 import (
-	"encoding/json"
-	"strings"
+	"reflect"
 	"testing"
 
 	"github.com/hashicorp/terraform-plugin-framework/types"
 )
 
 func TestGitCredentialPayloadUsesSSHPrivateKeyField(t *testing.T) {
-	key := "-----BEGIN OPENSSH PRIVATE KEY-----\ntest\n-----END OPENSSH PRIVATE KEY-----"
-	payload := gitCredentialPayload{
-		Name:     "sample_key",
-		AuthType: "ssh",
-		SSHKey:   &key,
+	field, ok := reflect.TypeOf(gitCredentialPayload{}).FieldByName("SSHKey")
+	if !ok {
+		t.Fatal("expected SSHKey field on gitCredentialPayload")
 	}
-
-	raw, err := json.Marshal(payload)
-	if err != nil {
-		t.Fatalf("marshal payload: %v", err)
-	}
-	body := string(raw)
-	if !strings.Contains(body, `"sshPrivateKey"`) {
-		t.Fatalf("expected sshPrivateKey JSON field, got %s", body)
-	}
-	if strings.Contains(body, `"sshKey"`) {
-		t.Fatalf("did not expect legacy sshKey JSON field, got %s", body)
+	if got := field.Tag.Get("json"); got != "sshPrivateKey,omitempty" {
+		t.Fatalf("SSHKey json tag = %q, want sshPrivateKey,omitempty", got)
 	}
 }
 
