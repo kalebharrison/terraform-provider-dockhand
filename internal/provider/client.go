@@ -18,11 +18,14 @@ import (
 )
 
 type Client struct {
-	baseURL       *url.URL
-	httpClient    *http.Client
-	sessionCookie string
-	authHeader    string
-	defaultEnv    string
+	baseURL              *url.URL
+	httpClient           *http.Client
+	sessionCookie        string
+	authHeader           string
+	defaultEnv           string
+	requestRetryAttempts int
+	requestRetryMinDelay time.Duration
+	requestRetryMaxDelay time.Duration
 }
 
 type stackPayload struct {
@@ -294,7 +297,7 @@ type gitCredentialPayload struct {
 	AuthType string  `json:"authType"`
 	Username *string `json:"username,omitempty"`
 	Password *string `json:"password,omitempty"`
-	SSHKey   *string `json:"sshKey,omitempty"`
+	SSHKey   *string `json:"sshPrivateKey,omitempty"`
 }
 
 type gitCredentialResponse struct {
@@ -956,10 +959,37 @@ func NewClient(endpoint string, sessionCookie string, authHeader string, default
 			Timeout:   30 * time.Second,
 			Transport: transport,
 		},
-		sessionCookie: sessionCookie,
-		authHeader:    authHeader,
-		defaultEnv:    defaultEnv,
+		sessionCookie:        sessionCookie,
+		authHeader:           authHeader,
+		defaultEnv:           defaultEnv,
+		requestRetryAttempts: defaultRequestRetryAttempts,
+		requestRetryMinDelay: defaultRequestRetryMinDelay,
+		requestRetryMaxDelay: defaultRequestRetryMaxDelay,
 	}, nil
+}
+
+func (c *Client) SetRequestRetryPolicy(retry requestRetryConfig) {
+	if c == nil {
+		return
+	}
+	if retry.attempts > 0 {
+		c.requestRetryAttempts = retry.attempts
+	}
+	if retry.minDelay > 0 {
+		c.requestRetryMinDelay = retry.minDelay
+	}
+	if retry.maxDelay > 0 {
+		c.requestRetryMaxDelay = retry.maxDelay
+	}
+}
+
+func (c *Client) requestRetrySleep(ctx context.Context, attempt int) error {
+	retry := requestRetryConfig{
+		attempts: c.requestRetryAttempts,
+		minDelay: c.requestRetryMinDelay,
+		maxDelay: c.requestRetryMaxDelay,
+	}
+	return retry.sleep(ctx, attempt)
 }
 
 func (c *Client) GetGeneralSettings(ctx context.Context) (*generalSettings, int, error) {
@@ -2830,8 +2860,12 @@ func (c *Client) doJSONWithStatusUsingClient(ctx context.Context, httpClient *ht
 
 	var lastStatus int
 	var responseBody []byte
+	maxAttempts := c.requestRetryAttempts
+	if maxAttempts < 1 {
+		maxAttempts = defaultRequestRetryAttempts
+	}
 
-	for attempt := 0; attempt < 3; attempt++ {
+	for attempt := 0; attempt < maxAttempts; attempt++ {
 		var body io.Reader
 		if payloadBytes != nil {
 			body = bytes.NewReader(payloadBytes)
@@ -2851,8 +2885,8 @@ func (c *Client) doJSONWithStatusUsingClient(ctx context.Context, httpClient *ht
 		//nolint:gosec // Provider endpoint is an explicit user-configured Dockhand API target.
 		res, err := httpClient.Do(req)
 		if err != nil {
-			if shouldRetry(method, 0, err) && attempt < 2 {
-				if sleepErr := sleepBackoff(ctx, attempt); sleepErr != nil {
+			if shouldRetryRequest(method, 0, err) && attempt < maxAttempts-1 {
+				if sleepErr := c.requestRetrySleep(ctx, attempt); sleepErr != nil {
 					return 0, err
 				}
 				continue
@@ -2871,8 +2905,8 @@ func (c *Client) doJSONWithStatusUsingClient(ctx context.Context, httpClient *ht
 		responseBody, err = io.ReadAll(io.LimitReader(res.Body, limit))
 		res.Body.Close()
 		if err != nil {
-			if shouldRetry(method, lastStatus, err) && attempt < 2 {
-				if sleepErr := sleepBackoff(ctx, attempt); sleepErr != nil {
+			if shouldRetryRequest(method, lastStatus, err) && attempt < maxAttempts-1 {
+				if sleepErr := c.requestRetrySleep(ctx, attempt); sleepErr != nil {
 					return lastStatus, err
 				}
 				continue
@@ -2880,8 +2914,8 @@ func (c *Client) doJSONWithStatusUsingClient(ctx context.Context, httpClient *ht
 			return lastStatus, err
 		}
 
-		if shouldRetry(method, lastStatus, nil) && attempt < 2 {
-			if sleepErr := sleepBackoff(ctx, attempt); sleepErr != nil {
+		if shouldRetryRequest(method, lastStatus, nil) && attempt < maxAttempts-1 {
+			if sleepErr := c.requestRetrySleep(ctx, attempt); sleepErr != nil {
 				break
 			}
 			continue
@@ -2941,49 +2975,6 @@ func parseStacks(raw json.RawMessage) ([]stackResponse, error) {
 	}
 
 	return nil, fmt.Errorf("unexpected stack list response shape")
-}
-
-func shouldRetry(method string, status int, err error) bool {
-	switch method {
-	case http.MethodGet, http.MethodDelete:
-	default:
-		return false
-	}
-
-	if err != nil {
-		// Don't retry if the context is already cancelled.
-		if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
-			return false
-		}
-		var ne net.Error
-		if errors.As(err, &ne) && ne.Timeout() {
-			return true
-		}
-		// Retry other transient network errors (e.g. connection reset).
-		return true
-	}
-
-	switch status {
-	case 429, 502, 503, 504:
-		return true
-	default:
-		return false
-	}
-}
-
-func sleepBackoff(ctx context.Context, attempt int) error {
-	delay := 200 * time.Millisecond
-	if attempt == 1 {
-		delay = 500 * time.Millisecond
-	}
-	t := time.NewTimer(delay)
-	defer t.Stop()
-	select {
-	case <-ctx.Done():
-		return ctx.Err()
-	case <-t.C:
-		return nil
-	}
 }
 
 func sleepBackoffWithInterval(ctx context.Context, delay time.Duration) error {

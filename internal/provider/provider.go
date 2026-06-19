@@ -27,15 +27,18 @@ type dockhandProvider struct {
 }
 
 type dockhandProviderModel struct {
-	Endpoint             types.String `tfsdk:"endpoint"`
-	Username             types.String `tfsdk:"username"`
-	Password             types.String `tfsdk:"password"`
-	APIToken             types.String `tfsdk:"api_token"`
-	MFAToken             types.String `tfsdk:"mfa_token"`
-	AuthProvider         types.String `tfsdk:"auth_provider"`
-	DefaultEnv           types.String `tfsdk:"default_env"`
-	Insecure             types.Bool   `tfsdk:"insecure"`
-	AllowUnauthenticated types.Bool   `tfsdk:"allow_unauthenticated"`
+	Endpoint               types.String `tfsdk:"endpoint"`
+	Username               types.String `tfsdk:"username"`
+	Password               types.String `tfsdk:"password"`
+	APIToken               types.String `tfsdk:"api_token"`
+	MFAToken               types.String `tfsdk:"mfa_token"`
+	AuthProvider           types.String `tfsdk:"auth_provider"`
+	DefaultEnv             types.String `tfsdk:"default_env"`
+	Insecure               types.Bool   `tfsdk:"insecure"`
+	AllowUnauthenticated   types.Bool   `tfsdk:"allow_unauthenticated"`
+	RequestRetryAttempts   types.Int64  `tfsdk:"request_retry_attempts"`
+	RequestRetryMinSeconds types.Int64  `tfsdk:"request_retry_min_seconds"`
+	RequestRetryMaxSeconds types.Int64  `tfsdk:"request_retry_max_seconds"`
 }
 
 func (p *dockhandProvider) Metadata(_ context.Context, _ provider.MetadataRequest, resp *provider.MetadataResponse) {
@@ -83,6 +86,18 @@ func (p *dockhandProvider) Schema(_ context.Context, _ provider.SchemaRequest, r
 			},
 			"allow_unauthenticated": schema.BoolAttribute{
 				MarkdownDescription: "Allow provider initialization without login credentials. Intended for first-install bootstrap flows (for example creating the initial admin user when Dockhand auth is disabled). Can also be set with `DOCKHAND_ALLOW_UNAUTHENTICATED`.",
+				Optional:            true,
+			},
+			"request_retry_attempts": schema.Int64Attribute{
+				MarkdownDescription: "Maximum number of attempts for Dockhand login and API requests when transient connection failures occur. Defaults to `6`. Can also be set with `DOCKHAND_REQUEST_RETRY_ATTEMPTS`.",
+				Optional:            true,
+			},
+			"request_retry_min_seconds": schema.Int64Attribute{
+				MarkdownDescription: "Minimum wait between retry attempts in seconds. Defaults to `1`. Can also be set with `DOCKHAND_REQUEST_RETRY_MIN_SECONDS`.",
+				Optional:            true,
+			},
+			"request_retry_max_seconds": schema.Int64Attribute{
+				MarkdownDescription: "Maximum wait between retry attempts in seconds. Defaults to `5`. Can also be set with `DOCKHAND_REQUEST_RETRY_MAX_SECONDS`.",
 				Optional:            true,
 			},
 		},
@@ -150,6 +165,8 @@ func (p *dockhandProvider) Configure(ctx context.Context, req provider.Configure
 		allowUnauthenticated = config.AllowUnauthenticated.ValueBool()
 	}
 
+	retry := resolveRequestRetryConfig(config)
+
 	if endpoint == "" {
 		resp.Diagnostics.AddError(
 			"Missing Dockhand endpoint",
@@ -191,7 +208,7 @@ func (p *dockhandProvider) Configure(ctx context.Context, req provider.Configure
 			return
 		}
 		var err error
-		sessionCookie, err = Login(ctx, endpoint, username, password, mfaToken, authProvider, insecure)
+		sessionCookie, err = Login(ctx, endpoint, username, password, mfaToken, authProvider, insecure, retry)
 		if err != nil {
 			resp.Diagnostics.AddError("Authentication failed", err.Error())
 			return
@@ -206,6 +223,7 @@ func (p *dockhandProvider) Configure(ctx context.Context, req provider.Configure
 		)
 		return
 	}
+	client.SetRequestRetryPolicy(retry)
 
 	resp.ResourceData = client
 	resp.DataSourceData = client

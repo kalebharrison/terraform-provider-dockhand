@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 
 	"github.com/hashicorp/terraform-plugin-framework/types"
 )
@@ -70,7 +71,7 @@ func TestLoginRetriesTransientHTTPFailures(t *testing.T) {
 	}))
 	defer server.Close()
 
-	cookie, err := loginWithRetry(context.Background(), server.URL, "admin", "password", "", "local", false, 6)
+	cookie, err := loginWithRetry(context.Background(), server.URL, "admin", "password", "", "local", false, requestRetryConfig{attempts: 6, minDelay: time.Millisecond, maxDelay: time.Millisecond})
 	if err != nil {
 		t.Fatalf("loginWithRetry returned error: %v", err)
 	}
@@ -91,7 +92,7 @@ func TestLoginDoesNotRetryAuthFailures(t *testing.T) {
 	}))
 	defer server.Close()
 
-	_, err := loginWithRetry(context.Background(), server.URL, "admin", "wrong", "", "local", false, 6)
+	_, err := loginWithRetry(context.Background(), server.URL, "admin", "wrong", "", "local", false, requestRetryConfig{attempts: 6, minDelay: time.Millisecond, maxDelay: time.Millisecond})
 	if err == nil {
 		t.Fatal("expected login error")
 	}

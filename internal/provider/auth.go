@@ -5,17 +5,13 @@ import (
 	"context"
 	"crypto/tls"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io"
-	"net"
 	"net/http"
 	"net/url"
 	"strings"
 	"time"
 )
-
-const defaultLoginRetryAttempts = 6
 
 type loginResponse struct {
 	Success     bool   `json:"success"`
@@ -24,14 +20,12 @@ type loginResponse struct {
 }
 
 // Login authenticates with Dockhand and returns a Cookie header value like "dockhand_session=...".
-func Login(ctx context.Context, endpoint string, username string, password string, mfaToken string, provider string, insecure bool) (string, error) {
-	return loginWithRetry(ctx, endpoint, username, password, mfaToken, provider, insecure, defaultLoginRetryAttempts)
+func Login(ctx context.Context, endpoint string, username string, password string, mfaToken string, provider string, insecure bool, retry requestRetryConfig) (string, error) {
+	return loginWithRetry(ctx, endpoint, username, password, mfaToken, provider, insecure, retry)
 }
 
-func loginWithRetry(ctx context.Context, endpoint string, username string, password string, mfaToken string, provider string, insecure bool, attempts int) (string, error) {
-	if attempts < 1 {
-		attempts = 1
-	}
+func loginWithRetry(ctx context.Context, endpoint string, username string, password string, mfaToken string, provider string, insecure bool, retry requestRetryConfig) (string, error) {
+	attempts := retry.attemptsOrDefault()
 
 	var lastErr error
 	for attempt := 0; attempt < attempts; attempt++ {
@@ -43,7 +37,7 @@ func loginWithRetry(ctx context.Context, endpoint string, username string, passw
 		if !isLoginRetryable(err) || attempt == attempts-1 {
 			return "", err
 		}
-		if sleepErr := sleepLoginBackoff(ctx, attempt); sleepErr != nil {
+		if sleepErr := retry.sleep(ctx, attempt); sleepErr != nil {
 			return "", sleepErr
 		}
 	}
@@ -138,74 +132,18 @@ func loginHTTPError(status int, body []byte) error {
 	return fmt.Errorf("dockhand login failed (status %d): %s", status, strings.TrimSpace(string(body)))
 }
 
+func isLoginRetryable(err error) bool {
+	if isTransientNetworkError(err) {
+		return true
+	}
+	return isLoginHTTPRetryable(extractHTTPStatusFromError(err))
+}
+
 func isLoginHTTPRetryable(status int) bool {
 	switch status {
 	case http.StatusBadGateway, http.StatusServiceUnavailable, http.StatusGatewayTimeout:
 		return true
 	default:
 		return false
-	}
-}
-
-func isLoginRetryable(err error) bool {
-	if err == nil {
-		return false
-	}
-	if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
-		return false
-	}
-
-	msg := strings.ToLower(err.Error())
-	switch {
-	case strings.Contains(msg, "connection refused"),
-		strings.Contains(msg, "connection reset"),
-		strings.Contains(msg, "broken pipe"),
-		strings.Contains(msg, "no route to host"),
-		strings.Contains(msg, "eof"),
-		strings.Contains(msg, "timeout"),
-		strings.Contains(msg, "temporarily unavailable"):
-		return true
-	}
-
-	var ne net.Error
-	if errors.As(err, &ne) && ne.Timeout() {
-		return true
-	}
-
-	return isLoginHTTPRetryable(extractLoginHTTPStatus(err))
-}
-
-func extractLoginHTTPStatus(err error) int {
-	msg := err.Error()
-	if !strings.Contains(msg, "status ") {
-		return 0
-	}
-	var status int
-	if _, scanErr := fmt.Sscanf(msg, "dockhand login failed (status %d)", &status); scanErr == nil {
-		return status
-	}
-	return 0
-}
-
-func sleepLoginBackoff(ctx context.Context, attempt int) error {
-	delays := []time.Duration{
-		500 * time.Millisecond,
-		1 * time.Second,
-		2 * time.Second,
-		3 * time.Second,
-		5 * time.Second,
-	}
-	delay := delays[len(delays)-1]
-	if attempt >= 0 && attempt < len(delays) {
-		delay = delays[attempt]
-	}
-
-	t := time.NewTimer(delay)
-	defer t.Stop()
-	select {
-	case <-ctx.Done():
-		return ctx.Err()
-	case <-t.C:
-		return nil
 	}
 }

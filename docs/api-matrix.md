@@ -20,7 +20,7 @@ Live verification artifacts:
 
 | Terraform Surface | API Input | Notes | Status |
 | --- | --- | --- | --- |
-| `provider.dockhand.endpoint` | Base URL | Supports `DOCKHAND_ENDPOINT`. Defers provider configuration during plan when the endpoint value is unknown (for example when it references another resource's computed attribute). Login retries transient connection failures during apply. | implemented |
+| `provider.dockhand.endpoint` | Base URL | Supports `DOCKHAND_ENDPOINT`. Defers provider configuration during plan when the endpoint value is unknown (for example when it references another resource's computed attribute). Retries transient connection failures during apply for login and API requests. | implemented |
 | `provider.dockhand.username` | Username | Supports `DOCKHAND_USERNAME`. | implemented |
 | `provider.dockhand.password` | Password | Supports `DOCKHAND_PASSWORD`. | implemented |
 | `provider.dockhand.api_token` | API token | Supports `DOCKHAND_API_TOKEN`; used as bearer-token auth. | implemented |
@@ -29,6 +29,9 @@ Live verification artifacts:
 | `provider.dockhand.default_env` | `env` query default | Supports `DOCKHAND_DEFAULT_ENV`. | implemented |
 | `provider.dockhand.insecure` | TLS behavior | Disables TLS verification for development. | implemented |
 | `provider.dockhand.allow_unauthenticated` | Bootstrap mode | Supports `DOCKHAND_ALLOW_UNAUTHENTICATED`; allows initialization without login credentials for first-install bootstrap flows. | implemented |
+| `provider.dockhand.request_retry_attempts` | Retry policy | Supports `DOCKHAND_REQUEST_RETRY_ATTEMPTS`; max attempts for login/API requests on transient connection failures (default `6`). | implemented |
+| `provider.dockhand.request_retry_min_seconds` | Retry policy | Supports `DOCKHAND_REQUEST_RETRY_MIN_SECONDS`; minimum wait between retries in seconds (default `1`). | implemented |
+| `provider.dockhand.request_retry_max_seconds` | Retry policy | Supports `DOCKHAND_REQUEST_RETRY_MAX_SECONDS`; maximum wait between retries in seconds (default `5`). | implemented |
 
 ## Resources
 
@@ -56,9 +59,9 @@ Live verification artifacts:
 | `dockhand_registry` | Update | `PUT /api/registries/{id}` | Omitting username/password preserves credentials. | implemented |
 | `dockhand_registry` | Delete | `DELETE /api/registries/{id}` | `404` treated as already deleted. | implemented |
 | `dockhand_registry_image_delete_action` | Delete remote image tag | `DELETE /api/registry/image` | One-shot remote registry delete action for (`registry`,`image`,`tag`) tuples. | implemented |
-| `dockhand_git_credential` | Create | `POST /api/git/credentials` | Observed payload supports name/authType/username/password. | partial |
+| `dockhand_git_credential` | Create | `POST /api/git/credentials` | Supports `password` and `ssh` auth types. SSH keys are sent as `sshPrivateKey`. | implemented |
 | `dockhand_git_credential` | Read | `GET /api/git/credentials/{id}` | `404` removes from state. | implemented |
-| `dockhand_git_credential` | Update | `PUT /api/git/credentials/{id}` | Password is write-only. | partial |
+| `dockhand_git_credential` | Update | `PUT /api/git/credentials/{id}` | Password and SSH key are write-only. | implemented |
 | `dockhand_git_credential` | Delete | `DELETE /api/git/credentials/{id}` | `404` treated as already deleted. | implemented |
 | `dockhand_git_repository` | Create | `POST /api/git/repositories` | Observed payload supports name/url/branch/composePath/credentialId/etc. | partial |
 | `dockhand_git_repository` | Read | `GET /api/git/repositories/{id}` | `404` removes from state. | implemented |
