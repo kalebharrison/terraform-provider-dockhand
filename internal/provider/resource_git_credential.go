@@ -60,7 +60,7 @@ func (r *gitCredentialResource) Schema(_ context.Context, _ resource.SchemaReque
 				Required:            true,
 			},
 			"auth_type": schema.StringAttribute{
-				MarkdownDescription: "Authentication type. Known values observed: `password`.",
+				MarkdownDescription: "Authentication type. Supported values: `password`, `ssh`.",
 				Required:            true,
 			},
 			"username": schema.StringAttribute{

@@ -49,7 +49,7 @@ resource "dockhand_user" "admin" {
 }
 ```
 
-When `endpoint` references another resource's computed attribute (for example a VM IP created in the same apply), the provider defers configuration during `terraform plan` and connects during apply. Login retries transient connection failures while Dockhand becomes reachable:
+When `endpoint` references another resource's computed attribute (for example a VM IP created in the same apply), the provider defers configuration during `terraform plan` and connects during apply. Login and API requests retry transient connection failures while Dockhand becomes reachable. Tune retry behavior with `request_retry_attempts`, `request_retry_min_seconds`, and `request_retry_max_seconds`.
 
 ```terraform
 provider "dockhand" {
@@ -195,3 +195,6 @@ resource "dockhand_user" "initial_admin" {
 - `default_env` (String) Default environment ID used when resources omit `env`. Can also be set with `DOCKHAND_DEFAULT_ENV`.
 - `insecure` (Boolean) Disable TLS verification.
 - `allow_unauthenticated` (Boolean) Allow provider initialization without login credentials for first-install bootstrap flows. Can also be set with `DOCKHAND_ALLOW_UNAUTHENTICATED`.
+- `request_retry_attempts` (Number) Maximum attempts for login/API requests on transient connection failures. Default `6`. Can also be set with `DOCKHAND_REQUEST_RETRY_ATTEMPTS`.
+- `request_retry_min_seconds` (Number) Minimum wait between retry attempts in seconds. Default `1`. Can also be set with `DOCKHAND_REQUEST_RETRY_MIN_SECONDS`.
+- `request_retry_max_seconds` (Number) Maximum wait between retry attempts in seconds. Default `5`. Can also be set with `DOCKHAND_REQUEST_RETRY_MAX_SECONDS`.

@@ -1,10 +1,12 @@
 package provider
 
 import (
+	"fmt"
 	"io"
 	"net/http"
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestNewClientAllowsEmptySessionCookie(t *testing.T) {
@@ -51,6 +53,42 @@ func TestClientUsesBearerTokenAuthHeader(t *testing.T) {
 	}
 	if gotAuth != "Bearer test-token" {
 		t.Fatalf("expected bearer auth header, got %q", gotAuth)
+	}
+}
+
+func TestClientRetriesPOSTOnConnectionRefused(t *testing.T) {
+	t.Parallel()
+
+	attempts := 0
+	client, err := NewClient("http://example.com", "", "", "1", true)
+	if err != nil {
+		t.Fatalf("NewClient() error = %v", err)
+	}
+	client.SetRequestRetryPolicy(requestRetryConfig{
+		attempts: 3,
+		minDelay: time.Millisecond,
+		maxDelay: time.Millisecond,
+	})
+
+	client.httpClient.Transport = roundTripFunc(func(r *http.Request) (*http.Response, error) {
+		attempts++
+		if attempts < 3 {
+			return nil, fmt.Errorf("dial tcp 127.0.0.1:80: connect: connection refused")
+		}
+		return &http.Response{
+			StatusCode: http.StatusCreated,
+			Body:       io.NopCloser(strings.NewReader(`{"id":1,"username":"admin"}`)),
+			Header:     make(http.Header),
+			Request:    r,
+		}, nil
+	})
+
+	var out userResponse
+	if _, err := client.doJSONWithStatus(t.Context(), http.MethodPost, "/api/users", nil, map[string]any{"username": "admin"}, &out); err != nil {
+		t.Fatalf("expected POST retry to succeed, got: %v", err)
+	}
+	if attempts != 3 {
+		t.Fatalf("expected 3 attempts, got %d", attempts)
 	}
 }
 

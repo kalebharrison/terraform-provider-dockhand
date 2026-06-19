@@ -63,7 +63,7 @@ The provider supports Dockhand's login-based authentication flow and bearer-toke
 - Optional MFA: `mfa_token`
 - Optional provider selection: `auth_provider`
 - First-install bootstrap: `allow_unauthenticated = true`
-- Computed endpoints: when `endpoint` references another resource's output, plan defers provider configuration until apply; login retries transient connection failures
+- Computed endpoints: when `endpoint` references another resource's output, plan defers provider configuration until apply; login and API requests retry transient connection failures (configurable via `request_retry_*`)
 
 Bootstrap example for a fresh Dockhand instance with no auth configured yet:
 
@@ -181,6 +181,9 @@ Provider arguments:
 - `default_env` — default environment ID for resources that omit `env`
 - `insecure` — disable TLS verification
 - `allow_unauthenticated` — permit bootstrap flows before auth is configured
+- `request_retry_attempts` — max attempts for login/API requests on transient connection failures (default `6`)
+- `request_retry_min_seconds` — minimum wait between retries in seconds (default `1`)
+- `request_retry_max_seconds` — maximum wait between retries in seconds (default `5`)
 
 Environment variable fallbacks:
 
@@ -192,6 +195,9 @@ Environment variable fallbacks:
 - `DOCKHAND_AUTH_PROVIDER`
 - `DOCKHAND_DEFAULT_ENV`
 - `DOCKHAND_ALLOW_UNAUTHENTICATED`
+- `DOCKHAND_REQUEST_RETRY_ATTEMPTS`
+- `DOCKHAND_REQUEST_RETRY_MIN_SECONDS`
+- `DOCKHAND_REQUEST_RETRY_MAX_SECONDS`
 
 ## Additional Repository Policy
 
