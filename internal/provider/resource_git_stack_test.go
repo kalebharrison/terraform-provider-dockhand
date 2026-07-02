@@ -37,6 +37,76 @@ func (f *fakeGitStackDestroyClient) DeleteGitStack(_ context.Context, env string
 	return f.deleteGitStackStatus, f.deleteGitStackErr
 }
 
+func TestBuildGitStackPayloadIncludesContextDir(t *testing.T) {
+	plan := gitStackModel{
+		StackName:                 types.StringValue("test-stack"),
+		ComposePath:               types.StringValue("stacks/metube/compose.yml"),
+		ContextDir:                types.StringValue("."),
+		EnvFilePath:               types.StringValue("./shared.env"),
+		WebhookEnabled:            types.BoolValue(false),
+		WebhookSecretAutoGenerate: types.BoolValue(false),
+		WebhookSecret:             types.StringNull(),
+		AutoUpdateEnabled:         types.BoolValue(false),
+		AutoUpdateCron:            types.StringValue("0 3 * * *"),
+		DeployNow:                 types.BoolValue(false),
+		EnvVarsJSON:               types.StringValue("[]"),
+		URL:                       types.StringValue("https://example.com/repo.git"),
+		Branch:                    types.StringValue("main"),
+	}
+
+	payload, err := buildGitStackPayload(plan)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if payload.ContextDir == nil || *payload.ContextDir != "." {
+		t.Fatalf("expected contextDir . in payload, got %#v", payload.ContextDir)
+	}
+	if payload.EnvFilePath == nil || *payload.EnvFilePath != "./shared.env" {
+		t.Fatalf("expected envFilePath ./shared.env in payload, got %#v", payload.EnvFilePath)
+	}
+}
+
+func TestGitStackPayloadContextDirJSONTag(t *testing.T) {
+	field, ok := reflect.TypeOf(gitStackPayload{}).FieldByName("ContextDir")
+	if !ok {
+		t.Fatal("expected ContextDir field on gitStackPayload")
+	}
+	if tag := field.Tag.Get("json"); tag != "contextDir,omitempty" {
+		t.Fatalf("expected json tag contextDir,omitempty, got %q", tag)
+	}
+}
+
+func TestModelFromGitStackResponseMapsContextDir(t *testing.T) {
+	contextDir := "."
+	composePath := "stacks/metube/compose.yml"
+	resp := &gitStackResponse{
+		ID:          1,
+		StackName:   "test-stack",
+		AutoUpdate:  false,
+		ContextDir:  &contextDir,
+		ComposePath: &composePath,
+	}
+
+	model := modelFromGitStackResponse(resp)
+	if model.ContextDir.IsNull() || model.ContextDir.ValueString() != "." {
+		t.Fatalf("expected context_dir . from response, got null=%v value=%q", model.ContextDir.IsNull(), model.ContextDir.ValueString())
+	}
+}
+
+func TestMergeGitStackStatePreservesContextDirWhenRemoteOmitsIt(t *testing.T) {
+	preferred := gitStackModel{
+		ContextDir: types.StringValue("."),
+	}
+	remote := gitStackModel{
+		ContextDir: types.StringNull(),
+	}
+
+	merged := mergeGitStackState(preferred, remote)
+	if merged.ContextDir.IsNull() || merged.ContextDir.ValueString() != "." {
+		t.Fatalf("expected context_dir to preserve configured value, got null=%v value=%q", merged.ContextDir.IsNull(), merged.ContextDir.ValueString())
+	}
+}
+
 func TestBuildGitStackPayloadWebhookDisabledAutoGenerateSendsEmptySecret(t *testing.T) {
 	plan := gitStackModel{
 		StackName:                 types.StringValue("test-stack"),

@@ -388,6 +388,7 @@ type gitStackPayload struct {
 	Branch            *string                 `json:"branch,omitempty"`
 	CredentialID      *int64                  `json:"credentialId,omitempty"`
 	ComposePath       string                  `json:"composePath"`
+	ContextDir        *string                 `json:"contextDir,omitempty"`
 	EnvFilePath       *string                 `json:"envFilePath,omitempty"`
 	AutoUpdateEnabled bool                    `json:"autoUpdateEnabled"`
 	AutoUpdate        *bool                   `json:"autoUpdate,omitempty"`
@@ -415,6 +416,7 @@ type gitStackResponse struct {
 	EnvironmentID      *int64                      `json:"environmentId"`
 	RepositoryID       *int64                      `json:"repositoryId"`
 	ComposePath        *string                     `json:"composePath"`
+	ContextDir         *string                     `json:"contextDir"`
 	EnvFilePath        *string                     `json:"envFilePath"`
 	AutoUpdate         bool                        `json:"autoUpdate"`
 	AutoUpdateEnabled  *bool                       `json:"autoUpdateEnabled"`

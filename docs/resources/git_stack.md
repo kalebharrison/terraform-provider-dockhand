@@ -19,6 +19,21 @@ resource "dockhand_git_stack" "ollama" {
 }
 ```
 
+Shared env files outside the compose directory:
+
+```terraform
+resource "dockhand_git_stack" "metube" {
+  env             = "11"
+  stack_name      = "metube"
+  repository_id   = "1"
+  compose_path    = "stacks/metube/compose.yml"
+  context_dir     = "."
+  env_file_path   = "./shared.env"
+}
+```
+
+Set `context_dir` to widen Dockhand's compose working directory (relative to the repo root). This matches the Dockhand UI "Context directory" setting and is required when `env_file_path` or compose volume paths reference files outside the compose file folder. The compose file path must remain inside the context directory.
+
 ## Schema
 
 ### Required
@@ -34,6 +49,7 @@ resource "dockhand_git_stack" "ollama" {
 - `url` (String)
 - `branch` (String, default: `main`)
 - `credential_id` (String)
+- `context_dir` (String) Repository-relative working directory for Docker Compose. Use `.` for the repo root when shared files live outside the compose file directory.
 - `env_file_path` (String)
 - `auto_update_enabled` (Boolean, default: `false`)
 - `auto_update_cron` (String, default: `0 3 * * *`)

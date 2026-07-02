@@ -48,6 +48,7 @@ type gitStackModel struct {
 	Branch                    types.String `tfsdk:"branch"`
 	CredentialID              types.String `tfsdk:"credential_id"`
 	ComposePath               types.String `tfsdk:"compose_path"`
+	ContextDir                types.String `tfsdk:"context_dir"`
 	EnvFilePath               types.String `tfsdk:"env_file_path"`
 	AutoUpdateEnabled         types.Bool   `tfsdk:"auto_update_enabled"`
 	AutoUpdateCron            types.String `tfsdk:"auto_update_cron"`
@@ -128,6 +129,11 @@ func (r *gitStackResource) Schema(_ context.Context, _ resource.SchemaRequest, r
 			},
 			"compose_path": schema.StringAttribute{
 				Required: true,
+			},
+			"context_dir": schema.StringAttribute{
+				MarkdownDescription: "Repository-relative working directory for Docker Compose (Dockhand context directory). Use this to reference files outside the compose file folder, such as shared env files at the repo root.",
+				Optional:            true,
+				Computed:            true,
 			},
 			"env_file_path": schema.StringAttribute{
 				Optional: true,
@@ -432,6 +438,13 @@ func buildGitStackPayload(plan gitStackModel) (gitStackPayload, error) {
 	// Support Dockhand API variants that use either autoUpdateEnabled or autoUpdate.
 	payload.AutoUpdate = &autoUpdateEnabled
 
+	if !plan.ContextDir.IsNull() && !plan.ContextDir.IsUnknown() {
+		v := strings.TrimSpace(plan.ContextDir.ValueString())
+		if v != "" {
+			payload.ContextDir = &v
+		}
+	}
+
 	if !plan.EnvFilePath.IsNull() && !plan.EnvFilePath.IsUnknown() {
 		v := strings.TrimSpace(plan.EnvFilePath.ValueString())
 		if v != "" {
@@ -553,6 +566,11 @@ func modelFromGitStackResponse(in *gitStackResponse) gitStackModel {
 	} else {
 		out.ComposePath = types.StringNull()
 	}
+	if in.ContextDir != nil {
+		out.ContextDir = types.StringValue(*in.ContextDir)
+	} else {
+		out.ContextDir = types.StringNull()
+	}
 	if in.EnvFilePath != nil {
 		out.EnvFilePath = types.StringValue(*in.EnvFilePath)
 	} else {
@@ -652,6 +670,9 @@ func mergeGitStackState(preferred gitStackModel, remote gitStackModel) gitStackM
 	}
 	if (out.ComposePath.IsNull() || out.ComposePath.IsUnknown()) && !preferred.ComposePath.IsNull() && !preferred.ComposePath.IsUnknown() {
 		out.ComposePath = preferred.ComposePath
+	}
+	if (out.ContextDir.IsNull() || out.ContextDir.IsUnknown()) && !preferred.ContextDir.IsNull() && !preferred.ContextDir.IsUnknown() {
+		out.ContextDir = preferred.ContextDir
 	}
 	if (out.EnvFilePath.IsNull() || out.EnvFilePath.IsUnknown()) && !preferred.EnvFilePath.IsNull() && !preferred.EnvFilePath.IsUnknown() {
 		out.EnvFilePath = preferred.EnvFilePath
