@@ -17,6 +17,10 @@ import (
 func testAccEnv(t *testing.T) (endpoint string, username string, password string) {
 	t.Helper()
 
+	if os.Getenv("TF_ACC") == "" {
+		t.Skip("acceptance tests require TF_ACC=1")
+	}
+
 	endpoint = os.Getenv("DOCKHAND_TEST_ENDPOINT")
 	username = os.Getenv("DOCKHAND_TEST_USERNAME")
 	password = os.Getenv("DOCKHAND_TEST_PASSWORD")

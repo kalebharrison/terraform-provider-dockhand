@@ -20,15 +20,6 @@ jobs:
       DOCKHAND_IMAGE: fnsys/dockhand:latest
       DIND_IMAGE: docker:27-dind
       HAWSER_IMAGE: ghcr.io/finsys/hawser:latest
-      DOCKHAND_TEST_ENDPOINT: http://127.0.0.1:13001
-      DOCKHAND_TEST_USERNAME: tfacc
-      # Ephemeral throwaway creds for CI containers only (not production secrets).
-      DOCKHAND_TEST_PASSWORD: tfaccpass123!
-      DOCKHAND_TEST_AUTH_PROVIDER: local
-      DOCKHAND_TEST_DIND_HOST: dind
-      DOCKHAND_TEST_DIND_PORT: "2375"
-      DOCKHAND_TEST_ENABLE_PRUNE_ACTIONS: "true"
-      DOCKHAND_TEST_PRUNE_MODE: containers
 
     steps:
       - name: Checkout
@@ -64,6 +55,16 @@ jobs:
       - name: Run targeted acceptance harness
         id: harness
         shell: bash
+        env:
+          DOCKHAND_TEST_ENDPOINT: http://127.0.0.1:13001
+          DOCKHAND_TEST_USERNAME: tfacc
+          DOCKHAND_TEST_PASSWORD: tfaccpass123!
+          DOCKHAND_TEST_AUTH_PROVIDER: local
+          DOCKHAND_TEST_DIND_HOST: dind
+          DOCKHAND_TEST_DIND_PORT: "2375"
+          DOCKHAND_TEST_ENABLE_PRUNE_ACTIONS: "true"
+          DOCKHAND_TEST_PRUNE_MODE: containers
+          TF_ACC: "1"
         run: |
           set -euo pipefail
           TEST_REGEX="${{ steps.pr_regex.outputs.regex }}" \
