@@ -521,29 +521,10 @@ func applyContainerRuntimeToState(state *containerResourceModel, container *cont
 	if container == nil {
 		return
 	}
-	if strings.TrimSpace(container.Name) != "" {
-		state.Name = types.StringValue(container.Name)
-	}
-	if strings.TrimSpace(container.Image) != "" {
-		state.Image = types.StringValue(container.Image)
-	}
 	state.State = types.StringValue(container.State)
 	state.Status = types.StringValue(container.Status)
 	state.Health = types.StringValue(container.Health)
 	state.RestartCount = types.Int64Value(container.RestartCount)
-	status := firstNonEmpty(container.State, container.Status)
-	if enabled, ok := runtimeEnabledFromStatus(status); ok {
-		state.Enabled = types.BoolValue(enabled)
-	}
-}
-
-func firstNonEmpty(values ...string) string {
-	for _, value := range values {
-		if v := strings.TrimSpace(value); v != "" {
-			return v
-		}
-	}
-	return ""
 }
 
 func parseContainerUpdatePayload(raw string) (map[string]any, error) {
