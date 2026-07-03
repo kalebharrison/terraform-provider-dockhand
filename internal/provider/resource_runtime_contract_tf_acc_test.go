@@ -51,6 +51,15 @@ func TestAccContainerRuntimeSurfacesTerraform(t *testing.T) {
 				),
 			},
 			{
+				Config: fmt.Sprintf(`
+provider "dockhand" {}
+
+resource "dockhand_image" "test" {
+  env             = %q
+  name            = %q
+  scan_after_pull = false
+}
+`, env, imageName),
 				ResourceName:      "dockhand_image.test",
 				ImportState:       true,
 				ImportStateVerify: true,
