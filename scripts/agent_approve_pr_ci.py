@@ -29,18 +29,27 @@ def _repo() -> str:
     return proc.stdout.strip()
 
 
-def _gh(args: list[str]) -> subprocess.CompletedProcess[str]:
+def _gh(args: list[str], *, use_repo_flag: bool = True) -> subprocess.CompletedProcess[str]:
+    import os
+
+    cmd = ["gh", *args]
+    env = os.environ.copy()
+    if use_repo_flag and args and args[0] != "api":
+        cmd.extend(["--repo", _repo()])
+    else:
+        env.setdefault("GH_REPO", _repo())
     return subprocess.run(
-        ["gh", *args, "--repo", _repo()],
+        cmd,
         cwd=ROOT,
         capture_output=True,
         text=True,
         check=False,
+        env=env,
     )
 
 
 def runs_for_sha(head_sha: str) -> list[dict]:
-    proc = _gh(["api", f"repos/{_repo()}/actions/runs?head_sha={head_sha}&per_page=100"])
+    proc = _gh(["api", f"repos/{_repo()}/actions/runs?head_sha={head_sha}&per_page=100"], use_repo_flag=False)
     if proc.returncode != 0:
         raise RuntimeError(proc.stderr.strip() or proc.stdout.strip() or "gh failed")
     data = json.loads(proc.stdout)
@@ -59,7 +68,7 @@ def needs_approval(run: dict) -> bool:
 
 
 def approve_run(run_id: int) -> bool:
-    proc = _gh(["api", "--method", "POST", f"repos/{_repo()}/actions/runs/{run_id}/approve"])
+    proc = _gh(["api", "--method", "POST", f"repos/{_repo()}/actions/runs/{run_id}/approve"], use_repo_flag=False)
     return proc.returncode == 0
 
 
