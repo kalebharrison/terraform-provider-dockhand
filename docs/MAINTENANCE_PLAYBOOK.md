@@ -116,7 +116,8 @@ Automated workflows already in place:
 
 - `.github/workflows/dockhand-release-watch.yml` (every 6 hours)
   - Detects new Dockhand image tags.
-  - Runs acceptance harness + endpoint/webui/docs/private probes.
+  - Skips re-test when tag+digest match cached state (`dockhand-release-watch-state` Actions cache).
+  - Runs acceptance harness + endpoint/webui/docs/private probes when Dockhand changes.
   - Uploads compatibility artifacts.
 - `.github/workflows/acceptance-full.yml` (nightly)
   - Full recursive acceptance run.

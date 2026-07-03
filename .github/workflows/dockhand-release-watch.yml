@@ -24,10 +24,16 @@ jobs:
       digest: ${{ steps.pick.outputs.digest }}
       last_tag: ${{ steps.state.outputs.last_tag }}
       last_digest: ${{ steps.state.outputs.last_digest }}
-      state_issue: ${{ steps.state.outputs.state_issue }}
       should_run: ${{ steps.state.outputs.should_run }}
       reason: ${{ steps.state.outputs.reason }}
     steps:
+      - name: Restore watch state cache
+        uses: actions/cache/restore@v4
+        id: watch-state
+        with:
+          path: .ci-state/dockhand-release-watch
+          key: dockhand-release-watch-state
+
       - name: Resolve image tag
         id: pick
         shell: bash
@@ -64,18 +70,23 @@ jobs:
         run: |
           set -euo pipefail
 
-          state_title="release-watch: dockhand-last-tested-tag"
+          state_file=".ci-state/dockhand-release-watch/state.env"
           tag="${{ steps.pick.outputs.tag }}"
           digest="${{ steps.pick.outputs.digest }}"
-          issues_json="$(gh issue list --repo "${GITHUB_REPOSITORY}" --state all --search "${state_title} in:title" --limit 100 --json number,title,state,body)"
-          state_issue="$(echo "${issues_json}" | jq -r --arg title "${state_title}" 'map(select(.title == $title)) | sort_by(.state != "OPEN") | .[0].number // empty')"
-          state_body=""
           last_tag=""
           last_digest=""
-          if [[ -n "${state_issue}" ]]; then
-            state_body="$(gh issue view "${state_issue}" --repo "${GITHUB_REPOSITORY}" --json body --jq '.body // ""')"
-            last_tag="$(printf '%s\n' "${state_body}" | sed -n 's/^last_tag=//p' | head -n 1 | tr -d '\r')"
-            last_digest="$(printf '%s\n' "${state_body}" | sed -n 's/^last_digest=//p' | head -n 1 | tr -d '\r')"
+          if [[ -f "${state_file}" ]]; then
+            # shellcheck disable=SC1090
+            source "${state_file}"
+          elif [[ -z "${{ inputs.image_tag }}" ]]; then
+            state_title="release-watch: dockhand-last-tested-tag"
+            state_issue="$(gh issue list --repo "${GITHUB_REPOSITORY}" --state all --search "${state_title} in:title" --limit 1 --json number,body --jq '.[0].number // empty' 2>/dev/null || true)"
+            if [[ -n "${state_issue}" ]]; then
+              state_body="$(gh issue view "${state_issue}" --repo "${GITHUB_REPOSITORY}" --json body --jq '.body // ""')"
+              last_tag="$(printf '%s\n' "${state_body}" | sed -n 's/^last_tag=//p' | head -n 1 | tr -d '\r')"
+              last_digest="$(printf '%s\n' "${state_body}" | sed -n 's/^last_digest=//p' | head -n 1 | tr -d '\r')"
+              echo "Migrated release-watch state from legacy issue #${state_issue}" >&2
+            fi
           fi
 
           should_run="true"
@@ -107,7 +118,6 @@ jobs:
           {
             echo "last_tag=${last_tag}"
             echo "last_digest=${last_digest}"
-            echo "state_issue=${state_issue}"
             echo "should_run=${should_run}"
             echo "reason=${reason}"
           } >> "${GITHUB_OUTPUT}"
@@ -119,7 +129,7 @@ jobs:
             echo "Latest detected digest: \`${{ steps.pick.outputs.digest || 'none' }}\`"
             echo "Last tested tag: \`${{ steps.state.outputs.last_tag || 'none' }}\`"
             echo "Last tested digest: \`${{ steps.state.outputs.last_digest || 'none' }}\`"
-            echo "State issue: \`${{ steps.state.outputs.state_issue || 'none' }}\`"
+            echo "State cache: \`${{ steps.watch-state.cache-hit == 'true' && 'hit' || 'miss' }}\`"
             echo "Run required: \`${{ steps.state.outputs.should_run }}\` (\`${{ steps.state.outputs.reason }}\`)"
           } >> "${GITHUB_STEP_SUMMARY}"
 
@@ -368,37 +378,47 @@ jobs:
     needs: [discover, validate]
     runs-on: ubuntu-latest
     steps:
-      - name: Update watch state issue
+      - name: Restore watch state cache
+        uses: actions/cache/restore@v4
+        with:
+          path: .ci-state/dockhand-release-watch
+          key: dockhand-release-watch-state
+
+      - name: Write watch state
+        shell: bash
+        env:
+          TAG: ${{ needs.discover.outputs.tag }}
+          DIGEST: ${{ needs.discover.outputs.digest }}
+        run: |
+          set -euo pipefail
+          mkdir -p .ci-state/dockhand-release-watch
+          cat > .ci-state/dockhand-release-watch/state.env <<EOF
+          last_tag=${TAG}
+          last_digest=${DIGEST}
+          updated_at=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+          source_run=https://github.com/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}
+          EOF
+
+      - name: Save watch state cache
+        uses: actions/cache/save@v4
+        with:
+          path: .ci-state/dockhand-release-watch
+          key: dockhand-release-watch-state
+
+      - name: Close legacy state issue if present
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
-          TAG: ${{ needs.discover.outputs.tag }}
-          DIGEST: ${{ needs.discover.outputs.digest }}
-          STATE_ISSUE: ${{ needs.discover.outputs.state_issue }}
         run: |
           set -euo pipefail
-          state_title="release-watch: dockhand-last-tested-tag"
-          state_body="last_tag=${TAG}
-          last_digest=${DIGEST}
-          updated_at=$(date -u +%Y-%m-%dT%H:%M:%SZ)
-          source_run=https://github.com/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
-
-          issue_number="${STATE_ISSUE}"
-          if [[ -z "${issue_number}" ]]; then
-            issue_url="$(gh issue create \
-              --repo "${GITHUB_REPOSITORY}" \
-              --title "${state_title}" \
-              --body "${state_body}")"
-            issue_number="${issue_url##*/}"
-          else
-            gh issue edit "${issue_number}" \
-              --repo "${GITHUB_REPOSITORY}" \
-              --title "${state_title}" \
-              --body "${state_body}" >/dev/null
-            gh issue reopen "${issue_number}" --repo "${GITHUB_REPOSITORY}" >/dev/null 2>&1 || true
+          legacy_issue="$(gh issue list --repo "${GITHUB_REPOSITORY}" --state open --search "release-watch: dockhand-last-tested-tag in:title" --limit 1 --json number --jq '.[0].number // empty')"
+          if [[ -n "${legacy_issue}" ]]; then
+            gh issue close "${legacy_issue}" --repo "${GITHUB_REPOSITORY}" --comment "Release-watch state now lives in the GitHub Actions cache (\`dockhand-release-watch-state\`). This tracking issue is retired."
           fi
 
-          echo "Stored release-watch state in issue #${issue_number}" >> "${GITHUB_STEP_SUMMARY}"
+      - name: Summary
+        run: |
+          echo "Stored release-watch state in Actions cache for tag \`${{ needs.discover.outputs.tag }}\`." >> "${GITHUB_STEP_SUMMARY}"
 
   report_failure:
     name: Report Compatibility Failure

@@ -50,12 +50,50 @@ jobs:
             const slug = match[2];
             const title = `fix(agent): issue ${issueNumber} ${slug.replace(/-/g, " ")}`;
 
+            let issueData = null;
             let issueBody = "";
             try {
               const issue = await github.rest.issues.get({ owner, repo, issue_number: issueNumber });
+              issueData = issue.data;
               issueBody = issue.data.body || "";
             } catch (error) {
               core.warning(`Could not load issue #${issueNumber}: ${error.message}`);
+            }
+
+            const labelNames = (issueData?.labels || []).map((l) =>
+              typeof l === "string" ? l : l.name
+            );
+            const deleteAgentBranch = async () => {
+              try {
+                await github.rest.git.deleteRef({ owner, repo, ref: `heads/${branch}` });
+                core.info(`Deleted agent branch ${branch}.`);
+              } catch (error) {
+                if (error.status !== 422) {
+                  core.warning(`Could not delete branch ${branch}: ${error.message}`);
+                }
+              }
+            };
+
+            const mergedPRsForBranch = await github.paginate(github.rest.pulls.list, {
+              owner,
+              repo,
+              state: "closed",
+              head: `${owner}:${branch}`,
+              per_page: 100,
+            });
+            const hasMergedPR = mergedPRsForBranch.some((pr) => Boolean(pr.merged_at));
+            const issueComplete =
+              issueData?.state === "closed" &&
+              (labelNames.includes("awaiting-release") || labelNames.includes("released"));
+
+            if (issueComplete || hasMergedPR) {
+              core.info(
+                issueComplete
+                  ? `Issue #${issueNumber} is complete; skipping duplicate PR open.`
+                  : `Merged PR already exists for ${branch}; skipping duplicate PR open.`
+              );
+              await deleteAgentBranch();
+              return;
             }
 
             const sectionFromIssue = (body, headings) => {
@@ -474,6 +512,17 @@ jobs:
 
               if (pr.merged) {
                 await closeForMergedPR(pr);
+                const branch = context.payload.workflow_run.head_branch || "";
+                if (branch.startsWith("agent/")) {
+                  try {
+                    await github.rest.git.deleteRef({ owner, repo, ref: `heads/${branch}` });
+                    core.info(`Deleted agent branch ${branch} after merge.`);
+                  } catch (error) {
+                    if (error.status !== 422) {
+                      core.warning(`Could not delete branch ${branch}: ${error.message}`);
+                    }
+                  }
+                }
                 return;
               }
 
