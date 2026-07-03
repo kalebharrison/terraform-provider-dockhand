@@ -155,20 +155,8 @@ def open_compatibility_issues() -> list[int]:
 
 
 def awaiting_release_issues() -> list[int]:
-    data = _gh_json(
-        [
-            "issue",
-            "list",
-            "--state",
-            "open",
-            "--label",
-            "awaiting-release",
-            "--json",
-            "number",
-            "--limit",
-            "100",
-        ]
-    )
+    query = f"repo:{_repo()} is:issue label:awaiting-release -label:released"
+    data = _gh_json(["search", "issues", query, "--json", "number", "--limit", "100"])
     if not isinstance(data, list):
         return []
     return [int(item["number"]) for item in data]

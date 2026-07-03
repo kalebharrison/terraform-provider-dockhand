@@ -1,11 +1,14 @@
 name: Agent Release Orchestrate
 
 on:
+  push:
+    branches:
+      - main
   workflow_run:
     workflows:
       - Release Drafter
       - Go CI
-      - Agent Open PR
+      - Acceptance Full
     types:
       - completed
   schedule:
@@ -21,7 +24,9 @@ jobs:
   dispatch-release-lens:
     name: Open release lens issue when gate is ready
     if: >-
-      github.event_name != 'workflow_run' ||
+      github.event_name == 'push' ||
+      github.event_name == 'schedule' ||
+      github.event_name == 'workflow_dispatch' ||
       (
         github.event.workflow_run.conclusion == 'success' &&
         github.event.workflow_run.head_branch == github.event.repository.default_branch

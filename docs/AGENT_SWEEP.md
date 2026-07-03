@@ -69,4 +69,4 @@ Living checklist for the agent-management rollout. Update as items complete.
 
 - Separate GitHub machine user (transparency via co-author + bot PR is enough)
 - Running full DinD acceptance inside Cursor Cloud Agent VM (use GitHub Actions)
-- Auto-tagging releases without maintainer action
+- Auto-tagging releases without maintainer action → **done** (`agent-release-tag.yml`)

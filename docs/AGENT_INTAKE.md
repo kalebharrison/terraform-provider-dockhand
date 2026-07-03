@@ -74,21 +74,20 @@ Labels (informational):
 
 Optional: comment `/agent` on an open issue to re-dispatch after removing `agent-dispatched`.
 
-## What agents should not pick up without human review
+## What stays outside routine automation
 
-- Release tagging or registry publishing
+These are intentionally not auto-dispatched (security / blast radius):
+
 - Branch protection or org-level settings changes
 - Credential rotation or production Dockhand access changes
 - Large cross-cutting refactors without a dedicated epic issue
-- Issues requiring unaudited third-party API behavior
 
 ## After merge
 
-1. **Close linked issues after merge** (in `agent-open-pr.yml`) closes issues linked via `Fixes #N` when bot auto-merge merges
-2. **Issue Resolution Notify** posts on linked issues (what was fixed, awaiting release, reopen instructions)
-3. Maintainer cuts `vX.Y.Z` when ready (`docs/MAINTENANCE_PLAYBOOK.md`)
+1. **Close linked issues after merge** (`agent-open-pr.yml`) closes issues, labels `awaiting-release`
+2. **Issue Resolution Notify** posts resolution comments on linked issues
+3. **Agent Release Orchestrate** → release lens issue → **Agent Release Tag** when gates pass
 4. **Release Issue Notify** comments with version and upgrade steps
-5. **Lens review** — automated per issue and per release (`docs/AGENT_REVIEW_LENSES.md`, `docs/testing/release-lens-review.md`)
 
 See `docs/AGENT_ISSUE_RESPONSE.md` for the full issue communication standard.
 
