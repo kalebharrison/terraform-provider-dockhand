@@ -86,8 +86,8 @@ Comment on an open issue:
 
 ## After merge
 
-1. **Issue Resolution Notify** posts on linked issues (what was fixed, awaiting release, reopen instructions)
-2. Issue may auto-close via `Fixes #N` when the PR merges
+1. **Agent Close Linked Issues** (in `agent-auto-merge.yml`) closes issues linked via `Fixes #N` when **Agent Auto Merge** squash-merges a bot PR (GitHub does not auto-close on `github-actions[bot]` merges)
+2. **Issue Resolution Notify** posts on linked issues (what was fixed, awaiting release, reopen instructions)
 3. Maintainer cuts `vX.Y.Z` when ready (`docs/MAINTENANCE_PLAYBOOK.md`)
 4. **Release Issue Notify** comments with version and upgrade steps
 5. **Lens review** before tag per `docs/testing/release-lens-review.md`
@@ -104,8 +104,9 @@ Remove label `agent-dispatched`, then comment `/agent` or re-add `agent`, or use
 
 ## Smoke test
 
-Three checks after enabling agent CI on `main`:
+Four checks after enabling agent CI on `main`:
 
 1. **CI loop** — branch `agent/issue-0-smoke-test` per `docs/AGENT_DEPLOYMENT.md` (Validate → Open PR; close without merge).
 2. **Issue intake** — open a smoke issue labeled `agent` (e.g. `#126`) with done-when criteria for dispatch → Cloud Agent commit → Validate → Open PR → Approve CI; close PR and issue without merge when green.
 3. **Fully automated loop** — open a smoke issue labeled `agent` (e.g. `#129`) with done-when criteria through **Agent Auto Merge** (Validate → Open PR → Approve CI → PR CI green → squash merge); no manual merge or workflow approval.
+4. **Issue auto-close** — open a smoke issue labeled `agent` (e.g. `#132`) with done-when criteria through merge plus **Close linked issues after merge** (issue closed, `awaiting-release` label, resolution comment from Agent Close Linked Issues); no manual `gh issue close`.
