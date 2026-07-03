@@ -9,6 +9,7 @@ on:
       - Release Drafter
       - Go CI
       - Acceptance Full
+      - Dockhand Release Watch
     types:
       - completed
   schedule:

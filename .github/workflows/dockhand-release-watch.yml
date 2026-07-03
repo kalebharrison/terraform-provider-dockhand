@@ -1,6 +1,9 @@
 name: Dockhand Release Watch
 
 on:
+  push:
+    branches:
+      - main
   schedule:
     - cron: "17 */6 * * *"
   workflow_dispatch:
@@ -113,6 +116,11 @@ jobs:
           else
             should_run="false"
             reason="unchanged_tag"
+          fi
+
+          if [[ "${{ github.event_name }}" == "push" ]]; then
+            should_run="true"
+            reason="main_push"
           fi
 
           {
