@@ -271,6 +271,7 @@ jobs:
           /usr/bin/python3 scripts/issue_agent_intake.py \
             --issue-number "${{ steps.ctx.outputs.issue_number }}" \
             --title "${{ steps.ctx.outputs.title }}" \
+            --labels "${{ steps.ctx.outputs.labels }}" \
             --body-file "${{ steps.ctx.outputs.body_path }}" \
             --branch "${{ steps.dispatch.outputs.branch }}"
 

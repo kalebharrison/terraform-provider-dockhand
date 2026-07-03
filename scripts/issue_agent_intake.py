@@ -13,6 +13,8 @@ import urllib.error
 import urllib.request
 from typing import Any
 
+from issue_agent_intake_lenses import build_lens_instructions, select_lenses
+
 DEFAULT_REPO_URL = "https://github.com/kalebharrison/terraform-provider-dockhand"
 CURSOR_API = "https://api.cursor.com/v1/agents"
 BRANCH_RE = re.compile(r"^agent/issue-(\d+)-([a-z0-9-]+)$")
@@ -25,14 +27,31 @@ def slugify(title: str, max_len: int = 48) -> str:
     return slug[:max_len].strip("-")
 
 
+def parse_labels(raw: str) -> list[str]:
+    return [part.strip() for part in (raw or "").split(",") if part.strip()]
+
+
 def branch_name(issue_number: int, title: str) -> str:
     return f"agent/issue-{issue_number}-{slugify(title)}"
 
 
-def build_prompt(issue_number: int, title: str, body: str, branch: str) -> str:
+def build_prompt(
+    issue_number: int,
+    title: str,
+    body: str,
+    branch: str,
+    labels: list[str] | None = None,
+) -> str:
     issue_body = (body or "").strip()
     if not issue_body:
         issue_body = "(No description provided — infer scope from the title and codebase.)"
+
+    label_list = labels or []
+    lens_block = build_lens_instructions(
+        select_lenses(label_list, title),
+        issue_number=issue_number,
+        title=title,
+    )
 
     return f"""You are implementing a fix for GitHub issue #{issue_number} in terraform-provider-dockhand.
 
@@ -40,9 +59,10 @@ def build_prompt(issue_number: int, title: str, body: str, branch: str) -> str:
 - docs/AGENT_RUNBOOK.md
 - docs/AGENT_CODING_STANDARDS.md
 - docs/AGENT_ISSUE_RESPONSE.md
+- docs/AGENT_REVIEW_LENSES.md
 - AGENTS.md
 
-## Branch contract
+{lens_block}## Branch contract
 Work on branch `{branch}` (already created from main). Do **not** push to `main` or use Cursor auto `cursor/*` branches.
 Every commit on `agent/**` must include:
   Co-authored-by: Cursor Agent <noreply@cursor.com>
@@ -53,10 +73,11 @@ Use `./scripts/agent-commit-msg.sh` to format commit messages.
 {issue_body}
 
 ## Done when
-1. Fix is implemented with focused diffs and tests/docs as required by AGENT_CODING_STANDARDS.md
-2. `./scripts/verify.sh --quality` passes locally before push
-3. Branch `{branch}` is pushed to origin — GitHub **Agent Validate** and **Agent Open PR** run automatically
-4. When the PR opens, ensure **What was fixed** and **User impact** in the PR body are filled (not placeholders)
+1. Required lens sweep sections are appended to `docs/reports/agent-review-log.md`
+2. Fix is implemented with focused diffs and tests/docs as required by AGENT_CODING_STANDARDS.md
+3. `./scripts/verify.sh --quality` passes locally before push
+4. Branch `{branch}` is pushed to origin — GitHub **Agent Validate** and **Agent Open PR** run automatically
+5. When the PR opens, ensure **What was fixed** and **User impact** in the PR body are filled (not placeholders)
 
 Do not merge PRs, tag releases, or change branch protection. Push and let CI complete the loop.
 """
@@ -102,6 +123,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--title", required=True)
     parser.add_argument("--body", default="")
     parser.add_argument("--body-file", help="Read issue body from a file")
+    parser.add_argument("--labels", default="", help="Comma-separated issue labels")
     parser.add_argument("--branch", help="Override branch name")
     parser.add_argument("--repo-url", default=DEFAULT_REPO_URL)
     parser.add_argument("--model", default="composer-2.5")
@@ -118,9 +140,19 @@ def main(argv: list[str] | None = None) -> int:
         print(f"invalid agent branch: {branch}", file=sys.stderr)
         return 2
 
-    prompt = build_prompt(args.issue_number, args.title, body, branch)
+    labels = parse_labels(args.labels)
+    prompt = build_prompt(args.issue_number, args.title, body, branch, labels)
     if args.dry_run:
-        print(json.dumps({"branch": branch, "prompt_chars": len(prompt)}, indent=2))
+        print(
+            json.dumps(
+                {
+                    "branch": branch,
+                    "prompt_chars": len(prompt),
+                    "lenses": select_lenses(labels, args.title),
+                },
+                indent=2,
+            )
+        )
         return 0
 
     api_key = (os.environ.get("CURSOR_API_KEY") or "").strip()

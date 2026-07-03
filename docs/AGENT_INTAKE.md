@@ -27,8 +27,10 @@ The workflow:
 
 1. Creates branch `agent/issue-<n>-<slug>` from `main` (if missing)
 2. Adds `agent`, `agent-dispatched`, and `in-progress` labels
-3. Calls Cursor Cloud Agents API (`POST /v1/agents`) with runbook prompt
+3. Selects review lenses from labels/title and calls Cursor Cloud Agents API with runbook + lens sweep instructions
 4. Comments with next automated steps
+
+**Agent Validate** requires an update to `docs/reports/agent-review-log.md` on the agent branch before acceptance tests run.
 
 **Required secret:** `CURSOR_API_KEY` (Cursor Dashboard → Integrations / API Keys). Add in GitHub **Settings → Secrets and variables → Actions**.
 

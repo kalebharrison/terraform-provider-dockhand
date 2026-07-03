@@ -1,10 +1,25 @@
 # Agent Review Lenses
 
-Focused reviews for the AI agent. **On demand** for day-to-day work; **full pass required before every release tag**.
+Focused reviews for the AI agent. **Automated on every agent issue** via Issue Agent Intake; **full pass required before every release tag**.
 
 Each lens lists **Does not cover** to avoid overlap with other lenses.
 
 ## When to run
+
+### Every agent issue (automated)
+
+**Issue Agent Intake** selects lenses from issue labels/title (`scripts/issue_agent_intake_lenses.py`) and embeds required sweep steps in the Cloud Agent prompt.
+
+**Agent Validate** enforces that `docs/reports/agent-review-log.md` is updated on the agent branch before acceptance tests run (`scripts/lens_sweep_gate.py`).
+
+| Issue signal | Lenses (typical) |
+|--------------|------------------|
+| `compatibility`, `api-drift`, compatibility failure title | API compatibility, Ops / SRE (+ bug lenses) |
+| `bug`, `[Bug]:` | Acceptance & regression, Senior developer |
+| `enhancement`, `[Feature]:` | Terraform schema & state, Acceptance & regression, GitOps / IaC practitioner |
+| `regression` | Acceptance & regression (+ issue-type lenses) |
+| `security` | Security engineer |
+| Default | Senior developer, Acceptance & regression |
 
 ### Before every `v*` release (required)
 
@@ -14,19 +29,20 @@ Run the lens set for the **release tier** below. Append each sweep to `docs/repo
 - **Medium** findings: fix before tag or document explicit deferral in the release notes / review log.
 - **Low** findings: may ship with issues filed for follow-up.
 
-The maintainer says *"prepare release vX.Y.Z"* or *"run release lens review"* to start this pass.
+The maintainer says *"prepare release vX.Y.Z"* or *"run release lens review"* to start the release-tier pass (not covered by per-issue automation above).
 
 See `docs/testing/release-lens-review.md` for tier definitions and lens order.
 
-### Ad hoc (optional)
+### Ad hoc (maintainer override)
 
 | Trigger | Suggested lens |
 |---------|----------------|
 | Maintainer names a lens | That lens only |
 | After auth/credential change | Security engineer |
 | After new resource/data source | Terraform schema & state + Acceptance & regression |
-| After Dockhand drift failure | API compatibility |
 | After CI/harness change | Ops / SRE |
+
+Per-issue automation already runs API compatibility on Dockhand drift failures. Use ad hoc when you need an extra lens beyond the intake mapping.
 
 **Do not** run lenses on a timer or `/loop`.
 

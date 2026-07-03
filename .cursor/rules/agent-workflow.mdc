@@ -21,8 +21,8 @@ When working on `agent/**` branches or issues labeled `agent`:
 
 ## Focused review lenses
 
-**Before every release:** lens review per tier (`docs/testing/release-lens-review.md`) — patch = core 5, minor/major = all 11.
+**Every agent issue:** intake selects lenses automatically; Cloud Agent must append sweeps to `docs/reports/agent-review-log.md`. **Agent Validate** enforces the log update (`scripts/lens_sweep_gate.py`). Mapping: `scripts/issue_agent_intake_lenses.py`.
 
-**Otherwise:** run a single lens only when the maintainer asks or an ad hoc trigger in `docs/AGENT_REVIEW_LENSES.md` applies.
+**Before every release:** lens review per tier (`docs/testing/release-lens-review.md`) — patch = core 5, minor/major = all 11.
 
 Human branches (`codex/*`, etc.) follow `CONTRIBUTING.md` and `docs/MAINTENANCE_PLAYBOOK.md`.

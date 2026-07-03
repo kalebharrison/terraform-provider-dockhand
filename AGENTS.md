@@ -32,7 +32,7 @@ Quick loop:
 3. Push → **Agent Validate**
 4. Green → **Agent Open PR** → **Agent Auto Merge** when checks pass
 
-Focused review lenses (on demand): `docs/AGENT_REVIEW_LENSES.md` — log: `docs/reports/agent-review-log.md`.
+Focused review lenses (automated per agent issue): `docs/AGENT_REVIEW_LENSES.md` — mapping in `scripts/issue_agent_intake_lenses.py`; log: `docs/reports/agent-review-log.md`; CI gate: `scripts/lens_sweep_gate.py`.
 
 **Before every release:** lens review per tier — `docs/testing/release-lens-review.md` (patch: core 5; minor/major: all 11).
 
