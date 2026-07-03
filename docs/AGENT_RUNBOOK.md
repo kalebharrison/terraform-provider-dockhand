@@ -91,7 +91,7 @@ If the new acceptance suite should run on PRs, add the exact `TestAcc...` functi
 | `acceptance-ci.yml` | PR | Dockhand + DinD + Hawser targeted acceptance |
 | `agent-validate.yml` | push to `agent/**` | Agent pre-PR validation |
 | `agent-open-pr.yml` | after successful Agent Validate | Opens/updates PR; approves pending PR workflow runs |
-| `agent-auto-merge.yml` | agent PR events | Enables auto-merge |
+| `agent-auto-merge.yml` | agent PR events | Enables auto-merge; closes linked issues after merge |
 | `issue-agent-intake.yml` | issue labeled `agent`, `/agent` comment | Dispatches Cursor Cloud Agent |
 | `acceptance-full.yml` | nightly | Full `TestAcc` + drift audits |
 | `dockhand-release-watch.yml` | every 6h | New Dockhand image compatibility |

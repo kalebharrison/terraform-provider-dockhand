@@ -215,33 +215,45 @@ jobs:
               return;
             }
 
-            const runs = await github.paginate(github.rest.actions.listWorkflowRunsForRepo, {
-              owner,
-              repo,
-              head_sha: sha,
-              per_page: 100,
-            });
-
+            const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
             let approved = 0;
-            for (const run of runs) {
-              if (run.status !== "waiting") {
-                continue;
+
+            for (let attempt = 0; attempt < 12; attempt += 1) {
+              const runs = await github.paginate(github.rest.actions.listWorkflowRunsForRepo, {
+                owner,
+                repo,
+                head_sha: sha,
+                per_page: 100,
+              });
+
+              for (const run of runs) {
+                if (run.status !== "waiting") {
+                  continue;
+                }
+                try {
+                  await github.rest.actions.approveWorkflowRun({
+                    owner,
+                    repo,
+                    run_id: run.id,
+                  });
+                  approved += 1;
+                  core.info(`Approved workflow run ${run.id} (${run.name})`);
+                } catch (error) {
+                  core.warning(`Could not approve run ${run.id}: ${error.message}`);
+                }
               }
-              try {
-                await github.rest.actions.approveWorkflowRun({
-                  owner,
-                  repo,
-                  run_id: run.id,
-                });
-                approved += 1;
-                core.info(`Approved workflow run ${run.id} (${run.name})`);
-              } catch (error) {
-                core.warning(`Could not approve run ${run.id}: ${error.message}`);
+
+              if (approved > 0) {
+                break;
+              }
+              if (attempt < 11) {
+                core.info(`No waiting runs yet; retrying approve in 15s (attempt ${attempt + 1}/12)...`);
+                await sleep(15000);
               }
             }
 
             if (approved === 0) {
-              core.info("No workflow runs waiting for approval.");
+              core.info("No workflow runs waiting for approval after retries.");
             } else {
               core.info(`Approved ${approved} workflow run(s) for ${sha}.`);
             }

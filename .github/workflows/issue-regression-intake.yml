@@ -49,9 +49,13 @@ jobs:
             const reopenKeywords =
               /\b(still broken|not fixed|reopen|regression|persists|doesn'?t work|does not work|same issue|issue continues|not resolved|didn'?t fix|did not fix|still seeing|still happens|no longer works)\b/i;
             const explicitReopen = /\breopen\b/i.test(text);
-            const substantive = text.length >= 40;
 
-            if (!explicitReopen && !reopenKeywords.test(text) && !substantive) {
+            if (/\b(smoke test (?:complete|passed)|fully automated loop verified)\b/i.test(text)) {
+              core.info("Skipping maintainer smoke-test close comment.");
+              return;
+            }
+
+            if (!explicitReopen && !reopenKeywords.test(text)) {
               core.info("Comment does not indicate regression; not reopening.");
               return;
             }
