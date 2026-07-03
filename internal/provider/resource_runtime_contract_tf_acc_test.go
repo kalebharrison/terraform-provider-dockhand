@@ -50,6 +50,11 @@ func TestAccContainerRuntimeSurfacesTerraform(t *testing.T) {
 					testAccCheckContainerRuntimeEventually(endpoint, username, password, env, "dockhand_container.test", expectedContainerStates("start"), true),
 				),
 			},
+			{
+				ResourceName:      "dockhand_image.test",
+				ImportState:       true,
+				ImportStateVerify: true,
+			},
 		},
 	})
 }
