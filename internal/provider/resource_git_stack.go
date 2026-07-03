@@ -255,7 +255,7 @@ func (r *gitStackResource) Create(ctx context.Context, req resource.CreateReques
 		return
 	}
 
-	state := mergeGitStackState(plan, modelFromGitStackResponse(created))
+	state := mergeGitStackState(plan, modelFromGitStackResponse(created), true)
 	state.Env = types.StringValue(env)
 	resp.Diagnostics.Append(resp.State.Set(ctx, &state)...)
 }
@@ -283,7 +283,7 @@ func (r *gitStackResource) Read(ctx context.Context, req resource.ReadRequest, r
 		return
 	}
 
-	newState := mergeGitStackState(state, modelFromGitStackResponse(item))
+	newState := mergeGitStackState(state, modelFromGitStackResponse(item), false)
 	newState.Env = types.StringValue(env)
 	resp.Diagnostics.Append(resp.State.Set(ctx, &newState)...)
 }
@@ -324,7 +324,7 @@ func (r *gitStackResource) Update(ctx context.Context, req resource.UpdateReques
 		return
 	}
 
-	newState := mergeGitStackState(plan, modelFromGitStackResponse(updated))
+	newState := mergeGitStackState(plan, modelFromGitStackResponse(updated), true)
 	newState.Env = types.StringValue(env)
 	resp.Diagnostics.Append(resp.State.Set(ctx, &newState)...)
 }
@@ -648,7 +648,7 @@ func modelFromGitStackResponse(in *gitStackResponse) gitStackModel {
 	return out
 }
 
-func mergeGitStackState(preferred gitStackModel, remote gitStackModel) gitStackModel {
+func mergeGitStackState(preferred gitStackModel, remote gitStackModel, afterWrite bool) gitStackModel {
 	out := remote
 
 	if (out.Env.IsNull() || out.Env.IsUnknown()) && !preferred.Env.IsNull() && !preferred.Env.IsUnknown() {
@@ -703,9 +703,18 @@ func mergeGitStackState(preferred gitStackModel, remote gitStackModel) gitStackM
 		out.EnvVarsJSON = preferred.EnvVarsJSON
 	}
 
-	// One-shot deploy flags are never persisted as true in state.
-	out.DeployNow = types.BoolValue(false)
-	out.ForceRedeploy = types.BoolValue(false)
+	if afterWrite {
+		if !preferred.DeployNow.IsNull() && !preferred.DeployNow.IsUnknown() {
+			out.DeployNow = preferred.DeployNow
+		}
+		if !preferred.ForceRedeploy.IsNull() && !preferred.ForceRedeploy.IsUnknown() {
+			out.ForceRedeploy = preferred.ForceRedeploy
+		}
+	} else {
+		// One-shot deploy flags reset on read so leaving `true` in HCL does not loop.
+		out.DeployNow = types.BoolValue(false)
+		out.ForceRedeploy = types.BoolValue(false)
+	}
 
 	return out
 }

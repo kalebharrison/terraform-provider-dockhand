@@ -37,6 +37,10 @@ func TestRuntimeEnabledFromStatus(t *testing.T) {
 	if !ok || !enabled {
 		t.Fatalf("expected syncing -> enabled true, got %v %v", enabled, ok)
 	}
+	_, ok = runtimeEnabledFromStatus("created")
+	if ok {
+		t.Fatal("expected created -> preserve configured enabled (ok=false)")
+	}
 }
 
 func TestJobPayloadIndicatesFailure(t *testing.T) {

@@ -15,7 +15,7 @@ func runtimeEnabledFromStatus(status string) (bool, bool) {
 		return true, true
 	case "starting", "syncing", "restarting":
 		return true, true
-	case "stopped", "exited", "down", "paused", "dead", "inactive", "created":
+	case "stopped", "exited", "down", "paused", "dead", "inactive":
 		return false, true
 	case "stopping":
 		return false, true

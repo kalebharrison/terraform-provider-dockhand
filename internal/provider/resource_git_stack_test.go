@@ -129,7 +129,7 @@ func TestMergeGitStackStatePreservesContextDirWhenRemoteOmitsIt(t *testing.T) {
 		ContextDir: types.StringNull(),
 	}
 
-	merged := mergeGitStackState(preferred, remote)
+	merged := mergeGitStackState(preferred, remote, false)
 	if merged.ContextDir.IsNull() || merged.ContextDir.ValueString() != "." {
 		t.Fatalf("expected context_dir to preserve configured value, got null=%v value=%q", merged.ContextDir.IsNull(), merged.ContextDir.ValueString())
 	}
@@ -274,7 +274,7 @@ func TestMergeGitStackStateWebhookSecretExplicitEmptyWins(t *testing.T) {
 	preferred := gitStackModel{WebhookSecret: types.StringValue("")}
 	remote := gitStackModel{WebhookSecret: types.StringValue("server-generated")}
 
-	merged := mergeGitStackState(preferred, remote)
+	merged := mergeGitStackState(preferred, remote, false)
 	if merged.WebhookSecret.IsNull() || merged.WebhookSecret.ValueString() != "" {
 		t.Fatalf("expected explicit empty webhook_secret to win over server value")
 	}
@@ -288,7 +288,7 @@ func TestMergeGitStackStateWebhookSecretUnsetInConfig(t *testing.T) {
 		WebhookSecret: types.StringValue("server-generated-secret"),
 	}
 
-	merged := mergeGitStackState(preferred, remote)
+	merged := mergeGitStackState(preferred, remote, false)
 	if !merged.WebhookSecret.IsNull() {
 		t.Fatalf("expected webhook_secret to remain null when not configured, got %q", merged.WebhookSecret.ValueString())
 	}
@@ -302,7 +302,7 @@ func TestMergeGitStackStateWebhookSecretConfiguredInConfig(t *testing.T) {
 		WebhookSecret: types.StringNull(),
 	}
 
-	merged := mergeGitStackState(preferred, remote)
+	merged := mergeGitStackState(preferred, remote, false)
 	if merged.WebhookSecret.IsNull() || merged.WebhookSecret.ValueString() != "from-config" {
 		t.Fatalf("expected webhook_secret to preserve configured value, got null=%v value=%q", merged.WebhookSecret.IsNull(), merged.WebhookSecret.ValueString())
 	}
@@ -384,7 +384,7 @@ func TestMergeGitStackStateResetsOneShotDeployFlags(t *testing.T) {
 		ForceRedeploy: types.BoolValue(true),
 	}
 
-	merged := mergeGitStackState(preferred, remote)
+	merged := mergeGitStackState(preferred, remote, false)
 	if merged.BuildOnDeploy.IsNull() || !merged.BuildOnDeploy.ValueBool() {
 		t.Fatalf("expected BuildOnDeploy to preserve configured true")
 	}
@@ -396,6 +396,25 @@ func TestMergeGitStackStateResetsOneShotDeployFlags(t *testing.T) {
 	}
 	if merged.ForceRedeploy.ValueBool() {
 		t.Fatalf("expected ForceRedeploy=false in merged state")
+	}
+}
+
+func TestMergeGitStackStatePreservesOneShotDeployFlagsAfterWrite(t *testing.T) {
+	preferred := gitStackModel{
+		DeployNow:     types.BoolValue(true),
+		ForceRedeploy: types.BoolValue(true),
+	}
+	remote := gitStackModel{
+		DeployNow:     types.BoolValue(false),
+		ForceRedeploy: types.BoolValue(false),
+	}
+
+	merged := mergeGitStackState(preferred, remote, true)
+	if !merged.DeployNow.ValueBool() {
+		t.Fatalf("expected DeployNow=true after write merge")
+	}
+	if !merged.ForceRedeploy.ValueBool() {
+		t.Fatalf("expected ForceRedeploy=true after write merge")
 	}
 }
 
