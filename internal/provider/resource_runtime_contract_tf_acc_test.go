@@ -219,7 +219,7 @@ output "shells_have_sh" {
 }
 
 output "logs_have_marker" {
-  value = strcontains(data.dockhand_container_logs.logs.logs, "` + marker + `")
+  value = try(strcontains(data.dockhand_container_logs.logs.logs, "` + marker + `"), false)
 }
 `
 	}
@@ -295,15 +295,15 @@ locals {
 }
 
 output "images_have_target" {
-  value = contains(data.dockhand_images.all.ids, dockhand_image.test.id)
+  value = try(contains(data.dockhand_images.all.ids, dockhand_image.test.id), false)
 }
 
 output "containers_have_target" {
-  value = contains(data.dockhand_containers.all.ids, dockhand_container.test.id)
+  value = try(contains(data.dockhand_containers.all.ids, dockhand_container.test.id), false)
 }
 
 output "pending_updates_env_matches" {
-  value = data.dockhand_container_pending_updates.pending.environment_id == %q
+  value = try(data.dockhand_container_pending_updates.pending.environment_id == %q, false)
 }
 
 output "inspect_has_name" {
