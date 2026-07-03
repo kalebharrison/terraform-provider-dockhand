@@ -32,7 +32,7 @@ Living checklist for the agent-management rollout. Update as items complete.
 - [x] Intake helpers: `scripts/issue_agent_intake.py` + unit tests in `test-agent-helpers.sh`
 - [x] **Issue intake smoke** `#126`: dispatch → Cloud Agent commit → Validate → Open PR (#127)
 - [x] **Fully automated loop smoke** `#129`: intake → commit → Validate → Open PR → Approve CI → PR CI green → Agent Auto Merge (#130)
-- [ ] **Issue auto-close smoke** `#132`: intake → commit → Validate → Open PR → PR CI green → Agent Auto Merge → Close linked issues after merge (in progress)
+- [ ] **Issue auto-close smoke** `#132`: intake → commit → Validate → Open PR → PR CI green → Agent Auto Merge → Close linked issues after merge (in progress: PR #133)
 
 ## Confidence (post-rollout)
 
