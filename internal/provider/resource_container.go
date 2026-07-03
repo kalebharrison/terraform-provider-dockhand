@@ -527,6 +527,15 @@ func applyContainerRuntimeToState(state *containerResourceModel, container *cont
 	if (state.Image.IsNull() || state.Image.IsUnknown()) && strings.TrimSpace(container.Image) != "" {
 		state.Image = types.StringValue(container.Image)
 	}
+	if state.Enabled.IsNull() || state.Enabled.IsUnknown() {
+		status := strings.TrimSpace(container.State)
+		if status == "" {
+			status = strings.TrimSpace(container.Status)
+		}
+		if enabled, ok := runtimeEnabledFromStatus(status); ok {
+			state.Enabled = types.BoolValue(enabled)
+		}
+	}
 	state.State = types.StringValue(container.State)
 	state.Status = types.StringValue(container.Status)
 	state.Health = types.StringValue(container.Health)

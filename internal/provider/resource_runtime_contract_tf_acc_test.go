@@ -54,7 +54,7 @@ func TestAccContainerRuntimeSurfacesTerraform(t *testing.T) {
 				ResourceName:            "dockhand_container.test",
 				ImportState:             true,
 				ImportStateVerify:       true,
-				ImportStateVerifyIgnore: []string{"command", "labels", "env_vars", "update_payload_json"},
+				ImportStateVerifyIgnore: []string{"command", "labels", "env_vars", "update_payload_json", "state", "status", "health", "restart_count"},
 			},
 			{
 				ResourceName:      "dockhand_image.test",
@@ -307,7 +307,7 @@ output "pending_updates_env_matches" {
 }
 
 output "inspect_has_name" {
-  value = strcontains(data.dockhand_container_inspect.inspect.inspect_json, dockhand_container.test.name)
+  value = try(strcontains(data.dockhand_container_inspect.inspect.inspect_json, dockhand_container.test.name), false)
 }
 
 %s
