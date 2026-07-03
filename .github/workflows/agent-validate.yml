@@ -72,12 +72,21 @@ jobs:
 
       - name: Verify agent co-author trailer on HEAD
         shell: bash
+        env:
+          BEFORE_SHA: ${{ github.event.before }}
+          AFTER_SHA: ${{ github.sha }}
         run: |
           set -euo pipefail
-          git fetch origin main --depth=1
-          shas="$(git log origin/main..HEAD --no-merges --format=%H)"
+          if [[ -n "${BEFORE_SHA}" && "${BEFORE_SHA}" != 0000000000000000000000000000000000000000 ]]; then
+            range="${BEFORE_SHA}..${AFTER_SHA}"
+          else
+            git fetch origin main
+            merge_base="$(git merge-base origin/main HEAD)"
+            range="${merge_base}..HEAD"
+          fi
+          shas="$(git log "${range}" --no-merges --format=%H)"
           if [[ -z "${shas}" ]]; then
-            echo "No agent-only commits to verify."
+            echo "No agent commits to verify in range ${range}."
             exit 0
           fi
           while IFS= read -r sha; do
