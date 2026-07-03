@@ -74,7 +74,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          git log -1 --format=%B | ./scripts/agent-commit-msg.sh --check
+          git log -1 --no-merges --format=%B | ./scripts/agent-commit-msg.sh --check
 
       - name: Resolve acceptance regex
         id: regex
