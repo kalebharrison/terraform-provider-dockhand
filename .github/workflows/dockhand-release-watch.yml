@@ -317,12 +317,31 @@ jobs:
       - name: Stage compat reports for repository sync
         if: success()
         shell: bash
+        env:
+          DOCKHAND_IMAGE: ${{ needs.discover.outputs.image }}
+          DOCKHAND_TAG: ${{ needs.discover.outputs.tag }}
+          DOCKHAND_DIGEST: ${{ needs.discover.outputs.digest }}
         run: |
           set -euo pipefail
           mkdir -p .compat-sync
           cp docs/reports/endpoint-probe.md docs/reports/endpoint-probe.csv .compat-sync/
           cp "${WEBUI_AUDIT_OUT_DIR}/webui-api-endpoints.txt" .compat-sync/ 2>/dev/null || true
           cp "${DOCS_AUDIT_OUT_DIR}/docs-reference-api-endpoints.txt" .compat-sync/ 2>/dev/null || true
+          jq -n \
+            --arg image "${DOCKHAND_IMAGE}" \
+            --arg tag "${DOCKHAND_TAG}" \
+            --arg digest "${DOCKHAND_DIGEST}" \
+            --arg updated_at "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+            --arg source_run "https://github.com/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}" \
+            --arg workflow "Dockhand Release Watch" \
+            '{
+              image: $image,
+              tag: $tag,
+              digest: $digest,
+              updated_at: $updated_at,
+              source_run: $source_run,
+              workflow: $workflow
+            }' > .compat-sync/dockhand-last-tested.json
 
       - name: Upload compat reports for repository sync
         if: success()

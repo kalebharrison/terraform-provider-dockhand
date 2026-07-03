@@ -45,7 +45,7 @@ git push origin vX.Y.Z
 - Poll cadence: every 6 hours.
 - Change detection: compares latest discovered Dockhand `tag` and image `digest` to cached release-watch state (`last_tag`, `last_digest` in Actions cache key `dockhand-release-watch-state`).
 - Only runs full validation when a new tag is discovered (or manual override via `workflow_dispatch` input).
-- On success, saves state to the Actions cache (no tracking issue). Legacy issue `release-watch: dockhand-last-tested-tag` is retired on first successful persist.
+- On success, saves state to the Actions cache (no tracking issue). **Compat Reports Sync** commits `docs/reports/dockhand-last-tested.json` for a human-readable last-validated record.
 - Includes docs-reference drift audit from `https://dockhand.pro/manual/#api-reference`.
 - Includes a targeted authenticated private endpoint probe (`GET /api/environments` by default).
 - Includes API drift gating that opens/updates an issue when new relevant endpoints are discovered and not yet tracked/allowlisted.

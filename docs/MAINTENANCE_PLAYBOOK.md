@@ -118,6 +118,7 @@ Automated workflows already in place:
   - Detects new Dockhand image tags.
   - Skips re-test when tag+digest match cached state (`dockhand-release-watch-state` Actions cache).
   - Runs acceptance harness + endpoint/webui/docs/private probes when Dockhand changes.
+  - On success, **Compat Reports Sync** updates `docs/reports/dockhand-last-tested.json` (last validated Dockhand tag/digest).
   - Uploads compatibility artifacts.
 - `.github/workflows/acceptance-full.yml` (nightly)
   - Full recursive acceptance run.

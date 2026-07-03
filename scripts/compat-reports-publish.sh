@@ -27,6 +27,7 @@ copy_if_present endpoint-probe.md
 copy_if_present endpoint-probe.csv
 copy_if_present webui-api-endpoints.txt
 copy_if_present docs-reference-api-endpoints.txt
+copy_if_present dockhand-last-tested.json
 
 verified_date="$(date -u +"%B %-d, %Y")"
 non_present="$ROOT/docs/non-present-endpoints.md"
