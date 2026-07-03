@@ -75,14 +75,15 @@ jobs:
         run: |
           set -euo pipefail
           git fetch origin main --depth=1
-          mapfile -t commits < <(git log origin/main..HEAD --no-merges --format=%B)
-          if [[ ${#commits[@]} -eq 0 ]]; then
+          shas="$(git log origin/main..HEAD --no-merges --format=%H)"
+          if [[ -z "${shas}" ]]; then
             echo "No agent-only commits to verify."
             exit 0
           fi
-          for message in "${commits[@]}"; do
-            printf '%s\n' "${message}" | ./scripts/agent-commit-msg.sh --check
-          done
+          while IFS= read -r sha; do
+            [[ -z "${sha}" ]] && continue
+            git log -1 --format=%B "${sha}" | ./scripts/agent-commit-msg.sh --check
+          done <<< "${shas}"
 
       - name: Resolve acceptance regex
         id: regex
