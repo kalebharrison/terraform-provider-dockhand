@@ -2,7 +2,7 @@
 
 Living checklist for the agent-management rollout. Update as items complete.
 
-## Done (local, uncommitted)
+## Done
 
 - [x] Agent CI: `agent-validate`, `agent-open-pr`, `agent-auto-merge`
 - [x] Merge `quality-ci` into `go-ci` (shellcheck included)
@@ -21,15 +21,15 @@ Living checklist for the agent-management rollout. Update as items complete.
 - [x] Docs: RUNBOOK, IDENTITY, DEPLOYMENT, INTAKE, CODING_STANDARDS, README, MAINTENANCE_PLAYBOOK
 - [x] Client split (`client_*.go`), endpoint probe expansion, import doc sweep
 - [x] Issue communication: Resolution Notify, Release Issue Notify (expanded), Regression Intake (`docs/AGENT_ISSUE_RESPONSE.md`)
+- [x] **Commit and push** agent CI + lens fixes to `main`
+- [x] **Branch protection sync** per `docs/AGENT_DEPLOYMENT.md` (removed `Vet, Lint, Staticcheck`; added `dependency-review`)
+- [x] **Smoke test** `agent/issue-0-smoke-test`: Agent Validate green, Agent Open PR opened #125, closed without merge
+- [x] GitHub Actions setting: allow workflows to create pull requests
 
-## Next (merge + activate)
+## Next
 
-- [ ] **Commit and push** all agent CI work to `main`
-- [ ] **Branch protection sync** per `docs/AGENT_DEPLOYMENT.md`
-  - Remove `Vet, Lint, Staticcheck`
-  - Add `dependency-review`
-- [ ] **Smoke test** `agent/issue-0-*` branch end-to-end
-- [ ] Confirm **Agent Open PR** + **Agent Auto Merge** on first real issue
+- [ ] Confirm **Agent Auto Merge** on first real `agent/issue-<n>-*` PR (with filled resolution sections + `agent-auto-merge` label)
+- [ ] First nightly **Acceptance Full** → Compat Reports Sync PR
 
 ## Backlog (optional polish)
 
@@ -38,6 +38,7 @@ Living checklist for the agent-management rollout. Update as items complete.
 - [ ] Post-merge issue: document agent workflow in GitHub wiki / discussions
 - [ ] Add `agent-commit-msg.sh --check` to a pre-push hook template (optional)
 - [ ] Monitor first 3 agent PRs for CI time / flake rate
+- [ ] Decide policy for bot-opened PRs: approve-and-run vs auto-run same-repo agent branches
 
 ## Focused review lenses
 
