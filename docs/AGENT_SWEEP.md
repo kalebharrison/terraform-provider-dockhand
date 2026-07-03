@@ -43,7 +43,7 @@ Living checklist for the agent-management rollout. Update as items complete.
 
 ## Next
 
-- [ ] Add repository secret **`CURSOR_API_KEY`** and run first real issue intake
+- [x] Add repository secret **`CURSOR_API_KEY`** (configured; intake smoke #126)
 - [ ] Confirm **Agent Auto Merge** on first real `agent/issue-<n>-*` PR with prefilled sections
 - [ ] First nightly **Acceptance Full** → Compat Reports Sync PR
 
