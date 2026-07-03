@@ -71,10 +71,9 @@ Close the smoke PR without merging if it was only for validation.
 
 ## 3b. Smoke test issue intake
 
-1. Open a test issue with **Problem** and **Done when** sections
-2. Add label **`agent`**
-3. Confirm **Issue Agent Intake** comments and dispatches Cloud Agent
-4. Or comment **`/agent`** on an existing well-scoped issue
+1. Open a test issue with **Problem** and **Done when** sections (no label required)
+2. Confirm **Issue Agent Intake** comments and dispatches Cloud Agent on `issues.opened`
+3. Optional: add label **`agent`** or comment **`/agent`** to re-dispatch later
 
 Requires **`CURSOR_API_KEY`** secret (step 2b).
 

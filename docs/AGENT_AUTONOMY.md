@@ -43,6 +43,7 @@ See `docs/AGENT_RUNBOOK.md` and `docs/AGENT_CODING_STANDARDS.md`.
 | **Committed compatibility baselines** | `compat-reports-sync.yml` | After green full/release-watch runs |
 | **Release lens dispatch** | `agent-release-orchestrate.yml` | When release gate + awaiting-release issues |
 | **Signed tag publish** | `agent-release-tag.yml` | When lens verdict clears on `main` |
+| **Automation health alert** | `automation-health-notify.yml` | Opens tracker issue when release gate blockers persist ≥24h |
 | Dependency vulnerabilities | `govulncheck.yml` | Weekly + PR |
 | Release zips | `release-artifacts.yml` | On `v*` tag (GPG in repo secrets) |
 

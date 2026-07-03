@@ -1,6 +1,6 @@
 # Agent Identity and Transparency
 
-This repository uses an **agent-managed workflow**: Cursor Cloud Agents implement changes, GitHub Actions validate and open pull requests, and maintainers retain merge/release control.
+This repository uses an **agent-managed workflow**: Cursor Cloud Agents implement changes, GitHub Actions validate and open pull requests, and **automation** handles squash merge, release lens review, and signed tagging (`docs/AGENT_AUTONOMY.md`).
 
 We are transparent about that. A separate GitHub machine user is **not** required.
 
@@ -45,6 +45,7 @@ Do **not** open agent pull requests manually when avoidable.
 2. Wait for **Agent Validate**
 3. **Agent Open PR** creates or updates the PR as `github-actions[bot]`
 4. **Agent Auto Merge** enables squash auto-merge when checks pass
+5. **Agent Release Tag** publishes signed releases when the automated release lens verdict clears
 
 ## Optional dedicated identity (not default)
 

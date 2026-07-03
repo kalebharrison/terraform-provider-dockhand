@@ -116,12 +116,11 @@ If the new acceptance suite should run on PRs, add the exact `TestAcc...` functi
 - Use bare `TestAcc` manifest mappings
 - Bypass manifest/docs/examples parity
 
-## Maintainer-only
+## Ops-only (not routine release gates)
 
-- Signed release tags (`vX.Y.Z`) and release artifact validation
-- **Release lens + tag** — automated via `agent-release-orchestrate.yml` → intake → `agent-release-tag.yml` (`docs/testing/release-lens-review.md`)
-- Rotating production Dockhand credentials
+- Rotating `CURSOR_API_KEY`, GPG signing keys, or production Dockhand credentials
 - Changing branch protection or required checks
+- Security advisories and org-level policy
 
 ## Related docs
 

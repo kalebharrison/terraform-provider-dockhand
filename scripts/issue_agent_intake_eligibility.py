@@ -11,7 +11,7 @@ import sys
 SKIP_LABELS = frozenset({"released", "awaiting-release", "no-agent"})
 BOT_AUTO_LABELS = frozenset({"compatibility", "api-drift"})
 RETRIGGER_LABELS = frozenset({"agent", "compatibility", "api-drift", "regression", "release-candidate"})
-AUTOMATION_TRACKER_PREFIX = "[Automation] Workflow failing:"
+AUTOMATION_TRACKER_PREFIXES = ("[Automation] Workflow failing:", "[Automation] Release gate blocked")
 
 ACCEPTANCE_SECTION_RE = re.compile(
     r"(?m)^#{2,3}\s*("
@@ -51,8 +51,8 @@ def intake_eligible(
         blocked = ", ".join(sorted(labels_l & SKIP_LABELS))
         return False, f"issue has skip label(s): {blocked}"
 
-    if title_s.startswith(AUTOMATION_TRACKER_PREFIX):
-        return False, "automation workflow tracker (not agent work)"
+    if any(title_s.startswith(prefix) for prefix in AUTOMATION_TRACKER_PREFIXES):
+        return False, "automation tracker (not agent work)"
 
     if "release-candidate" in labels_l or title_s.lower().startswith("release:"):
         if has_dispatched and not has_regression and trigger != "manual":

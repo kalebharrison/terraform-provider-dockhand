@@ -93,6 +93,20 @@ class IssueAgentIntakeEligibilityTest(unittest.TestCase):
         self.assertTrue(has_acceptance_section("### Problem statement\nSomething broke"))
         self.assertTrue(has_acceptance_section("## Done when\n- fixed"))
 
+    def test_automation_health_tracker_skips(self) -> None:
+        ok, reason = intake_eligible(
+            title="[Automation] Release gate blocked",
+            labels=["maintenance"],
+            author_type="Bot",
+            author_login="github-actions[bot]",
+            trigger="opened",
+            body="Gate blocked for 24 hours.",
+            has_dispatched=False,
+            has_regression=False,
+        )
+        self.assertFalse(ok)
+        self.assertIn("automation tracker", reason or "")
+
 
 if __name__ == "__main__":
     unittest.main()

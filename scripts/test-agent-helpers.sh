@@ -32,3 +32,4 @@ run /usr/bin/python3 -m unittest scripts/test_issue_agent_intake.py
 run /usr/bin/python3 -m unittest scripts/test_issue_agent_intake_eligibility.py
 run /usr/bin/python3 -m unittest scripts/test_issue_agent_intake_lenses.py
 run /usr/bin/python3 -m unittest scripts/test_release_verdict.py
+run /usr/bin/python3 -m unittest scripts/test_automation_health_gate.py
