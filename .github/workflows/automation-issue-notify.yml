@@ -4,6 +4,9 @@ on:
   workflow_run:
     workflows:
       - Go CI
+      - Workflow Lint
+      - Shell Lint
+      - Gitleaks
       - Acceptance Full
       - Release Artifacts
       - Agent Validate
@@ -32,8 +35,20 @@ jobs:
             const defaultBranch = context.payload.repository?.default_branch || "main";
             const branch = wr.head_branch || defaultBranch;
             const runUrl = wr.html_url || `https://github.com/${owner}/${repo}/actions/runs/${wr.id}`;
-            const issueTitle = `[Automation] Workflow failing: ${workflowName}`;
             const failureStates = new Set(["action_required", "cancelled", "failure", "startup_failure", "timed_out"]);
+            const agentFixable = new Set([
+              "Go CI",
+              "Workflow Lint",
+              "Shell Lint",
+              "Gitleaks",
+              "Acceptance Full",
+              "Agent Validate",
+            ]);
+            const dispatchAgent = agentFixable.has(workflowName);
+            const issueTitle = dispatchAgent
+              ? `CI failure: ${workflowName}`
+              : `[Automation] Workflow failing: ${workflowName}`;
+            const legacyTitle = `[Automation] Workflow failing: ${workflowName}`;
 
             if (eventName === "pull_request") return;
             if (branch !== defaultBranch) return;
@@ -49,10 +64,13 @@ jobs:
 
             await ensureLabel("ci", "5319e7", "CI, release, or automation work");
             await ensureLabel("maintenance", "c5def5", "Refactors, cleanup, or repo hygiene");
+            await ensureLabel("agent", "0E8A16", "Automated agent-authored work");
             await ensureLabel("no-agent", "ededed", "Automation tracker — do not dispatch Cloud Agent");
 
             const issues = await github.paginate(github.rest.issues.listForRepo, { owner, repo, state: "all", per_page: 100 });
-            const existingIssue = issues.filter((issue) => !issue.pull_request && issue.title === issueTitle).sort((a, b) => b.number - a.number)[0];
+            const findIssue = (title) =>
+              issues.filter((issue) => !issue.pull_request && issue.title === title).sort((a, b) => b.number - a.number)[0];
+            const existingIssue = findIssue(issueTitle) || (dispatchAgent ? findIssue(legacyTitle) : null);
 
             let failedJobs = [];
             try {
@@ -66,31 +84,76 @@ jobs:
               ? failedJobs.map((job) => `- \`${job.name}\`${job.html_url ? `: ${job.html_url}` : ""}`).join("\n")
               : "- Workflow failed before any individual job reported a failure.";
 
-            const issueBody = `Automation is failing on the default branch.
+            const issueBody = dispatchAgent
+              ? [
+                  "## Problem",
+                  `Default-branch workflow **${workflowName}** is failing on \`${branch}\`.`,
+                  "",
+                  "Investigate the failed jobs, fix provider code/tests/docs/workflows, and restore a green \`main\` branch.",
+                  "",
+                  "## Done when",
+                  `- **${workflowName}** succeeds on the default branch`,
+                  "- Root cause is fixed in repo code or CI configuration as appropriate",
+                  "- \`./scripts/verify.sh --quality\` passes when the failure is provider-related",
+                  "",
+                  "## Context",
+                  `- Conclusion: \`${conclusion || "unknown"}\``,
+                  `- Commit: \`${wr.head_sha || "unknown"}\``,
+                  `- Run: ${runUrl}`,
+                  "",
+                  "Failed jobs:",
+                  failedJobLines,
+                  "",
+                  "Issue Agent Intake should dispatch a Cloud Agent automatically.",
+                ].join("\n")
+              : [
+                  "Automation is failing on the default branch.",
+                  "",
+                  `- Workflow: \`${workflowName}\``,
+                  `- Conclusion: \`${conclusion || "unknown"}\``,
+                  `- Event: \`${eventName}\``,
+                  `- Branch: \`${branch}\``,
+                  `- Commit: \`${wr.head_sha || "unknown"}\``,
+                  `- Run: ${runUrl}`,
+                  "",
+                  "Failed jobs:",
+                  failedJobLines,
+                  "",
+                  "This issue is managed automatically. It is updated on repeated failures and closed when the workflow succeeds again.",
+                ].join("\n");
 
-            - Workflow: \`${workflowName}\`
-            - Conclusion: \`${conclusion || "unknown"}\`
-            - Event: \`${eventName}\`
-            - Branch: \`${branch}\`
-            - Commit: \`${wr.head_sha || "unknown"}\`
-            - Run: ${runUrl}
-
-            Failed jobs:
-            ${failedJobLines}
-
-            This issue is managed automatically. It is updated on repeated failures and closed when the workflow succeeds again.`;
+            const failureLabels = dispatchAgent
+              ? ["ci", "maintenance", "agent"]
+              : ["ci", "maintenance", "no-agent"];
 
             if (failureStates.has(conclusion)) {
               if (existingIssue) {
-                await github.rest.issues.update({ owner, repo, issue_number: existingIssue.number, title: issueTitle, body: issueBody, state: "open" });
-                await github.rest.issues.addLabels({ owner, repo, issue_number: existingIssue.number, labels: ["no-agent"] });
+                await github.rest.issues.update({
+                  owner,
+                  repo,
+                  issue_number: existingIssue.number,
+                  title: issueTitle,
+                  body: issueBody,
+                  state: "open",
+                });
+                await github.rest.issues.addLabels({ owner, repo, issue_number: existingIssue.number, labels: failureLabels });
               } else {
-                await github.rest.issues.create({ owner, repo, title: issueTitle, body: issueBody, labels: ["ci", "maintenance", "no-agent"] });
+                await github.rest.issues.create({ owner, repo, title: issueTitle, body: issueBody, labels: failureLabels });
               }
               return;
             }
 
-            if (conclusion === "success" && existingIssue?.state === "open") {
-              await github.rest.issues.createComment({ owner, repo, issue_number: existingIssue.number, body: `Recovered in ${runUrl}. Closing this automatically managed issue.` });
-              await github.rest.issues.update({ owner, repo, issue_number: existingIssue.number, state: "closed" });
+            if (conclusion === "success") {
+              for (const title of new Set([issueTitle, legacyTitle])) {
+                const issue = findIssue(title);
+                if (issue?.state === "open") {
+                  await github.rest.issues.createComment({
+                    owner,
+                    repo,
+                    issue_number: issue.number,
+                    body: `Recovered in ${runUrl}. Closing this automatically managed issue.`,
+                  });
+                  await github.rest.issues.update({ owner, repo, issue_number: issue.number, state: "closed" });
+                }
+              }
             }

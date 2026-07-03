@@ -4,6 +4,7 @@ on:
   issues:
     types:
       - opened
+      - edited
       - labeled
   issue_comment:
     types:
@@ -56,6 +57,8 @@ jobs:
               if (context.payload.action === "labeled") {
                 labeledName = context.payload.label?.name || "";
                 trigger = "labeled";
+              } else if (context.payload.action === "edited") {
+                trigger = "edited";
               } else {
                 trigger = "opened";
               }
@@ -154,9 +157,9 @@ jobs:
                 "",
                 `This issue was not dispatched automatically (${reason}).`,
                 "",
-                "Add a clear **Problem** / **Description** and **Done when** / **Acceptance criteria** section so an agent can work with high confidence.",
+                "Add a clear **Problem** / **Description** and **Done when** / **Acceptance criteria** section, then save the issue to re-run intake automatically.",
                 "",
-                "Maintainers can force dispatch via **Actions → Issue Agent Intake → Run workflow**.",
+                "Optional: **Actions → Issue Agent Intake → Run workflow**.",
                 "",
                 "---",
                 "_Posted by Issue Agent Intake._",

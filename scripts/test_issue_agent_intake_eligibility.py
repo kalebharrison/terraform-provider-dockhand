@@ -93,6 +93,43 @@ class IssueAgentIntakeEligibilityTest(unittest.TestCase):
         self.assertTrue(has_acceptance_section("### Problem statement\nSomething broke"))
         self.assertTrue(has_acceptance_section("## Done when\n- fixed"))
 
+    def test_ci_failure_bot_issue_eligible(self) -> None:
+        body = "\n".join(
+            [
+                "## Problem",
+                "Go CI failed on main.",
+                "",
+                "## Done when",
+                "- Go CI is green on main.",
+            ]
+        )
+        ok, reason = intake_eligible(
+            title="CI failure: Go CI",
+            labels=["ci", "agent", "maintenance"],
+            author_type="Bot",
+            author_login="github-actions[bot]",
+            trigger="opened",
+            body=body,
+            has_dispatched=False,
+            has_regression=False,
+        )
+        self.assertTrue(ok)
+        self.assertIsNone(reason)
+
+    def test_edited_issue_eligible(self) -> None:
+        ok, reason = intake_eligible(
+            title="[Bug]: plan fails",
+            labels=["bug"],
+            author_type="User",
+            author_login="random-user",
+            trigger="edited",
+            body="## Problem\nbroken\n\n## Done when\n- fixed",
+            has_dispatched=False,
+            has_regression=False,
+        )
+        self.assertTrue(ok)
+        self.assertIsNone(reason)
+
     def test_automation_health_tracker_skips(self) -> None:
         ok, reason = intake_eligible(
             title="[Automation] Release gate blocked",

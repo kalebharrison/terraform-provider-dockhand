@@ -44,6 +44,9 @@ See `docs/AGENT_RUNBOOK.md` and `docs/AGENT_CODING_STANDARDS.md`.
 | **Release lens dispatch** | `agent-release-orchestrate.yml` | When release gate + awaiting-release issues |
 | **Signed tag publish** | `agent-release-tag.yml` | When lens verdict clears on `main` |
 | **Automation health alert** | `automation-health-notify.yml` | Opens tracker issue when release gate blockers persist ≥24h |
+| **Agent stall watchdog** | `agent-stall-watchdog.yml` | Re-dispatches when Cloud Agent progress stalls ≥24h |
+| **Dependabot auto-merge** | `dependabot-auto-merge.yml` | Enables squash auto-merge for Dependabot PRs |
+| **Secret smoke** | `secret-smoke.yml` | Weekly check for `CURSOR_API_KEY` and `GPG_PRIVATE_KEY` |
 | Dependency vulnerabilities | `govulncheck.yml` | Weekly + PR |
 | Release zips | `release-artifacts.yml` | On `v*` tag (GPG in repo secrets) |
 

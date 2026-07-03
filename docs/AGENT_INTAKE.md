@@ -8,8 +8,9 @@ How work enters the autonomous agent loop for `terraform-provider-dockhand`.
 
 | Trigger | Condition |
 |---------|-----------|
-| Issue **opened** by a user | Bug/feature reports from templates; no `/agent` required |
+| Issue **opened** or **edited** by a user | Bug/feature reports from templates; re-runs when body is improved |
 | Issue **opened** by CI with `compatibility` or `api-drift` | Release Watch compatibility/drift failures |
+| Issue **opened** by CI with `ci` / `security` + `agent` | Main-branch CI/security failures (`CI failure: …`, `Security CI failure: …`) |
 | Issue **labeled** `agent`, `compatibility`, `api-drift`, or `regression` | Re-dispatch or CI follow-up |
 | Comment on open **regression** issue | Human follow-up re-dispatches |
 | **`workflow_dispatch`** | Manual retry with issue number |
@@ -46,11 +47,14 @@ After the agent pushes:
 |--------|-------|----------------|
 | **Dockhand Release Watch** `report_failure` | `Compatibility failure: dockhand …` | Yes — structured Problem/Done when + `agent` label |
 | **Dockhand Release Watch** API drift gate | `API drift detected: dockhand …` | Yes — same pattern |
-| **Automation Issue Notify** | `[Automation] Workflow failing: …` | No — `no-agent` tracker only (Release Watch removed from this notifier) |
+| **Automation Issue Notify** | `CI failure: …` | Yes — structured Problem/Done when + `agent` label |
+| **Security Issue Notify** | `Security CI failure: …` | Yes — same pattern |
+| **Automation Issue Notify** (ops-only) | `[Automation] Workflow failing: …` | No — `no-agent` tracker (e.g. Release Artifacts) |
+| **Automation Health Notify** | `[Automation] Release gate blocked` | No — informational tracker |
 
 ## Issue quality bar
 
-GitHub issue templates already include enough detail for user reports. Thin issues get an **Agent intake skipped** comment asking for Problem + Done when.
+GitHub issue templates already include enough detail for user reports. Thin issues get an **Agent intake skipped** comment; editing the issue body re-runs intake automatically.
 
 Good agent issues include:
 

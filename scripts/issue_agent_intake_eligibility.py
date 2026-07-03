@@ -9,9 +9,13 @@ import re
 import sys
 
 SKIP_LABELS = frozenset({"released", "awaiting-release", "no-agent"})
-BOT_AUTO_LABELS = frozenset({"compatibility", "api-drift"})
-RETRIGGER_LABELS = frozenset({"agent", "compatibility", "api-drift", "regression", "release-candidate"})
-AUTOMATION_TRACKER_PREFIXES = ("[Automation] Workflow failing:", "[Automation] Release gate blocked")
+BOT_AUTO_LABELS = frozenset({"compatibility", "api-drift", "ci", "security", "agent"})
+RETRIGGER_LABELS = frozenset({"agent", "compatibility", "api-drift", "regression", "release-candidate", "ci", "security"})
+AUTOMATION_TRACKER_PREFIXES = (
+    "[Automation] Workflow failing:",
+    "[Automation] Release gate blocked",
+    "[Automation] Secret configuration required",
+)
 
 ACCEPTANCE_SECTION_RE = re.compile(
     r"(?m)^#{2,3}\s*("
@@ -77,7 +81,7 @@ def intake_eligible(
         if not has_regression and not re.search(r"(^|\s)/agent(\s|$)", text, re.IGNORECASE):
             return False, "comment did not request agent (/agent) and issue is not regression"
 
-    if trigger in {"opened", "labeled", "comment", "manual"}:
+    if trigger in {"opened", "labeled", "comment", "manual", "edited"}:
         if is_bot(author_type, author_login):
             if not (labels_l & BOT_AUTO_LABELS):
                 return False, "bot-opened issue without compatibility/api-drift labels"
