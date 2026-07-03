@@ -101,6 +101,7 @@ func (r *imageScanActionResource) Create(ctx context.Context, req resource.Creat
 		return
 	}
 
+	plan.Env = r.client.persistEnvAttr(plan.Env)
 	result, status, err := r.client.ScanImage(ctx, plan.Env.ValueString(), imageName)
 	if err != nil {
 		resp.Diagnostics.AddError("Error scanning image", err.Error())

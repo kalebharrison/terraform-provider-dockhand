@@ -48,3 +48,11 @@ resource "dockhand_git_repository" "stacks" {
 - `auto_update_schedule` (String)
 - `auto_update_cron` (String)
 - `webhook_enabled` (Boolean)
+
+## Import
+
+```bash
+terraform import dockhand_git_repository.example <id>
+```
+
+Git repository ID.

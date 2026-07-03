@@ -28,3 +28,10 @@ resource "dockhand_container_rename_action" "rename" {
 ### Read-Only
 
 - `id` (String)
+## Import
+
+Action resources are one-shot. Import the computed `id` (usually the Dockhand job ID or action record ID) after the action has run:
+
+```bash
+terraform import dockhand_container_rename_action.example <id>
+```

@@ -64,6 +64,22 @@ resource "dockhand_user" "initial_admin" {
 }
 ```
 
+## Choosing resources
+
+| Goal | Use |
+|------|-----|
+| Long-lived stack on disk | `dockhand_stack` |
+| Git-backed deployable stack | `dockhand_git_stack` |
+| One-shot start/stop/restart | `dockhand_stack_action` |
+| One-shot git deploy | `dockhand_git_stack_deploy_action` (preferred over leaving `deploy_now = true` in config) |
+| Stack env / secrets on disk | `dockhand_stack_env` |
+| Adopt existing runtime stack | `dockhand_stack_adopt_action` |
+| Batch or prune cleanup | `dockhand_batch_action`, `dockhand_prune_action` |
+| One-shot container operation | `dockhand_container_action`, `dockhand_container_update_action`, etc. |
+| Re-run an action | Change the `trigger` attribute (forces replace) |
+
+Set `provider.default_env` for single-environment setups, or set `env` on each resource for multi-environment Dockhand installs.
+
 ## Recommended Starting Points
 
 - Bootstrap first admin: `examples/scenarios/bootstrap-admin/main.tf`

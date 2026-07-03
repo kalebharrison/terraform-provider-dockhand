@@ -2,14 +2,19 @@
 
 Provider releases should only be cut when all of the following pass on `main`:
 
-1. `Go CI`
-2. `Quality CI`
-3. `Govulncheck`
-4. `Workflow Lint`
-5. `Shell Lint`
-6. `Gitleaks`
-7. `Acceptance Full` (most recent scheduled/dispatch run)
-8. `Dockhand Release Watch` (most recent run)
+1. `Go CI` (includes vet, golangci-lint, staticcheck, and shellcheck)
+2. `Govulncheck`
+3. `Workflow Lint`
+4. `Gitleaks`
+5. `dependency-review`
+6. `Acceptance Full` (most recent scheduled/dispatch run)
+7. `Dockhand Release Watch` (most recent run)
+
+## Release lens review (agent)
+
+Before creating `vX.Y.Z`, the agent runs the **release-tier lens set** per `docs/testing/release-lens-review.md` (core 5 for patch, all 11 for minor/major) and logs to `docs/reports/agent-review-log.md`.
+
+Do not tag while **high** severity findings are open.
 
 ## Operational Gate Checklist
 
@@ -18,9 +23,10 @@ Before creating `vX.Y.Z`:
 1. Ensure no open `compatibility` issues for current Dockhand release.
 2. Confirm `TestAcceptanceManifestCoverage` passes.
 3. Confirm docs/examples parity check passes (`/usr/bin/python3 scripts/check-doc-example-coverage.py`).
-4. Confirm endpoint probe report is clean for current Dockhand target.
+4. Confirm committed `docs/reports/endpoint-probe.md` is current **or** a green **Acceptance Full** / **Release Watch** run completed since the last probe script change ( **Compat Reports Sync** PR merged or pending).
 5. Confirm latest `Dockhand Release Watch` run produced compatibility artifacts (`endpoint-probe.*`, `webui-api-endpoints.txt`, `webui-endpoint-gap-audit.md`, `docs-reference-*`, `private-endpoint-probe.*`, `api-drift-gate.md`).
-6. Cut signed tag:
+6. Complete release lens review (`docs/testing/release-lens-review.md`) — **clear to tag** verdict in review log.
+7. Cut signed tag:
 
 ```bash
 git tag -s vX.Y.Z -m "Release vX.Y.Z"
@@ -51,15 +57,6 @@ When a compatibility run fails on new API drift:
 1. Review `api-drift-gate.md` artifact from the failed run.
 2. Integrate new routes into provider/probe coverage where appropriate.
 3. For accepted backlog gaps, add them to `docs/non-present-endpoints.md`.
-4. Refresh baseline snapshots in `docs/reports/` after triage:
+4. After a green **Acceptance Full** or **Release Watch** run, **Compat Reports Sync** opens a PR updating `docs/reports/` baselines — merge it (or let `agent-auto-merge` handle it).
 
-```bash
-DOCKHAND_ENDPOINT=<endpoint> \
-DOCKHAND_USERNAME=<username> \
-DOCKHAND_PASSWORD=<password> \
-DOCKHAND_AUTH_PROVIDER=local \
-RUN_ENDPOINT_PROBE=true \
-RUN_WEBUI_AUDIT=true \
-RUN_DOCS_REFERENCE_AUDIT=true \
-./scripts/run-acceptance-harness.sh
-```
+Manual local harness runs are debug-only; see `docs/AGENT_AUTONOMY.md`.

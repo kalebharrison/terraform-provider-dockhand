@@ -1,6 +1,3 @@
-# Source of truth for repository-level GitHub settings.
-# Repositories that enable GitHub Advanced Security should also set the
-# Actions variable ENABLE_GITHUB_ADVANCED_SECURITY=true so optional uploads run.
 repository:
   allow_auto_merge: true
   allow_merge_commit: false
@@ -27,11 +24,11 @@ branches:
           - Dockhand + DinD Acceptance Tests
           - Require linked issue and mark in-progress
           - Conventional PR title
-          - Vet, Lint, Staticcheck
           - Secret Scan
           - actionlint
           - Analyze (Go) (go)
           - Go Vulnerability Check
+          - dependency-review
       required_pull_request_reviews:
         dismiss_stale_reviews: true
         require_code_owner_reviews: false
@@ -63,6 +60,24 @@ labels:
   - name: maintenance
     color: c5def5
     description: Refactors, cleanup, or repo hygiene
+  - name: agent
+    color: "0E8A16"
+    description: Automated agent-authored work
+  - name: agent-auto-merge
+    color: "1D76DB"
+    description: Opt-in squash auto-merge for agent PRs when checks pass
+  - name: in-progress
+    color: "1D76DB"
+    description: Issue is linked to an open pull request
+  - name: awaiting-release
+    color: "FBCA04"
+    description: Issue fixed on main and waiting for a tagged release
+  - name: released
+    color: "0E8A16"
+    description: Issue is included in a published release
+  - name: regression
+    color: "B60205"
+    description: Reporter indicates fix did not work; needs follow-up
   - name: question
     color: d876e3
     description: Usage or clarification requests
@@ -72,3 +87,9 @@ labels:
   - name: "status: needs-info"
     color: fbca04
     description: More detail is needed before work can continue
+  - name: "status: in-progress"
+    color: 1d76db
+    description: Issue is linked to an open pull request
+  - name: awaiting-release
+    color: fbcA04
+    description: Issue fixed on main and waiting for a tagged release

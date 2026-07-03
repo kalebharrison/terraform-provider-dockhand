@@ -4,10 +4,10 @@ on:
   workflow_run:
     workflows:
       - Go CI
-      - Quality CI
       - Acceptance Full
       - Release Artifacts
       - Dockhand Release Watch
+      - Agent Validate
     types:
       - completed
 

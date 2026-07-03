@@ -150,15 +150,23 @@ func (p *dockhandProvider) Configure(ctx context.Context, req provider.Configure
 	}
 
 	insecure := false
+	if raw := os.Getenv("DOCKHAND_INSECURE"); raw != "" {
+		switch raw {
+		case "1", "true", "TRUE", "yes", "YES":
+			insecure = true
+		}
+	}
 	if !config.Insecure.IsNull() && !config.Insecure.IsUnknown() {
 		insecure = config.Insecure.ValueBool()
 	}
 
 	allowUnauthenticated := false
+	envAllowUnauth := false
 	if raw := os.Getenv("DOCKHAND_ALLOW_UNAUTHENTICATED"); raw != "" {
 		switch raw {
 		case "1", "true", "TRUE", "yes", "YES":
 			allowUnauthenticated = true
+			envAllowUnauth = true
 		}
 	}
 	if !config.AllowUnauthenticated.IsNull() && !config.AllowUnauthenticated.IsUnknown() {
@@ -187,6 +195,12 @@ func (p *dockhandProvider) Configure(ctx context.Context, req provider.Configure
 				"Set provider `username` and `password` (or export `DOCKHAND_USERNAME`/`DOCKHAND_PASSWORD`), or set `api_token` (or export `DOCKHAND_API_TOKEN`). For first-install bootstrap flows, set `allow_unauthenticated = true` (or `DOCKHAND_ALLOW_UNAUTHENTICATED=true`).",
 			)
 			return
+		}
+		if envAllowUnauth && (config.AllowUnauthenticated.IsNull() || config.AllowUnauthenticated.IsUnknown()) {
+			resp.Diagnostics.AddWarning(
+				"DOCKHAND_ALLOW_UNAUTHENTICATED is enabled via environment",
+				"Prefer explicit `allow_unauthenticated = true` in the provider block for bootstrap flows so intent is visible in Terraform configuration.",
+			)
 		}
 		resp.Diagnostics.AddWarning(
 			"Unauthenticated provider mode enabled",

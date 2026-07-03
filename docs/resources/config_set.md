@@ -61,3 +61,10 @@ resource "dockhand_config_set" "defaults" {
 - `network_mode` (String)
 - `restart_policy` (String)
 
+## Import
+
+```bash
+terraform import dockhand_config_set.example <id>
+```
+
+Config set ID.

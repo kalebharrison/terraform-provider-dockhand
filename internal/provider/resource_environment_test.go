@@ -45,9 +45,15 @@ func TestBuildEnvironmentPayloadIncludesAgentTokenForAgentStandardConnection(t *
 }
 
 func TestBuildEnvironmentPayloadDoesNotIncludeAgentTokenForNonAgentConnection(t *testing.T) {
+	host := "docker.example.com"
+	port := int64(2375)
+	protocol := "http"
 	plan := environmentModel{
 		Name:           types.StringValue("direct-env"),
 		ConnectionType: types.StringValue("direct"),
+		Host:           types.StringValue(host),
+		Port:           types.Int64Value(port),
+		Protocol:       types.StringValue(protocol),
 		AgentToken:     types.StringValue("should-not-be-sent"),
 	}
 
@@ -190,9 +196,13 @@ func TestShouldProvisionAgentTokenForAgentStandard(t *testing.T) {
 
 func TestBuildEnvironmentPayloadIncludesPublicIP(t *testing.T) {
 	ip := "203.0.113.10"
+	host := "docker.example.com"
 	plan := environmentModel{
 		Name:           types.StringValue("edge"),
 		ConnectionType: types.StringValue("direct"),
+		Host:           types.StringValue(host),
+		Port:           types.Int64Value(2375),
+		Protocol:       types.StringValue("http"),
 		PublicIP:       types.StringValue(ip),
 	}
 

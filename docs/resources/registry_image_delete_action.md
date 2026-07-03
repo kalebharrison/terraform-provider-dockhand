@@ -34,8 +34,15 @@ resource "dockhand_registry_image_delete_action" "cleanup" {
 
 ### Read-Only
 
-- `id` (String) Internal action instance ID (`<registry>:<image>:<tag>:<trigger>`).
+- `id` (String) Internal action instance ID (<registry>:<image>:<tag>:<trigger>).
 - `success` (Boolean) True when Dockhand returned a success status.
 - `status_code` (Number) HTTP status code returned by Dockhand.
 - `error` (String) Error message when the request fails.
 - `result_json` (String) Raw success/error payload as JSON.
+## Import
+
+Action resources are one-shot. Import the computed `id` (usually the Dockhand job ID or action record ID) after the action has run:
+
+```bash
+terraform import dockhand_registry_image_delete_action.example <id>
+```

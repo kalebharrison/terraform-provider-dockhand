@@ -57,3 +57,10 @@ resource "dockhand_registry" "private" {
 
 - `password` (String, Sensitive)
 
+## Import
+
+```bash
+terraform import dockhand_registry.example <id>
+```
+
+Registry ID.

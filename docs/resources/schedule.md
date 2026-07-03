@@ -16,7 +16,7 @@ resource "dockhand_schedule" "system_cleanup" {
 
 - This resource manages existing schedules only.
 - Schedule creation is not exposed by the current API contract.
-- Import format is `<type>:<schedule_id>`.
+- Import format is <type>:<schedule_id>.
 
 ## Schema
 
@@ -28,7 +28,7 @@ resource "dockhand_schedule" "system_cleanup" {
 
 ### Read-Only
 
-- `id` (String) Synthetic ID in format `<type>:<schedule_id>`.
+- `id` (String) Synthetic ID in format <type>:<schedule_id>.
 - `name` (String) Schedule name.
 - `is_system` (Boolean) Whether schedule is system-managed.
 - `next_run` (String) Next run timestamp.

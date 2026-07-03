@@ -130,11 +130,83 @@ jobs:
             await ensureLabel("awaiting-release", "FBCA04", "Issue fixed on main and waiting for a tagged release");
 
             for (const issueNumber of issueNumbers) {
+              let whatFixed = "";
+              let userImpact = "";
+              for (const prNumber of prNumbers) {
+                try {
+                  const prResp = await github.rest.pulls.get({
+                    owner,
+                    repo,
+                    pull_number: prNumber,
+                  });
+                  const prBody = prResp.data.body || "";
+                  const section = (heading, body) => {
+                    const re = new RegExp(
+                      `## ${heading}\\s*\\n+([\\s\\S]*?)(?=\\n## |$)`,
+                      "i"
+                    );
+                    const m = body.match(re);
+                    return m ? m[1].trim() : "";
+                  };
+                  const wf = section("What was fixed", prBody);
+                  const ui = section("User impact", prBody);
+                  if (wf && !whatFixed) whatFixed = wf;
+                  if (ui && !userImpact) userImpact = ui;
+                } catch (error) {
+                  if (error.status !== 404) throw error;
+                }
+              }
+
+              const version = tag.replace(/^v/, "");
+              const upgradeBlock = [
+                "### Upgrade",
+                "",
+                "In your Terraform configuration:",
+                "",
+                "```hcl",
+                "terraform {",
+                "  required_providers {",
+                "    dockhand = {",
+                '      source  = "kalebharrison/dockhand"',
+                `      version = ">= ${version}"`,
+                "    }",
+                "  }",
+                "}",
+                "```",
+                "",
+                "Then run `terraform init -upgrade`.",
+              ].join("\n");
+
+              const reopenBlock = [
+                "### If the problem continues",
+                "",
+                "Please **reopen this issue** or **comment here** if you still see the problem **after upgrading to `" + tag + "`**.",
+                "",
+                "Include provider version, Dockhand version, and a minimal repro or error message.",
+                "Comments on closed issues are monitored; we will reopen for investigation when the fix did not work.",
+              ].join("\n");
+
+              const bodyParts = [
+                `## Released in \`${tag}\``,
+                "",
+                releaseUrl ? `Release notes: ${releaseUrl}` : "",
+                "",
+              ];
+
+              if (whatFixed) {
+                bodyParts.push("### What was fixed", "", whatFixed, "");
+              }
+              if (userImpact) {
+                bodyParts.push("### User impact", "", userImpact, "");
+              }
+
+              bodyParts.push(upgradeBlock, "", reopenBlock, "", "---", "_Posted by Release Issue Notify._");
+
               await github.rest.issues.createComment({
                 owner,
                 repo,
                 issue_number: issueNumber,
-                body: `Fixed and released in \`${tag}\`: ${releaseUrl}`,
+                body: bodyParts.filter((line) => line !== undefined).join("\n"),
               });
 
               await github.rest.issues.addLabels({

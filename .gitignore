@@ -32,5 +32,14 @@ terraform.rc
 # Codex local environment config (machine-specific)
 .codex/
 
+# Local credentials / secrets
+.env
+.env.*
+!.env.example
+secrets/
+*.tfvars
+*.tfvars.json
+!*.tfvars.example
+
 # Local Terraform test/mirror workspace (repo-local, untracked)
 terraform/

@@ -40,7 +40,7 @@ resource "dockhand_environment_test_action" "direct" {
 
 ### Read-Only
 
-- `id` (String) Internal action instance ID (`<connection_type>:<target>:<trigger>`).
+- `id` (String) Internal action instance ID (<connection_type>:<target>:<trigger>).
 - `success` (Boolean) Dockhand connectivity test success flag.
 - `error` (String) Dockhand error message when present.
 - `info_json` (String) Raw `info` object JSON from Dockhand response.
@@ -49,3 +49,10 @@ resource "dockhand_environment_test_action" "direct" {
 - `daemon_name` (String) Docker daemon/environment name from response `info`.
 - `containers` (Number) Container count from response `info`.
 - `images` (Number) Image count from response `info`.
+## Import
+
+Action resources are one-shot. Import the computed `id` (usually the Dockhand job ID or action record ID) after the action has run:
+
+```bash
+terraform import dockhand_environment_test_action.example <id>
+```

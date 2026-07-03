@@ -57,7 +57,7 @@ func (r *gitStackDeployActionResource) Schema(_ context.Context, _ resource.Sche
 				},
 			},
 			"result": schema.StringAttribute{Computed: true},
-			"output": schema.StringAttribute{Computed: true},
+			"output": schema.StringAttribute{Computed: true, Sensitive: true},
 		},
 	}
 }
@@ -107,7 +107,7 @@ func (r *gitStackDeployActionResource) Create(ctx context.Context, req resource.
 	}
 
 	plan.ID = types.StringValue(fmt.Sprintf("%s:%s", stackID, plan.Trigger.ValueString()))
-	plan.Result = types.StringValue("deploy_requested")
+	plan.Result = types.StringValue("deploy_completed")
 	if strings.TrimSpace(output) == "" {
 		plan.Output = types.StringNull()
 	} else {

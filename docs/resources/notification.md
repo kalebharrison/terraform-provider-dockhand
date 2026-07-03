@@ -45,3 +45,10 @@ resource "dockhand_notification" "smtp" {
 - Dockhand returns `eventTypes` and may default them to a large set on create. If you omit `event_types` in Terraform, the resource will adopt Dockhand's defaults on create and then store the resulting set in state.
 - `smtp_password` is marked sensitive. Terraform will store it in state if set (ensure your state is secured).
 
+## Import
+
+```bash
+terraform import dockhand_notification.example <id>
+```
+
+Notification ID.

@@ -18,3 +18,10 @@ resource "dockhand_license" "this" {
 - If you omit `name` and `key`, the resource reads and reports current license status only.
 - `delete` revokes the current license via `DELETE /api/license`.
 
+## Import
+
+```bash
+terraform import dockhand_license.example `license`
+```
+
+Singleton resource; import ID is the literal `license`.

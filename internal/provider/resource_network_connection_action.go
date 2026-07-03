@@ -108,6 +108,7 @@ func (r *networkConnectionActionResource) Create(ctx context.Context, req resour
 	}
 
 	action := strings.ToLower(strings.TrimSpace(plan.Action.ValueString()))
+	plan.Env = r.client.persistEnvAttr(plan.Env)
 	env := plan.Env.ValueString()
 	networkID := strings.TrimSpace(plan.NetworkID.ValueString())
 	containerID := strings.TrimSpace(plan.ContainerID.ValueString())

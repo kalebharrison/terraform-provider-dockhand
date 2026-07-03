@@ -1,0 +1,28 @@
+---
+description: Agent-managed workflow for terraform-provider-dockhand
+globs:
+  - "**/*"
+---
+
+# Agent workflow
+
+When working on `agent/**` branches or issues labeled `agent`:
+
+1. Read `docs/AGENT_RUNBOOK.md`, `docs/AGENT_CODING_STANDARDS.md`, `docs/AGENT_ISSUE_RESPONSE.md`, and `docs/AGENT_IDENTITY.md` first.
+2. Branch: `agent/issue-<number>-<short-slug>`.
+3. Every commit must include:
+   `Co-authored-by: Cursor Agent <noreply@cursor.com>`
+   Use `./scripts/agent-commit-msg.sh` or `source ./scripts/agent-git-env.sh && agent_commit`.
+4. Validate before push: `./scripts/verify.sh --quality`
+5. Push only; do not open PRs manually — **Agent Open PR** creates them.
+6. Before merge: fill PR **What was fixed** and **User impact** (required for auto-merge). See `docs/AGENT_ISSUE_RESPONSE.md`.
+7. Provider surface changes: follow `docs/AGENT_CODING_STANDARDS.md` (manifest, docs, examples, acceptance tests).
+8. Do not merge, tag releases, or commit secrets. Pick up `regression`-labeled reopened issues like new work.
+
+## Focused review lenses
+
+**Before every release:** lens review per tier (`docs/testing/release-lens-review.md`) — patch = core 5, minor/major = all 11.
+
+**Otherwise:** run a single lens only when the maintainer asks or an ad hoc trigger in `docs/AGENT_REVIEW_LENSES.md` applies.
+
+Human branches (`codex/*`, etc.) follow `CONTRIBUTING.md` and `docs/MAINTENANCE_PLAYBOOK.md`.

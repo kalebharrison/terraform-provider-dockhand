@@ -1,13 +1,24 @@
 # Endpoint Probe
 
-Use this to verify Dockhand API endpoint presence against a live instance without mutating state.
+Verifies Dockhand API endpoint presence against a live instance without mutating state.
 
-## Command
+## Default execution path (CI)
 
-From repository root:
+The probe runs automatically inside the acceptance harness on GitHub Actions:
+
+- **Acceptance Full** (nightly + `workflow_dispatch`)
+- **Dockhand Release Watch** (every 6h when a new image is detected)
+
+Reports are written to `docs/reports/` and synced to `main` by **Compat Reports Sync** (`.github/workflows/compat-reports-sync.yml`). Agents and maintainers do **not** need local `DOCKHAND_*` credentials for routine work. See `docs/AGENT_AUTONOMY.md`.
+
+## Debug-only local run
+
+For investigating CI failures when you have a disposable Dockhand instance:
 
 ```bash
-source terraform/dockhand/test/env.sh
+export DOCKHAND_ENDPOINT="http://127.0.0.1:13001"
+export DOCKHAND_USERNAME="admin"
+export DOCKHAND_PASSWORD="..."
 DOCKHAND_PROBE_ALLOW_MUTATION=false /usr/bin/python3 scripts/endpoint-probe.py
 ```
 
@@ -16,20 +27,20 @@ Outputs:
 - `docs/reports/endpoint-probe.csv`
 - `docs/reports/endpoint-probe.md`
 
+Do not commit local probe output unless it came from the same Dockhand version CI tests against; prefer waiting for **Compat Reports Sync**.
+
 ## Safety
 
 - Default mode is non-destructive.
 - `POST`/`PUT`/`DELETE` singleton endpoints are probed with `OPTIONS`.
 - Parameterized mutating routes use placeholder values.
-- To allow real mutating calls (for controlled acceptance checks), set:
+- To allow real mutating calls (disposable environments only):
 
 ```bash
 DOCKHAND_PROBE_ALLOW_MUTATION=true
 ```
 
-Use mutation mode only in a disposable test environment.
-
-## Result Categories
+## Result categories
 
 - `present`: endpoint responded with non-404.
 - `not_present`: non-parameterized route returned `404`.

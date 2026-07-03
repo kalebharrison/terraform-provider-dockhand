@@ -62,7 +62,7 @@ func (d *notificationsDataSource) Schema(_ context.Context, _ datasource.SchemaR
 							Computed:    true,
 							ElementType: types.StringType,
 						},
-						"config_json": schema.StringAttribute{Computed: true},
+						"config_json": schema.StringAttribute{Computed: true, Sensitive: true},
 						"created_at":  schema.StringAttribute{Computed: true},
 						"updated_at":  schema.StringAttribute{Computed: true},
 					},

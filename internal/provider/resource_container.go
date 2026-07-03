@@ -164,6 +164,7 @@ func (r *containerResource) Schema(_ context.Context, _ resource.SchemaRequest, 
 			},
 			"env_vars": schema.MapAttribute{
 				MarkdownDescription: "Environment variables map for create request.",
+				Sensitive:           true,
 				Optional:            true,
 				ElementType:         types.StringType,
 				PlanModifiers: []planmodifier.Map{
@@ -200,6 +201,7 @@ func (r *containerResource) Schema(_ context.Context, _ resource.SchemaRequest, 
 			},
 			"update_payload_json": schema.StringAttribute{
 				MarkdownDescription: "Optional raw JSON object sent to `/api/containers/{id}/update` after create and on updates. Use this to access advanced Dockhand update fields not yet modeled as first-class attributes.",
+				Sensitive:           true,
 				Optional:            true,
 				Computed:            true,
 			},
@@ -248,6 +250,13 @@ func (r *containerResource) Create(ctx context.Context, req resource.CreateReque
 		return
 	}
 
+	env, err := r.client.requireResolvedEnv(plan.Env.ValueString())
+	if err != nil {
+		resp.Diagnostics.AddError("Missing environment", err.Error())
+		return
+	}
+	plan.Env = r.client.persistEnvAttr(plan.Env)
+
 	portsPayload, flattenErr := flattenContainerPorts(plan.Ports)
 	if flattenErr != nil {
 		resp.Diagnostics.AddError("Invalid container port mapping", flattenErr.Error())
@@ -286,7 +295,7 @@ func (r *containerResource) Create(ctx context.Context, req resource.CreateReque
 		payload.CapAdd = v
 	}
 
-	created, _, err := r.client.CreateContainer(ctx, plan.Env.ValueString(), payload)
+	created, _, err := r.client.CreateContainer(ctx, env, payload)
 	if err != nil {
 		resp.Diagnostics.AddError("Error creating Dockhand container", err.Error())
 		return
@@ -317,13 +326,13 @@ func (r *containerResource) Create(ctx context.Context, req resource.CreateReque
 	}
 
 	if !plan.Enabled.ValueBool() {
-		if _, err := r.client.StopContainer(ctx, plan.Env.ValueString(), created.ID); err != nil {
+		if _, err := r.client.StopContainer(ctx, env, created.ID); err != nil {
 			resp.Diagnostics.AddError("Error stopping Dockhand container after create", err.Error())
 			return
 		}
 	}
 
-	container, found, err := r.client.GetContainerByID(ctx, plan.Env.ValueString(), created.ID)
+	container, found, err := r.client.GetContainerByID(ctx, env, created.ID)
 	if err != nil {
 		resp.Diagnostics.AddError("Error reading Dockhand container after create", err.Error())
 		return
@@ -355,6 +364,11 @@ func (r *containerResource) Read(ctx context.Context, req resource.ReadRequest, 
 	if !found {
 		resp.State.RemoveResource(ctx)
 		return
+	}
+
+	resolvedEnv := r.client.persistEnvAttr(state.Env)
+	if !resolvedEnv.IsNull() && !resolvedEnv.IsUnknown() {
+		state.Env = resolvedEnv
 	}
 
 	applyContainerRuntimeToState(&state, container)
@@ -507,10 +521,29 @@ func applyContainerRuntimeToState(state *containerResourceModel, container *cont
 	if container == nil {
 		return
 	}
+	if strings.TrimSpace(container.Name) != "" {
+		state.Name = types.StringValue(container.Name)
+	}
+	if strings.TrimSpace(container.Image) != "" {
+		state.Image = types.StringValue(container.Image)
+	}
 	state.State = types.StringValue(container.State)
 	state.Status = types.StringValue(container.Status)
 	state.Health = types.StringValue(container.Health)
 	state.RestartCount = types.Int64Value(container.RestartCount)
+	status := firstNonEmpty(container.State, container.Status)
+	if enabled, ok := runtimeEnabledFromStatus(status); ok {
+		state.Enabled = types.BoolValue(enabled)
+	}
+}
+
+func firstNonEmpty(values ...string) string {
+	for _, value := range values {
+		if v := strings.TrimSpace(value); v != "" {
+			return v
+		}
+	}
+	return ""
 }
 
 func parseContainerUpdatePayload(raw string) (map[string]any, error) {

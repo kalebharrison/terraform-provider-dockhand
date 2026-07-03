@@ -24,6 +24,7 @@ from __future__ import annotations
 import datetime as dt
 import json
 import os
+import re
 import ssl
 import sys
 import urllib.error
@@ -101,6 +102,19 @@ def parse_query(raw: str) -> dict[str, str]:
     return {k: v[0] if v else "" for k, v in parsed.items()}
 
 
+def scrub_response_preview(text: str) -> str:
+    if not text:
+        return text
+    patterns = (
+        r'("(?:password|token|agent_token|agentToken|hawserToken|secret|apiKey|api_token)")\s*:\s*"[^"]*"',
+        r'("(?:cert|key|privateKey|certificate)")\s*:\s*"[^"]*"',
+    )
+    scrubbed = text
+    for pattern in patterns:
+        scrubbed = re.sub(pattern, r'\1:"[redacted]"', scrubbed, flags=re.IGNORECASE)
+    return scrubbed
+
+
 def main() -> int:
     endpoint = getenv_required("DOCKHAND_ENDPOINT")
     username = getenv_required("DOCKHAND_USERNAME")
@@ -134,7 +148,7 @@ def main() -> int:
 
     now = dt.datetime.utcnow().replace(microsecond=0).isoformat() + "Z"
     result = summarize(status)
-    preview = response[:1000]
+    preview = scrub_response_preview(response[:1000])
 
     payload = {
         "timestamp_utc": now,

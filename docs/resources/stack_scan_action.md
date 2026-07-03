@@ -24,3 +24,10 @@ resource "dockhand_stack_scan_action" "scan" {
 - `skipped_count` (Number)
 - `error_count` (Number)
 - `result_json` (String) Raw JSON response payload.
+## Import
+
+Action resources are one-shot. Import the computed `id` (usually the Dockhand job ID or action record ID) after the action has run:
+
+```bash
+terraform import dockhand_stack_scan_action.example <id>
+```

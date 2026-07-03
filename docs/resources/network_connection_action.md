@@ -29,3 +29,10 @@ resource "dockhand_network_connection_action" "attach" {
 ### Read-Only
 
 - `id` (String) Internal action execution ID.
+## Import
+
+Action resources are one-shot. Import the computed `id` (usually the Dockhand job ID or action record ID) after the action has run:
+
+```bash
+terraform import dockhand_network_connection_action.example <id>
+```

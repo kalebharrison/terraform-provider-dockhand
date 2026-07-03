@@ -93,6 +93,7 @@ func (r *notificationResource) Schema(_ context.Context, _ resource.SchemaReques
 
 			"apprise_urls": schema.ListAttribute{
 				MarkdownDescription: "Apprise URLs (required when `type = \"apprise\"`).",
+				Sensitive:           true,
 				ElementType:         types.StringType,
 				Optional:            true,
 			},
@@ -117,6 +118,7 @@ func (r *notificationResource) Schema(_ context.Context, _ resource.SchemaReques
 			"smtp_username": schema.StringAttribute{
 				MarkdownDescription: "SMTP username (optional when `type = \"smtp\"`).",
 				Optional:            true,
+				Sensitive:           true,
 			},
 			"smtp_password": schema.StringAttribute{
 				MarkdownDescription: "SMTP password (optional when `type = \"smtp\"`).",

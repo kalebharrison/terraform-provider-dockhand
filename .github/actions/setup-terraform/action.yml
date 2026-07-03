@@ -1,0 +1,55 @@
+name: Setup Terraform
+description: Install Terraform CLI for acceptance tests when not present on the runner.
+
+inputs:
+  version:
+    description: Terraform version to install when missing from PATH.
+    required: false
+    default: "1.14.8"
+
+runs:
+  using: composite
+  steps:
+    - name: Ensure Terraform CLI
+      shell: bash
+      env:
+        TF_VERSION: ${{ inputs.version }}
+      run: |
+        set -euo pipefail
+
+        if command -v terraform >/dev/null 2>&1; then
+          terraform_path="$(command -v terraform)"
+          echo "TF_ACC_TERRAFORM_PATH=${terraform_path}" >> "${GITHUB_ENV}"
+          "${terraform_path}" version
+          exit 0
+        fi
+
+        arch="$(uname -m)"
+        case "${arch}" in
+          x86_64) arch="amd64" ;;
+          arm64|aarch64) arch="arm64" ;;
+          *)
+            echo "unsupported architecture for Terraform download: ${arch}" >&2
+            exit 1
+            ;;
+        esac
+
+        install_dir="${RUNNER_TEMP}/terraform-${TF_VERSION}"
+        mkdir -p "${install_dir}"
+
+        curl -fsSL \
+          "https://releases.hashicorp.com/terraform/${TF_VERSION}/terraform_${TF_VERSION}_linux_${arch}.zip" \
+          -o "${RUNNER_TEMP}/terraform_${TF_VERSION}_linux_${arch}.zip"
+        curl -fsSL \
+          "https://releases.hashicorp.com/terraform/${TF_VERSION}/terraform_${TF_VERSION}_SHA256SUMS" \
+          -o "${RUNNER_TEMP}/terraform_SHA256SUMS"
+
+        (
+          cd "${RUNNER_TEMP}"
+          grep "terraform_${TF_VERSION}_linux_${arch}.zip" terraform_SHA256SUMS | sha256sum --check --status
+        )
+        unzip -q "${RUNNER_TEMP}/terraform_${TF_VERSION}_linux_${arch}.zip" -d "${install_dir}"
+
+        terraform_path="${install_dir}/terraform"
+        echo "TF_ACC_TERRAFORM_PATH=${terraform_path}" >> "${GITHUB_ENV}"
+        "${terraform_path}" version

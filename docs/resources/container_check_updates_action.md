@@ -24,3 +24,10 @@ resource "dockhand_container_check_updates_action" "check" {
 - `total` (Number)
 - `updates_found` (Number)
 - `results_json` (String) Raw JSON array of per-container results.
+## Import
+
+Action resources are one-shot. Import the computed `id` (usually the Dockhand job ID or action record ID) after the action has run:
+
+```bash
+terraform import dockhand_container_check_updates_action.example <id>
+```

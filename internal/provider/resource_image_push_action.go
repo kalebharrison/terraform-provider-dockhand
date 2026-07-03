@@ -113,6 +113,7 @@ func (r *imagePushActionResource) Create(ctx context.Context, req resource.Creat
 		return
 	}
 
+	plan.Env = r.client.persistEnvAttr(plan.Env)
 	status, err := r.client.PushImage(ctx, plan.Env.ValueString(), imageID, plan.RegistryID.ValueInt64())
 	if err != nil {
 		resp.Diagnostics.AddError("Error pushing Dockhand image", err.Error())

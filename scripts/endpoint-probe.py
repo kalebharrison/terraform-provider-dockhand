@@ -52,6 +52,19 @@ ENDPOINTS: List[Dict[str, Any]] = [
     {"method": "GET", "path": "/api/environments/{id}"},
     {"method": "PUT", "path": "/api/environments/{id}"},
     {"method": "DELETE", "path": "/api/environments/{id}"},
+    {"method": "POST", "path": "/api/environments/test"},
+    {"method": "POST", "path": "/api/environments/{id}/test"},
+    {"method": "GET", "path": "/api/environments/detect-socket"},
+    {"method": "GET", "path": "/api/environments/{id}/timezone"},
+    {"method": "POST", "path": "/api/environments/{id}/timezone"},
+    {"method": "GET", "path": "/api/environments/{id}/update-check"},
+    {"method": "POST", "path": "/api/environments/{id}/update-check"},
+    {"method": "GET", "path": "/api/environments/{id}/image-prune"},
+    {"method": "POST", "path": "/api/environments/{id}/image-prune"},
+    {"method": "POST", "path": "/api/hawser/tokens"},
+    {"method": "GET", "path": "/api/settings/scanner", "with_env": True},
+    {"method": "POST", "path": "/api/settings/scanner", "with_env": True},
+    {"method": "DELETE", "path": "/api/settings/scanner", "with_env": True, "query": {"removeImages": "false"}},
     {"method": "GET", "path": "/api/registries"},
     {"method": "POST", "path": "/api/registries"},
     {"method": "GET", "path": "/api/registries/{id}"},
@@ -72,6 +85,13 @@ ENDPOINTS: List[Dict[str, Any]] = [
     {"method": "GET", "path": "/api/git/repositories/{id}"},
     {"method": "PUT", "path": "/api/git/repositories/{id}"},
     {"method": "DELETE", "path": "/api/git/repositories/{id}"},
+    {"method": "POST", "path": "/api/git/repositories/test"},
+    {"method": "POST", "path": "/api/git/preview-env"},
+    {"method": "GET", "path": "/api/git/stacks", "with_env": True},
+    {"method": "POST", "path": "/api/git/stacks", "with_env": True},
+    {"method": "GET", "path": "/api/git/stacks/{id}", "with_env": True},
+    {"method": "PUT", "path": "/api/git/stacks/{id}", "with_env": True},
+    {"method": "DELETE", "path": "/api/git/stacks/{id}", "with_env": True},
     {"method": "GET", "path": "/api/config-sets"},
     {"method": "POST", "path": "/api/config-sets"},
     {"method": "GET", "path": "/api/config-sets/{id}"},
@@ -89,7 +109,7 @@ ENDPOINTS: List[Dict[str, Any]] = [
     {"method": "POST", "path": "/api/stacks/{name}/stop", "with_env": True},
     {"method": "POST", "path": "/api/stacks/{name}/restart", "with_env": True},
     {"method": "POST", "path": "/api/stacks/{name}/down", "with_env": True},
-    {"method": "DELETE", "path": "/api/stacks/{name}", "with_env": True},
+    {"method": "DELETE", "path": "/api/stacks/{name}", "with_env": True, "query": {"force": "true"}},
     {"method": "GET", "path": "/api/stacks/{name}/env", "with_env": True},
     {"method": "PUT", "path": "/api/stacks/{name}/env", "with_env": True},
     {"method": "GET", "path": "/api/stacks/{name}/env/raw", "with_env": True},
@@ -113,17 +133,17 @@ ENDPOINTS: List[Dict[str, Any]] = [
     {"method": "GET", "path": "/api/volumes", "with_env": True},
     {"method": "POST", "path": "/api/volumes", "with_env": True},
     {"method": "GET", "path": "/api/volumes/{name}/inspect", "with_env": True},
-    {"method": "DELETE", "path": "/api/volumes/{name}", "with_env": True},
+    {"method": "DELETE", "path": "/api/volumes/{name}", "with_env": True, "query": {"force": "true"}},
     {"method": "POST", "path": "/api/volumes/{name}/clone", "with_env": True},
     {"method": "GET", "path": "/api/images", "with_env": True},
     {"method": "POST", "path": "/api/images/pull", "with_env": True},
-    {"method": "DELETE", "path": "/api/images/{id}", "with_env": True},
+    {"method": "DELETE", "path": "/api/images/{id}", "with_env": True, "query": {"force": "true"}},
     {"method": "POST", "path": "/api/images/push", "with_env": True},
     {"method": "POST", "path": "/api/images/scan", "with_env": True},
     {"method": "GET", "path": "/api/containers", "with_env": True},
     {"method": "POST", "path": "/api/containers", "with_env": True},
     {"method": "GET", "path": "/api/containers/{id}", "with_env": True},
-    {"method": "DELETE", "path": "/api/containers/{id}", "with_env": True},
+    {"method": "DELETE", "path": "/api/containers/{id}", "with_env": True, "query": {"force": "true"}},
     {"method": "POST", "path": "/api/containers/{id}/start", "with_env": True},
     {"method": "POST", "path": "/api/containers/{id}/stop", "with_env": True},
     {"method": "POST", "path": "/api/containers/{id}/restart", "with_env": True},
@@ -322,8 +342,17 @@ def main() -> int:
             if stacks and isinstance(stacks[0], dict):
                 if "name" in stacks[0]:
                     fixtures["stack_name"] = str(stacks[0]["name"])
-                if "id" in stacks[0]:
-                    fixtures["git_stack_id"] = str(stacks[0]["id"])
+
+    sc, body = s.request("GET", "/api/git/stacks", query={"env": default_env})
+    if sc == 200:
+        git_stacks = try_json(body)
+        if isinstance(git_stacks, list) and git_stacks and isinstance(git_stacks[0], dict):
+            if "id" in git_stacks[0]:
+                fixtures["git_stack_id"] = str(git_stacks[0]["id"])
+        elif isinstance(git_stacks, dict):
+            items = git_stacks.get("stacks") or git_stacks.get("items") or []
+            if isinstance(items, list) and items and isinstance(items[0], dict) and "id" in items[0]:
+                fixtures["git_stack_id"] = str(items[0]["id"])
 
     for key, path, field in [
         ("network_id", "/api/networks", "id"),
@@ -424,6 +453,8 @@ def main() -> int:
         query = None
         if ep.get("with_env"):
             query = {"env": default_env}
+        if ep.get("query"):
+            query = {**(query or {}), **ep["query"]}
         if raw_path == "/api/registry/search":
             query = {"term": "busybox"}
             if fixtures.get("registry_id"):
@@ -520,7 +551,8 @@ def main() -> int:
 
     with open(out_md, "w", encoding="utf-8") as f:
         f.write("# Endpoint Probe Report\n\n")
-        f.write("Generated by `scripts/endpoint-probe.py`.\n\n")
+        f.write("Generated by `scripts/endpoint-probe.py` on GitHub Actions (Acceptance Full / Release Watch).\n")
+        f.write("Refreshed on `main` by **Compat Reports Sync** — see `docs/AGENT_AUTONOMY.md`.\n\n")
         f.write(f"- Total endpoints: {total}\n")
         f.write(f"- Present (non-404): {present}\n")
         f.write(f"- Not present (404 on non-parameterized route): {missing}\n")

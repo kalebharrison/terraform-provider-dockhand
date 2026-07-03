@@ -120,10 +120,12 @@ func (r *pruneActionResource) Schema(_ context.Context, _ resource.SchemaRequest
 				Computed: true,
 			},
 			"result_json": schema.StringAttribute{
-				Computed: true,
+				Computed:  true,
+				Sensitive: true,
 			},
 			"lines_json": schema.StringAttribute{
-				Computed: true,
+				Computed:  true,
+				Sensitive: true,
 			},
 			"error": schema.StringAttribute{
 				Computed: true,
@@ -170,6 +172,7 @@ func (r *pruneActionResource) Create(ctx context.Context, req resource.CreateReq
 		return
 	}
 
+	plan.Env = r.client.persistEnvAttr(plan.Env)
 	plan.Mode = types.StringValue(mode)
 	plan.StatusCode = types.Int64Value(int64(status))
 	plan.Error = types.StringNull()

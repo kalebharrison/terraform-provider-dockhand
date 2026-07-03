@@ -3,6 +3,7 @@ package provider
 import (
 	"context"
 	"fmt"
+	"net/http"
 	"os"
 	"regexp"
 	"strings"
@@ -10,6 +11,7 @@ import (
 	"time"
 
 	"github.com/hashicorp/terraform-plugin-testing/helper/resource"
+	"github.com/hashicorp/terraform-plugin-testing/terraform"
 )
 
 func TestAccContainerFileDirectoryResourceTerraform(t *testing.T) {
@@ -116,6 +118,7 @@ func TestAccStackEnvResourceTerraform(t *testing.T) {
 
 	resource.Test(t, resource.TestCase{
 		ProtoV6ProviderFactories: testAccProviderFactories(),
+		CheckDestroy:             testAccCheckStackEnvDestroyed(endpoint, username, password),
 		Steps: []resource.TestStep{
 			{
 				Config: testAccStackEnvConfig(defaultEnv, stackName, "API_KEY=abc\n", "TOKEN", "secret-1", "acc-run-1"),
@@ -135,8 +138,42 @@ func TestAccStackEnvResourceTerraform(t *testing.T) {
 					resource.TestCheckResourceAttr("dockhand_stack_env.test", "trigger", "acc-run-2"),
 				),
 			},
+			{
+				ResourceName:            "dockhand_stack_env.test",
+				ImportState:             true,
+				ImportStateVerify:       true,
+				ImportStateVerifyIgnore: []string{"trigger", "secret_variables"},
+			},
 		},
 	})
+}
+
+func testAccCheckStackEnvDestroyed(endpoint string, username string, password string) func(state *terraform.State) error {
+	return func(state *terraform.State) error {
+		client, err := testAccDestroyClient(endpoint, username, password)
+		if err != nil {
+			return err
+		}
+
+		for _, rs := range state.RootModule().Resources {
+			if rs.Type != "dockhand_stack_env" {
+				continue
+			}
+			env := strings.TrimSpace(rs.Primary.Attributes["env"])
+			if env == "" {
+				env = testAccDefaultEnv()
+			}
+			stackName := strings.TrimSpace(rs.Primary.Attributes["stack_name"])
+			raw, status, err := client.GetStackEnvRaw(context.Background(), env, stackName)
+			if err != nil && status != http.StatusNotFound {
+				return fmt.Errorf("check stack env destroy: %w", err)
+			}
+			if strings.TrimSpace(raw) != "" {
+				return fmt.Errorf("stack env raw content still present for %q", stackName)
+			}
+		}
+		return nil
+	}
 }
 
 func TestAccGitStackEnvFileResourceTerraform(t *testing.T) {

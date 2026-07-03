@@ -25,4 +25,11 @@ resource "dockhand_schedule_run_action" "run_now" {
 
 ### Read-Only
 
-- `id` (String) Synthetic ID in format `<type>:<schedule_id>:<trigger>`.
+- `id` (String) Synthetic ID in format <type>:<schedule_id>:<trigger>.
+## Import
+
+Action resources are one-shot. Import the computed `id` (usually the Dockhand job ID or action record ID) after the action has run:
+
+```bash
+terraform import dockhand_schedule_run_action.example <id>
+```

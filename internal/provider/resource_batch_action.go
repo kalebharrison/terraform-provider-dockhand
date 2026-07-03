@@ -42,6 +42,7 @@ type batchActionResourceModel struct {
 	Trigger           types.String `tfsdk:"trigger"`
 	JobID             types.String `tfsdk:"job_id"`
 	JobStatus         types.String `tfsdk:"job_status"`
+	Success           types.Bool   `tfsdk:"success"`
 	ResultJSON        types.String `tfsdk:"result_json"`
 	LinesJSON         types.String `tfsdk:"lines_json"`
 }
@@ -106,10 +107,14 @@ func (r *batchActionResource) Schema(_ context.Context, _ resource.SchemaRequest
 					stringplanmodifier.RequiresReplace(),
 				},
 			},
-			"job_id":      schema.StringAttribute{Computed: true},
-			"job_status":  schema.StringAttribute{Computed: true},
-			"result_json": schema.StringAttribute{Computed: true},
-			"lines_json":  schema.StringAttribute{Computed: true},
+			"job_id":     schema.StringAttribute{Computed: true},
+			"job_status": schema.StringAttribute{Computed: true},
+			"success": schema.BoolAttribute{
+				MarkdownDescription: "Whether the batch job completed successfully when `wait_for_completion` is true.",
+				Computed:            true,
+			},
+			"result_json": schema.StringAttribute{Computed: true, Sensitive: true},
+			"lines_json":  schema.StringAttribute{Computed: true, Sensitive: true},
 		},
 	}
 }
@@ -161,6 +166,7 @@ func (r *batchActionResource) Create(ctx context.Context, req resource.CreateReq
 		return
 	}
 
+	plan.Env = r.client.persistEnvAttr(plan.Env)
 	plan.EntityType = types.StringValue(entityType)
 	plan.Operation = types.StringValue(operation)
 	if strings.TrimSpace(submitted.JobID) != "" {
@@ -183,12 +189,15 @@ func (r *batchActionResource) Create(ctx context.Context, req resource.CreateReq
 		Lines:  []jobLineResponse{},
 	}
 	if strings.TrimSpace(submitted.JobID) == "" {
-		job.Status = "done"
+		job.Status = normalizeJobStatus(job.Status, submitted.Result)
 		if s := strings.TrimSpace(submitted.Status); s != "" {
-			job.Status = s
+			job.Status = normalizeJobStatus(s, submitted.Result)
 		}
 		if submitted.Result != nil {
 			job.Result = submitted.Result
+		}
+		if jobPayloadIndicatesFailure(job.Result) {
+			job.Status = "failed"
 		}
 	}
 
@@ -215,6 +224,23 @@ func (r *batchActionResource) Create(ctx context.Context, req resource.CreateReq
 	}
 
 	applyJobState(&plan.JobStatus, &plan.ResultJSON, &plan.LinesJSON, job)
+	if waitForCompletion {
+		status := strings.TrimSpace(plan.JobStatus.ValueString())
+		if jobPayloadIndicatesFailure(job.Result) {
+			status = "failed"
+			plan.JobStatus = types.StringValue(status)
+		}
+		plan.Success = types.BoolValue(!isFailureStatus(status))
+		if isFailureStatus(status) {
+			resp.Diagnostics.AddError(
+				"Dockhand batch job failed",
+				fmt.Sprintf("job %s finished with status %q", strings.TrimSpace(plan.JobID.ValueString()), status),
+			)
+			return
+		}
+	} else {
+		plan.Success = types.BoolNull()
+	}
 	resp.Diagnostics.Append(resp.State.Set(ctx, &plan)...)
 }
 
@@ -252,6 +278,13 @@ func (r *batchActionResource) Read(ctx context.Context, req resource.ReadRequest
 		state.ID = types.StringValue(job.ID)
 	}
 	applyJobState(&state.JobStatus, &state.ResultJSON, &state.LinesJSON, job)
+	waited := true
+	if !state.WaitForCompletion.IsNull() && !state.WaitForCompletion.IsUnknown() {
+		waited = state.WaitForCompletion.ValueBool()
+	}
+	if waited {
+		state.Success = types.BoolValue(!isFailureStatus(strings.TrimSpace(state.JobStatus.ValueString())))
+	}
 	resp.Diagnostics.Append(resp.State.Set(ctx, &state)...)
 }
 

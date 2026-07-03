@@ -21,6 +21,7 @@ func TestAccContainerRuntimeSurfacesTerraform(t *testing.T) {
 
 	resource.Test(t, resource.TestCase{
 		ProtoV6ProviderFactories: testAccProviderFactories(),
+		CheckDestroy:             testAccCheckContainerRuntimeDestroyed(endpoint, username, password, env),
 		Steps: []resource.TestStep{
 			{
 				Config: testAccContainerRuntimeSurfacesConfig(env, imageName, containerName, "TF_ACC_RUNTIME_STOP", "stop", "acc-run-1", false),
@@ -49,8 +50,55 @@ func TestAccContainerRuntimeSurfacesTerraform(t *testing.T) {
 					testAccCheckContainerRuntimeEventually(endpoint, username, password, env, "dockhand_container.test", expectedContainerStates("start"), true),
 				),
 			},
+			{
+				ResourceName:            "dockhand_container.test",
+				ImportState:             true,
+				ImportStateVerify:       true,
+				ImportStateVerifyIgnore: []string{"command", "labels", "env_vars", "update_payload_json"},
+			},
+			{
+				ResourceName:      "dockhand_image.test",
+				ImportState:       true,
+				ImportStateVerify: true,
+			},
 		},
 	})
+}
+
+func testAccCheckContainerRuntimeDestroyed(endpoint string, username string, password string, env string) func(state *terraform.State) error {
+	return func(state *terraform.State) error {
+		client, err := testAccDestroyClient(endpoint, username, password)
+		if err != nil {
+			return err
+		}
+
+		for _, rs := range state.RootModule().Resources {
+			switch rs.Type {
+			case "dockhand_container":
+				_, found, err := client.GetContainerByID(context.Background(), env, rs.Primary.ID)
+				if err != nil {
+					return fmt.Errorf("check container destroy: %w", err)
+				}
+				if found {
+					return fmt.Errorf("container still exists: id=%s", rs.Primary.ID)
+				}
+			case "dockhand_image":
+				images, status, err := client.ListImages(context.Background(), env)
+				if err != nil {
+					return fmt.Errorf("list images after destroy: %w", err)
+				}
+				if status >= 400 {
+					return fmt.Errorf("list images after destroy: status=%d", status)
+				}
+				for _, img := range images {
+					if img.ID == rs.Primary.ID {
+						return fmt.Errorf("image still exists: id=%s", rs.Primary.ID)
+					}
+				}
+			}
+		}
+		return nil
+	}
 }
 
 func TestAccNetworkConnectionActionTerraform(t *testing.T) {

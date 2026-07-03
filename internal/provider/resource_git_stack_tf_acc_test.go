@@ -40,20 +40,33 @@ func TestAccGitStackResourceDestroyRemovesRuntimeTerraform(t *testing.T) {
 		CheckDestroy:             testAccCheckGitStackDestroyed(endpoint, username, password),
 		Steps: []resource.TestStep{
 			{
-				Config: testAccGitStackConfig(defaultEnv, stackName, repoURL, branch, composePath, credentialID),
+				Config: testAccGitStackConfig(defaultEnv, stackName, repoURL, branch, composePath, credentialID, false),
 				Check: resource.ComposeTestCheckFunc(
 					resource.TestCheckResourceAttr(resourceName, "env", defaultEnv),
 					resource.TestCheckResourceAttr(resourceName, "stack_name", stackName),
 					resource.TestCheckResourceAttr(resourceName, "compose_path", composePath),
+					resource.TestCheckResourceAttr(resourceName, "repull_images", "false"),
 					resource.TestCheckResourceAttrSet(resourceName, "id"),
 					testAccCheckRuntimeStackExists(endpoint, username, password, defaultEnv, stackName),
 				),
+			},
+			{
+				Config: testAccGitStackConfig(defaultEnv, stackName, repoURL, branch, composePath, credentialID, true),
+				Check: resource.ComposeTestCheckFunc(
+					resource.TestCheckResourceAttr(resourceName, "repull_images", "true"),
+				),
+			},
+			{
+				ResourceName:            resourceName,
+				ImportState:             true,
+				ImportStateVerify:       true,
+				ImportStateVerifyIgnore: []string{"deploy_now", "last_sync", "last_commit", "sync_status", "sync_error", "created_at", "updated_at", "webhook_secret"},
 			},
 		},
 	})
 }
 
-func testAccGitStackConfig(env string, stackName string, repoURL string, branch string, composePath string, credentialID string) string {
+func testAccGitStackConfig(env string, stackName string, repoURL string, branch string, composePath string, credentialID string, repullImages bool) string {
 	credentialBlock := ""
 	if strings.TrimSpace(credentialID) != "" {
 		credentialBlock = fmt.Sprintf("\n  credential_id = %q", credentialID)
@@ -70,10 +83,10 @@ resource "dockhand_git_stack" "test" {
   compose_path    = %q
   deploy_now      = true
   build_on_deploy = true
-  repull_images   = false
+  repull_images   = %t
   force_redeploy  = false%s
 }
-`, env, stackName, repoURL, branch, composePath, credentialBlock)
+`, env, stackName, repoURL, branch, composePath, repullImages, credentialBlock)
 }
 
 func testAccCheckRuntimeStackExists(endpoint string, username string, password string, env string, stackName string) resource.TestCheckFunc {

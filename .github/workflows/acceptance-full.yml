@@ -32,7 +32,7 @@ jobs:
       RUN_ENDPOINT_PROBE: "true"
       RUN_WEBUI_AUDIT: "true"
       RUN_DOCS_REFERENCE_AUDIT: "true"
-      API_DRIFT_FAIL_ON_NEW: "false"
+      API_DRIFT_FAIL_ON_NEW: "true"
       WEBUI_AUDIT_OUT_DIR: ${{ github.workspace }}/.compat-reports
       DOCS_AUDIT_OUT_DIR: ${{ github.workspace }}/.compat-reports
 
@@ -47,48 +47,8 @@ jobs:
           check-latest: true
           cache: true
 
-      - name: Ensure Terraform CLI
-        shell: bash
-        run: |
-          set -euo pipefail
-
-          if command -v terraform >/dev/null 2>&1; then
-            terraform_path="$(command -v terraform)"
-            echo "TF_ACC_TERRAFORM_PATH=${terraform_path}" >> "${GITHUB_ENV}"
-            "${terraform_path}" version
-            exit 0
-          fi
-
-          version="1.14.8"
-          arch="$(uname -m)"
-          case "${arch}" in
-            x86_64) arch="amd64" ;;
-            arm64|aarch64) arch="arm64" ;;
-            *)
-              echo "unsupported architecture for Terraform download: ${arch}" >&2
-              exit 1
-              ;;
-          esac
-
-          install_dir="${RUNNER_TEMP}/terraform-${version}"
-          mkdir -p "${install_dir}"
-
-          curl -fsSL \
-            "https://releases.hashicorp.com/terraform/${version}/terraform_${version}_linux_${arch}.zip" \
-            -o "${RUNNER_TEMP}/terraform_${version}_linux_${arch}.zip"
-          curl -fsSL \
-            "https://releases.hashicorp.com/terraform/${version}/terraform_${version}_SHA256SUMS" \
-            -o "${RUNNER_TEMP}/terraform_SHA256SUMS"
-
-          (
-            cd "${RUNNER_TEMP}"
-            grep "terraform_${version}_linux_${arch}.zip" terraform_SHA256SUMS | sha256sum --check --status
-          )
-          unzip -q "${RUNNER_TEMP}/terraform_${version}_linux_${arch}.zip" -d "${install_dir}"
-
-          terraform_path="${install_dir}/terraform"
-          echo "TF_ACC_TERRAFORM_PATH=${terraform_path}" >> "${GITHUB_ENV}"
-          "${terraform_path}" version
+      - name: Setup Terraform
+        uses: ./.github/actions/setup-terraform
 
       - name: Validate acceptance manifest parity
         shell: bash
@@ -99,6 +59,7 @@ jobs:
           go test ./internal/provider -run TestAcceptanceManifestCoverage
 
       - name: Run full acceptance harness
+        id: harness
         shell: bash
         run: |
           set -euo pipefail
@@ -118,6 +79,24 @@ jobs:
           set -euo pipefail
           /usr/bin/python3 scripts/api-drift-gate.py
 
+      - name: Stage compat reports for repository sync
+        if: success()
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p .compat-sync
+          cp docs/reports/endpoint-probe.md docs/reports/endpoint-probe.csv .compat-sync/
+          cp .compat-reports/webui-api-endpoints.txt .compat-sync/ 2>/dev/null || true
+          cp .compat-reports/docs-reference-api-endpoints.txt .compat-sync/ 2>/dev/null || true
+
+      - name: Upload compat reports for repository sync
+        if: success()
+        uses: actions/upload-artifact@v7
+        with:
+          name: compat-reports-sync
+          path: .compat-sync/
+          if-no-files-found: error
+
       - name: Upload compatibility reports
         if: always()
         uses: actions/upload-artifact@v7
@@ -133,3 +112,17 @@ jobs:
             ${{ github.workspace }}/.compat-reports/api-drift-gate.md
             ${{ github.workspace }}/.compat-reports/api-drift-gate.json
           if-no-files-found: warn
+
+      - name: Scrub acceptance failure logs
+        if: failure() && steps.harness.outcome == 'failure'
+        run: python3 scripts/scrub-artifact-json.py
+
+      - name: Upload acceptance failure logs
+        if: failure() && steps.harness.outcome == 'failure'
+        uses: actions/upload-artifact@v7
+        with:
+          name: acceptance-full-logs-${{ github.run_id }}
+          path: |
+            /tmp/dh-*.json
+            /tmp/dh-*.code
+          if-no-files-found: ignore

@@ -72,8 +72,9 @@ func (r *containerFileResource) Schema(_ context.Context, _ resource.SchemaReque
 				},
 			},
 			"content": schema.StringAttribute{
-				Optional: true,
-				Computed: true,
+				Sensitive: true,
+				Optional:  true,
+				Computed:  true,
 			},
 		},
 	}

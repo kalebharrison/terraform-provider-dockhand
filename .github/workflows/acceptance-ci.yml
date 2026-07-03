@@ -22,6 +22,7 @@ jobs:
       HAWSER_IMAGE: ghcr.io/finsys/hawser:latest
       DOCKHAND_TEST_ENDPOINT: http://127.0.0.1:13001
       DOCKHAND_TEST_USERNAME: tfacc
+      # Ephemeral throwaway creds for CI containers only (not production secrets).
       DOCKHAND_TEST_PASSWORD: tfaccpass123!
       DOCKHAND_TEST_AUTH_PROVIDER: local
       DOCKHAND_TEST_DIND_HOST: dind
@@ -40,48 +41,8 @@ jobs:
           check-latest: true
           cache: true
 
-      - name: Ensure Terraform CLI
-        shell: bash
-        run: |
-          set -euo pipefail
-
-          if command -v terraform >/dev/null 2>&1; then
-            terraform_path="$(command -v terraform)"
-            echo "TF_ACC_TERRAFORM_PATH=${terraform_path}" >> "${GITHUB_ENV}"
-            "${terraform_path}" version
-            exit 0
-          fi
-
-          version="1.14.8"
-          arch="$(uname -m)"
-          case "${arch}" in
-            x86_64) arch="amd64" ;;
-            arm64|aarch64) arch="arm64" ;;
-            *)
-              echo "unsupported architecture for Terraform download: ${arch}" >&2
-              exit 1
-              ;;
-          esac
-
-          install_dir="${RUNNER_TEMP}/terraform-${version}"
-          mkdir -p "${install_dir}"
-
-          curl -fsSL \
-            "https://releases.hashicorp.com/terraform/${version}/terraform_${version}_linux_${arch}.zip" \
-            -o "${RUNNER_TEMP}/terraform_${version}_linux_${arch}.zip"
-          curl -fsSL \
-            "https://releases.hashicorp.com/terraform/${version}/terraform_${version}_SHA256SUMS" \
-            -o "${RUNNER_TEMP}/terraform_SHA256SUMS"
-
-          (
-            cd "${RUNNER_TEMP}"
-            grep "terraform_${version}_linux_${arch}.zip" terraform_SHA256SUMS | sha256sum --check --status
-          )
-          unzip -q "${RUNNER_TEMP}/terraform_${version}_linux_${arch}.zip" -d "${install_dir}"
-
-          terraform_path="${install_dir}/terraform"
-          echo "TF_ACC_TERRAFORM_PATH=${terraform_path}" >> "${GITHUB_ENV}"
-          "${terraform_path}" version
+      - name: Setup Terraform
+        uses: ./.github/actions/setup-terraform
 
       - name: Validate acceptance manifest parity
         shell: bash
@@ -91,10 +52,34 @@ jobs:
           GOMODCACHE="$PWD/.cache/gomod" \
           go test ./internal/provider -run TestAcceptanceManifestCoverage
 
-      - name: Run targeted acceptance harness
+      - name: Resolve PR acceptance regex
+        id: pr_regex
         shell: bash
         run: |
           set -euo pipefail
-          TEST_REGEX='TestAcc(UserResourceTerraform|ContainerRenameActionTerraform|ContainerUpdateActionTerraform|EnvironmentResourceDirectDinDTerraform|EnvironmentResourceAgentTokenTerraform|ScannerAndImageScanActionsTerraform|ImagePushActionTerraform|StackAdoptActionTerraform|GitHelperSurfacesTerraform)' \
+          regex="$(/usr/bin/python3 scripts/acceptance-pr-ci-regex.py)"
+          echo "regex=${regex}" >> "${GITHUB_OUTPUT}"
+          echo "Using PR acceptance regex: ${regex}"
+
+      - name: Run targeted acceptance harness
+        id: harness
+        shell: bash
+        run: |
+          set -euo pipefail
+          TEST_REGEX="${{ steps.pr_regex.outputs.regex }}" \
           RUN_ENDPOINT_PROBE=false \
           ./scripts/run-acceptance-harness.sh
+
+      - name: Scrub acceptance failure logs
+        if: failure() && steps.harness.outcome == 'failure'
+        run: python3 scripts/scrub-artifact-json.py
+
+      - name: Upload acceptance failure logs
+        if: failure() && steps.harness.outcome == 'failure'
+        uses: actions/upload-artifact@v7
+        with:
+          name: acceptance-ci-logs-${{ github.run_id }}
+          path: |
+            /tmp/dh-*.json
+            /tmp/dh-*.code
+          if-no-files-found: ignore

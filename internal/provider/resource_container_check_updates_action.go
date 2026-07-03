@@ -84,6 +84,7 @@ func (r *containerCheckUpdatesActionResource) Create(ctx context.Context, req re
 		return
 	}
 
+	plan.Env = r.client.persistEnvAttr(plan.Env)
 	out, status, err := r.client.CheckContainerUpdates(ctx, plan.Env.ValueString())
 	if err != nil {
 		resp.Diagnostics.AddError("Error checking container updates", err.Error())

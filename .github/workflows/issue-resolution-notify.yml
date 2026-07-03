@@ -1,0 +1,105 @@
+name: Issue Resolution Notify
+
+on:
+  pull_request:
+    types: [closed]
+
+permissions:
+  contents: read
+  issues: write
+  pull-requests: read
+
+jobs:
+  notify:
+    name: Comment on linked issues when fix merges
+    if: github.event.pull_request.merged == true
+    runs-on: ubuntu-latest
+    steps:
+      - name: Post resolution comment on linked issues
+        uses: actions/github-script@v9
+        with:
+          script: |
+            const pr = context.payload.pull_request;
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+            const prNumber = pr.number;
+            const prUrl = pr.html_url;
+            const prTitle = pr.title || "";
+            const prBody = pr.body || "";
+
+            const closeRegex = /\b(?:close[sd]?|fix(?:e[sd])?|resolve[sd]?)\s+#(\d+)\b/gi;
+            const issueNumbers = new Set();
+            let match;
+            while ((match = closeRegex.exec(prBody)) !== null) {
+              issueNumbers.add(Number(match[1]));
+            }
+
+            if (issueNumbers.size === 0) {
+              core.info("No linked issues in PR body; skipping resolution comment.");
+              return;
+            }
+
+            const section = (heading) => {
+              const re = new RegExp(`## ${heading}\\s*\\n+([\\s\\S]*?)(?=\\n## |$)`, "i");
+              const m = prBody.match(re);
+              return m ? m[1].trim() : "";
+            };
+
+            const whatFixed = section("What was fixed");
+            const userImpact = section("User impact");
+
+            let summary = whatFixed;
+            if (!summary) {
+              summary = prTitle.replace(/^fix(\([^)]+\))?:\s*/i, "").trim();
+            }
+            if (!summary) {
+              summary = "_See linked pull request for details._";
+            }
+
+            let impactBlock = userImpact
+              ? `### User impact\n\n${userImpact}\n\n`
+              : "";
+
+            const reopenBlock = [
+              "### If the problem continues",
+              "",
+              "Please **reopen this issue** or **comment here** if you still see the problem **after upgrading** to the provider release that includes this fix.",
+              "",
+              "Include:",
+              "- Provider version (`terraform version` / lock file)",
+              "- Dockhand version",
+              "- Minimal repro or error message",
+              "",
+              "Comments on closed issues are monitored; we will reopen for investigation when the fix did not work.",
+            ].join("\n");
+
+            for (const issueNumber of issueNumbers) {
+              const body = [
+                "## Fix merged to `main`",
+                "",
+                `This issue was addressed in PR #${prNumber}: ${prUrl}`,
+                "",
+                "### What was fixed",
+                "",
+                summary,
+                "",
+                impactBlock,
+                "### Release status",
+                "",
+                "The change is on `main` but **not yet in a tagged release**.",
+                "When a version is published, **Release Issue Notify** will comment here with the tag (for example `v0.1.48`) and upgrade instructions.",
+                "",
+                reopenBlock,
+                "",
+                "---",
+                "_Posted by Issue Resolution Notify._",
+              ].join("\n");
+
+              await github.rest.issues.createComment({
+                owner,
+                repo,
+                issue_number: issueNumber,
+                body,
+              });
+              core.info(`Posted resolution comment on issue #${issueNumber}`);
+            }

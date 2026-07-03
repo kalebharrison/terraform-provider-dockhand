@@ -44,6 +44,11 @@ RELEVANT_PREFIXES = (
     "/api/jobs",
     "/api/prune",
     "/api/dashboard/stats",
+    "/api/settings",
+    "/api/license",
+    "/api/activity",
+    "/api/configs",
+    "/api/backups",
 )
 
 

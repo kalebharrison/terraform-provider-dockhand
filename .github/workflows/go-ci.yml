@@ -9,6 +9,9 @@ on:
 permissions:
   contents: read
 
+env:
+  STATICCHECK_VERSION: v0.6.1
+
 jobs:
   test:
     name: Lint, Test, Build
@@ -17,6 +20,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
 
       - name: Setup Go
         uses: actions/setup-go@v6
@@ -45,6 +50,37 @@ jobs:
 
       - name: Verify docs/examples coverage
         run: /usr/bin/python3 scripts/check-doc-example-coverage.py
+
+      - name: Validate acceptance PR CI manifest
+        run: /usr/bin/python3 scripts/acceptance-pr-ci-regex.py >/dev/null
+
+      - name: Verify agent helper scripts
+        run: ./scripts/test-agent-helpers.sh
+
+      - name: Go vet
+        run: go vet ./...
+
+      - name: golangci-lint
+        uses: golangci/golangci-lint-action@v9
+        with:
+          version: latest
+          only-new-issues: true
+
+      - name: Staticcheck
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "${GITHUB_WORKSPACE}/.cache/bin"
+          GOBIN="${GITHUB_WORKSPACE}/.cache/bin" go install "honnef.co/go/tools/cmd/staticcheck@${STATICCHECK_VERSION}"
+          "${GITHUB_WORKSPACE}/.cache/bin/staticcheck" ./...
+
+      - name: Shellcheck scripts
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y shellcheck
+          find scripts -type f -name '*.sh' -print0 | xargs -0 -r shellcheck -x -e SC1091
 
       - name: Go test
         run: go test ./...

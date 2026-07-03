@@ -449,8 +449,8 @@ func buildEnvironmentPayload(plan environmentModel, prior environmentModel) (env
 		payload.ImagePruneEnabled = &v
 	}
 
-	if strings.TrimSpace(connectionType) == "socket" && payload.SocketPath == nil {
-		return environmentPayload{}, fmt.Errorf("socket_path is required when connection_type is \"socket\"")
+	if err := validateEnvironmentConnectionPayload(connectionType, payload); err != nil {
+		return environmentPayload{}, err
 	}
 
 	return payload, nil

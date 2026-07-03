@@ -41,3 +41,10 @@ EOT
 ### Read-Only
 
 - `id` (String)
+## Import
+
+```bash
+terraform import dockhand_stack_env.example <env>:<stack_name>
+```
+
+Import ID is the environment ID and stack name separated by a colon. You may omit the env prefix when provider `default_env` is set.

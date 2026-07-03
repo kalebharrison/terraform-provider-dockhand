@@ -48,7 +48,8 @@ func (d *systemFileContentDataSource) Schema(_ context.Context, _ datasource.Sch
 				Required: true,
 			},
 			"content": schema.StringAttribute{
-				Computed: true,
+				Computed:  true,
+				Sensitive: true,
 			},
 			"size": schema.Int64Attribute{
 				Computed: true,
@@ -57,7 +58,8 @@ func (d *systemFileContentDataSource) Schema(_ context.Context, _ datasource.Sch
 				Computed: true,
 			},
 			"result_json": schema.StringAttribute{
-				Computed: true,
+				Computed:  true,
+				Sensitive: true,
 			},
 		},
 	}

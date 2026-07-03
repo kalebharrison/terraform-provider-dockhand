@@ -26,3 +26,10 @@ resource "dockhand_git_stack_deploy_action" "deploy" {
 - `id` (String)
 - `result` (String)
 - `output` (String)
+## Import
+
+Action resources are one-shot. Import the computed `id` (usually the Dockhand job ID or action record ID) after the action has run:
+
+```bash
+terraform import dockhand_git_stack_deploy_action.example <id>
+```

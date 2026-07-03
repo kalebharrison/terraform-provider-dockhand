@@ -28,3 +28,10 @@ resource "dockhand_container_action" "restart_web" {
 ### Read-Only
 
 - `id` (String) Internal action execution ID.
+## Import
+
+Action resources are one-shot. Import the computed `id` (usually the Dockhand job ID or action record ID) after the action has run:
+
+```bash
+terraform import dockhand_container_action.example <id>
+```

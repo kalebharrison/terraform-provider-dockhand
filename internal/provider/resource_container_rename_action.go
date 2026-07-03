@@ -99,6 +99,7 @@ func (r *containerRenameActionResource) Create(ctx context.Context, req resource
 		return
 	}
 
+	plan.Env = r.client.persistEnvAttr(plan.Env)
 	status, err := r.client.RenameContainer(ctx, plan.Env.ValueString(), containerID, name)
 	if err != nil {
 		resp.Diagnostics.AddError("Error renaming Dockhand container", err.Error())

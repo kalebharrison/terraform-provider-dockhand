@@ -45,3 +45,10 @@ resource "dockhand_batch_action" "restart_containers" {
 - `job_status` (String) Terminal status from job polling or inline completion payload.
 - `lines_json` (String) JSON array of job output lines (empty for inline completions without line data).
 - `result_json` (String) JSON object of job result payload (job result or inline response object).
+## Import
+
+Action resources are one-shot. Import the computed `id` (usually the Dockhand job ID or action record ID) after the action has run:
+
+```bash
+terraform import dockhand_batch_action.example <id>
+```

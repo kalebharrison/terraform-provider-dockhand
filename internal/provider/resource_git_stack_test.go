@@ -37,6 +37,34 @@ func (f *fakeGitStackDestroyClient) DeleteGitStack(_ context.Context, env string
 	return f.deleteGitStackStatus, f.deleteGitStackErr
 }
 
+func TestBuildGitStackPayloadHonorsDeployTriggers(t *testing.T) {
+	plan := gitStackModel{
+		StackName:                 types.StringValue("test-stack"),
+		ComposePath:               types.StringValue("stacks/app/compose.yml"),
+		WebhookEnabled:            types.BoolValue(false),
+		WebhookSecretAutoGenerate: types.BoolValue(false),
+		WebhookSecret:             types.StringNull(),
+		AutoUpdateEnabled:         types.BoolValue(false),
+		AutoUpdateCron:            types.StringValue("0 3 * * *"),
+		DeployNow:                 types.BoolValue(true),
+		ForceRedeploy:             types.BoolValue(true),
+		EnvVarsJSON:               types.StringValue("[]"),
+		URL:                       types.StringValue("https://example.com/repo.git"),
+		Branch:                    types.StringValue("main"),
+	}
+
+	payload, err := buildGitStackPayload(plan, gitStackDeployTriggers{DeployNow: true, ForceRedeploy: false})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !payload.DeployNow {
+		t.Fatal("expected deployNow in payload")
+	}
+	if payload.ForceRedeploy {
+		t.Fatal("expected forceRedeploy omitted when trigger false")
+	}
+}
+
 func TestBuildGitStackPayloadIncludesContextDir(t *testing.T) {
 	plan := gitStackModel{
 		StackName:                 types.StringValue("test-stack"),
@@ -54,7 +82,7 @@ func TestBuildGitStackPayloadIncludesContextDir(t *testing.T) {
 		Branch:                    types.StringValue("main"),
 	}
 
-	payload, err := buildGitStackPayload(plan)
+	payload, err := buildGitStackPayload(plan, gitStackDeployTriggers{})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -122,7 +150,7 @@ func TestBuildGitStackPayloadWebhookDisabledAutoGenerateSendsEmptySecret(t *test
 		Branch:                    types.StringValue("main"),
 	}
 
-	payload, err := buildGitStackPayload(plan)
+	payload, err := buildGitStackPayload(plan, gitStackDeployTriggers{})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -146,7 +174,7 @@ func TestBuildGitStackPayloadWebhookAllowsAutoGenerate(t *testing.T) {
 		Branch:                    types.StringValue("main"),
 	}
 
-	payload, err := buildGitStackPayload(plan)
+	payload, err := buildGitStackPayload(plan, gitStackDeployTriggers{})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -170,7 +198,7 @@ func TestBuildGitStackPayloadWebhookExplicitSecret(t *testing.T) {
 		Branch:                    types.StringValue("main"),
 	}
 
-	payload, err := buildGitStackPayload(plan)
+	payload, err := buildGitStackPayload(plan, gitStackDeployTriggers{})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -194,7 +222,7 @@ func TestBuildGitStackPayloadSetsBothAutoUpdateKeys(t *testing.T) {
 		Branch:                    types.StringValue("main"),
 	}
 
-	payload, err := buildGitStackPayload(plan)
+	payload, err := buildGitStackPayload(plan, gitStackDeployTriggers{})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -224,7 +252,7 @@ func TestBuildGitStackPayloadIncludesDeployOptions(t *testing.T) {
 		Branch:                    types.StringValue("main"),
 	}
 
-	payload, err := buildGitStackPayload(plan)
+	payload, err := buildGitStackPayload(plan, gitStackDeployTriggers{DeployNow: true, ForceRedeploy: true})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -338,21 +366,22 @@ func TestModelFromGitStackResponseMapsDeployOptions(t *testing.T) {
 	if model.RepullImages.IsNull() || model.RepullImages.ValueBool() {
 		t.Fatalf("expected RepullImages=false from response")
 	}
-	if model.ForceRedeploy.IsNull() || !model.ForceRedeploy.ValueBool() {
-		t.Fatalf("expected ForceRedeploy=true from response")
+	if model.ForceRedeploy.IsNull() || model.ForceRedeploy.ValueBool() {
+		t.Fatalf("expected ForceRedeploy=false in state (one-shot flag not persisted from API)")
 	}
 }
 
-func TestMergeGitStackStatePreservesDeployOptionsWhenRemoteOmitsThem(t *testing.T) {
+func TestMergeGitStackStateResetsOneShotDeployFlags(t *testing.T) {
 	preferred := gitStackModel{
 		BuildOnDeploy: types.BoolValue(true),
 		RepullImages:  types.BoolValue(false),
+		DeployNow:     types.BoolValue(true),
 		ForceRedeploy: types.BoolValue(true),
 	}
 	remote := gitStackModel{
 		BuildOnDeploy: types.BoolNull(),
 		RepullImages:  types.BoolNull(),
-		ForceRedeploy: types.BoolNull(),
+		ForceRedeploy: types.BoolValue(true),
 	}
 
 	merged := mergeGitStackState(preferred, remote)
@@ -362,8 +391,11 @@ func TestMergeGitStackStatePreservesDeployOptionsWhenRemoteOmitsThem(t *testing.
 	if merged.RepullImages.IsNull() || merged.RepullImages.ValueBool() {
 		t.Fatalf("expected RepullImages to preserve configured false")
 	}
-	if merged.ForceRedeploy.IsNull() || !merged.ForceRedeploy.ValueBool() {
-		t.Fatalf("expected ForceRedeploy to preserve configured true")
+	if merged.DeployNow.ValueBool() {
+		t.Fatalf("expected DeployNow=false in merged state")
+	}
+	if merged.ForceRedeploy.ValueBool() {
+		t.Fatalf("expected ForceRedeploy=false in merged state")
 	}
 }
 

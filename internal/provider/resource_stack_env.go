@@ -9,6 +9,7 @@ import (
 
 	"github.com/hashicorp/terraform-plugin-framework/attr"
 	"github.com/hashicorp/terraform-plugin-framework/diag"
+	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
@@ -17,8 +18,9 @@ import (
 )
 
 var (
-	_ resource.Resource              = (*stackEnvResource)(nil)
-	_ resource.ResourceWithConfigure = (*stackEnvResource)(nil)
+	_ resource.Resource                = (*stackEnvResource)(nil)
+	_ resource.ResourceWithConfigure   = (*stackEnvResource)(nil)
+	_ resource.ResourceWithImportState = (*stackEnvResource)(nil)
 )
 
 func NewStackEnvResource() resource.Resource {
@@ -78,8 +80,9 @@ func (r *stackEnvResource) Schema(_ context.Context, _ resource.SchemaRequest, r
 				MarkdownDescription: "Arbitrary value to force an update/re-sync when changed.",
 			},
 			"raw_content": schema.StringAttribute{
-				Optional: true,
-				Computed: true,
+				Sensitive: true,
+				Optional:  true,
+				Computed:  true,
 			},
 			"secret_variables": schema.ListNestedAttribute{
 				Optional: true,
@@ -87,7 +90,7 @@ func (r *stackEnvResource) Schema(_ context.Context, _ resource.SchemaRequest, r
 				NestedObject: schema.NestedAttributeObject{
 					Attributes: map[string]schema.Attribute{
 						"key":       schema.StringAttribute{Required: true},
-						"value":     schema.StringAttribute{Required: true},
+						"value":     schema.StringAttribute{Required: true, Sensitive: true},
 						"is_secret": schema.BoolAttribute{Optional: true, Computed: true},
 					},
 				},
@@ -385,5 +388,32 @@ func (r *stackEnvResource) Delete(ctx context.Context, req resource.DeleteReques
 	if err != nil && status != http.StatusNotFound {
 		resp.Diagnostics.AddError("Error clearing stack env variables", err.Error())
 		return
+	}
+}
+
+func (r *stackEnvResource) ImportState(ctx context.Context, req resource.ImportStateRequest, resp *resource.ImportStateResponse) {
+	raw := strings.TrimSpace(req.ID)
+	if raw == "" {
+		resp.Diagnostics.AddError("Invalid import ID", "Expected `<stack_name>` or `<env>:<stack_name>`.")
+		return
+	}
+
+	env := ""
+	stackName := raw
+	parts := strings.SplitN(raw, ":", 2)
+	if len(parts) == 2 {
+		env = strings.TrimSpace(parts[0])
+		stackName = strings.TrimSpace(parts[1])
+	}
+	if stackName == "" {
+		resp.Diagnostics.AddError("Invalid import ID", "Stack name cannot be empty.")
+		return
+	}
+
+	id := fmt.Sprintf("%s:%s", env, stackName)
+	resp.Diagnostics.Append(resp.State.SetAttribute(ctx, path.Root("id"), id)...)
+	resp.Diagnostics.Append(resp.State.SetAttribute(ctx, path.Root("stack_name"), stackName)...)
+	if env != "" {
+		resp.Diagnostics.Append(resp.State.SetAttribute(ctx, path.Root("env"), env)...)
 	}
 }

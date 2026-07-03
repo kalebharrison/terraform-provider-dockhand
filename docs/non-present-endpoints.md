@@ -16,4 +16,4 @@ This file tracks API endpoints that are not currently available on the tested Do
 ## Notes
 
 - These are documented as backlog candidates only; no provider resources/data sources should depend on them until the API is present and stable.
-- Re-run the probe after Dockhand upgrades and update this file when status changes.
+- Compatibility reports refresh via **Compat Reports Sync** on green Acceptance Full / Release Watch runs.

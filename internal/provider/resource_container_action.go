@@ -99,6 +99,7 @@ func (r *containerActionResource) Create(ctx context.Context, req resource.Creat
 	}
 
 	action := strings.ToLower(strings.TrimSpace(plan.Action.ValueString()))
+	plan.Env = r.client.persistEnvAttr(plan.Env)
 	env := plan.Env.ValueString()
 	id := plan.ContainerID.ValueString()
 

@@ -3,6 +3,7 @@ package provider
 import (
 	"context"
 	"fmt"
+	"net/http"
 	"os"
 	"os/exec"
 	"strings"
@@ -109,6 +110,7 @@ func TestAccEnvironmentResourceAgentTokenTerraform(t *testing.T) {
 
 	resource.Test(t, resource.TestCase{
 		ProtoV6ProviderFactories: testAccProviderFactories(),
+		CheckDestroy:             testAccCheckEnvironmentDestroyed(endpoint, username, password),
 		Steps: []resource.TestStep{
 			{
 				Config: testAccEnvironmentAgentConfig(envName, agentToken, "globe"),
@@ -127,6 +129,12 @@ func TestAccEnvironmentResourceAgentTokenTerraform(t *testing.T) {
 					resource.TestCheckResourceAttr("dockhand_environment.test", "icon", "server"),
 					testAccCheckHawserConnected("dockhand_environment.test", endpoint, username, password, agentToken),
 				),
+			},
+			{
+				ResourceName:            "dockhand_environment.test",
+				ImportState:             true,
+				ImportStateVerify:       true,
+				ImportStateVerifyIgnore: []string{"agent_token", "updated_at", "created_at"},
 			},
 		},
 	})
@@ -302,4 +310,27 @@ func testAccTailHawserLogs() string {
 		return ""
 	}
 	return strings.TrimSpace(string(out))
+}
+
+func testAccCheckEnvironmentDestroyed(endpoint string, username string, password string) func(state *terraform.State) error {
+	return func(state *terraform.State) error {
+		client, err := testAccDestroyClient(endpoint, username, password)
+		if err != nil {
+			return err
+		}
+
+		for _, rs := range state.RootModule().Resources {
+			if rs.Type != "dockhand_environment" {
+				continue
+			}
+			_, status, err := client.GetEnvironment(context.Background(), rs.Primary.ID)
+			if err == nil {
+				return fmt.Errorf("environment still exists: id=%s", rs.Primary.ID)
+			}
+			if status != http.StatusNotFound {
+				return fmt.Errorf("unexpected status checking environment destroy: id=%s status=%d err=%v", rs.Primary.ID, status, err)
+			}
+		}
+		return nil
+	}
 }

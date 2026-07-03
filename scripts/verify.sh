@@ -23,7 +23,7 @@ Usage: ./scripts/verify.sh [options]
 Options:
   --quality         Run extended quality checks (vet, golangci-lint, staticcheck, shellcheck if installed)
   --security        Run local security checks (govulncheck, plus gitleaks if installed)
-  --endpoint-probe  Run endpoint probe (requires Dockhand auth env vars)
+  --endpoint-probe  Debug-only: run endpoint probe (CI is default; needs Dockhand env vars)
   --acceptance      Run acceptance harness (Docker + Dockhand + DinD)
   --test-regex REG  Regex for acceptance tests (default: $TEST_REGEX or TestAcc)
   -h, --help        Show this help text
@@ -98,6 +98,7 @@ if [[ "${before_tidy}" != "${after_tidy}" ]]; then
 fi
 
 run /usr/bin/python3 scripts/check-doc-example-coverage.py
+run /usr/bin/python3 scripts/acceptance-pr-ci-regex.py >/dev/null
 run go test ./...
 run go build ./...
 

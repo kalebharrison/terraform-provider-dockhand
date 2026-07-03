@@ -1,0 +1,474 @@
+# Agent Review Log
+
+Append-only record of lens sweeps. See `docs/AGENT_REVIEW_LENSES.md`.
+
+**Next lens:** none — last full pass 2026-07-03 (post-deferred). Re-run before next `v*` release.
+
+---
+
+## Baseline full lens review (pre-autonomy deployment)
+
+- **Tier:** all 11 (baseline audit)
+- **Started:** 2026-07-03
+- **Base commit:** `96c06b00130446f7a48f3cdd64980f8e0c09c630` (+ 37 uncommitted local files: agent CI bundle)
+- **CI gates:** not re-run for this sweep (local review only)
+- **Status:** complete
+
+---
+
+### 2026-07-03 — API compatibility
+
+**Scope:** `scripts/endpoint-probe.py`, `scripts/api-drift-gate.py`, `docs/api-matrix.md`, `docs/non-present-endpoints.md`, `docs/reports/endpoint-probe.md`, `internal/provider/client.go` (route usage vs probe list).
+
+**Summary:** Documented 404 backlog (`GET /api/configs`, `GET /api/backups`) is consistent. Probe/drift tooling lags the client (~15 implemented routes untracked) and the March 2026 probe report has fixture false positives. No evidence that shipped provider features call absent APIs beyond the known backlog.
+
+| Severity | Location | Finding | Suggested action |
+|----------|----------|---------|------------------|
+| high | `scripts/endpoint-probe.py:13-148` | ~15 client-used routes not probed (env test/detect-socket, hawser tokens, git stacks CRUD, git preview-env, scanner settings, etc.) | Extend `ENDPOINTS`; re-run probe; refresh `docs/reports/endpoint-probe.md` |
+| high | `scripts/api-drift-gate.py:26-47` | `RELEVANT_PREFIXES` omits `/api/settings`, `/api/license`, `/api/activity` | Extend prefixes or derive from client + api-matrix |
+| high | `scripts/endpoint-probe.py:316-326` | `git_stack_id` fixture taken from `/api/stacks` not `/api/git/stacks` | Fix fixture discovery; re-probe git subroutes |
+| med | `scripts/endpoint-probe.py:466-489` | Safe-mode placeholder 404s classified as `unexpected_404` | Treat as `unverified_placeholder` or skip |
+| med | `scripts/endpoint-probe.py:92` | `DELETE /api/stacks/{name}` probe omits `force=true` (client always sends it) | Align probe query params with client |
+| med | `docs/api-matrix.md:193-200` | Stale WebUI gap lists routes already implemented | Update gap section |
+| med | `docs/reports/endpoint-probe.md` | Report dated March 2026 (~4 months old) | Re-run `./scripts/verify.sh --endpoint-probe` on current Dockhand |
+| med | `internal/provider/client.go:1960-1991` | `GetJob` uses loose `map[string]any` + multi-key fallbacks | Add contract tests or typed struct when stable |
+| low | `docs/non-present-endpoints.md:11-14` | Allowlist matches probe for configs/backups only | Re-verify after Dockhand upgrades |
+
+---
+
+### 2026-07-03 — Terraform schema & state
+
+**Scope:** `resource_environment.go`, `resource_stack.go`, `resource_container.go`, `resource_git_stack.go`, `resource_registry.go`, `resource_auth_settings.go`, related action resources.
+
+**Summary:** Plugin Framework patterns are generally sound (write-only registry password, webhook secret merge, action `trigger`+RequiresReplace). Blocking issues: `enabled` on stack/container does not reconcile runtime drift; `deploy_now`/`force_redeploy` on git_stack can re-fire every apply; several secret-bearing attrs lack `Sensitive`.
+
+| Severity | Location | Finding | Suggested action |
+|----------|----------|---------|------------------|
+| high | `internal/provider/resource_stack.go:204-210` | `enabled` only applied when plan diff; external stop/start not reconciled on read | Reconcile from `status` on read or document intentional drift |
+| high | `internal/provider/resource_container.go:364-391,506-514` | Same `enabled` vs runtime gap as stack | Same as stack |
+| high | `internal/provider/resource_git_stack.go:168-173,410-436` | `deploy_now=true` persists in state and is sent on every update — perpetual redeploy risk | Reset to `false` after apply or use `git_stack_deploy_action` only |
+| high | `internal/provider/resource_git_stack.go:186-190` | `force_redeploy` same one-shot-on-persistent-resource problem | Same as `deploy_now` |
+| med | `internal/provider/resource_git_stack.go:192-197` | `env_vars_json` can hold secrets; not `Sensitive` | Mark sensitive; consider structured block |
+| med | `internal/provider/resource_container.go:165-172,201-205` | `env_vars`, `update_payload_json` not sensitive | Mark `Sensitive: true` |
+| med | `internal/provider/resource_container.go:481-504` | Import/read does not backfill `name`/`image` from API | Populate from `GetContainerByID` on read |
+| med | `internal/provider/resource_git_stack.go:373-375` | Import ID-only; requires provider `default_env` | Support `<env>:<id>` import format |
+| low | `internal/provider/resource_stack.go:52-55` | `id` Computed without `UseStateForUnknown` | Add plan modifier for stability |
+| — | `internal/provider/resource_registry.go:75-79,265-272` | Write-only password + preserve pattern | Good reference for other secrets |
+
+---
+
+### 2026-07-03 — Dockhand domain / runtime
+
+**Scope:** environment connection types, hawser tokens, stack vs git_stack, `default_env`, container lifecycle, registry/git credentials.
+
+**Summary:** Agent→`hawser-edge` mapping and git_stack destroy ordering are correct. Main operator gaps: inconsistent `default_env` enforcement/persistence across resources, environment resource lacks direct/agent validation present on test action.
+
+| Severity | Location | Finding | Suggested action |
+|----------|----------|---------|------------------|
+| high | `internal/provider/resource_git_stack.go:235-238` vs `resource_stack.go:129` | `git_stack` errors on missing env; stack/container pass empty env silently | Shared `resolveEnvOrError()` for all env-scoped resources |
+| med | `internal/provider/resource_git_stack.go:257-258` vs `resource_stack.go:129-149` | Resolved `default_env` persisted in git_stack state but not stack/container | Always persist resolved env in state |
+| med | `internal/provider/resource_environment.go:377-456` | `direct`/`agent` field validation only on test action, not managed resource | Port validation into `buildEnvironmentPayload` |
+| med | `internal/provider/resource_environment.go:615-631` | `agent-standard`/`hawser-standard` alias asymmetry vs `agent`↔`hawser-edge` | Document or normalize aliases |
+| low | `internal/provider/resource_environment.go:269-282` | Dual hawser token paths on create; rotation may orphan tokens | Document; prefer token API path |
+| low | `internal/provider/resource_git_credential.go:260-274` | Unknown `auth_type` accepted | Validate allowed types at plan time |
+| — | `internal/provider/resource_git_stack.go:349-371` | Destroy deletes runtime stack then git record | Correct; keep tested |
+
+---
+
+### 2026-07-03 — Async & long-running operations
+
+**Scope:** `client.go` HTTP/timeouts, `*_action.go` resources, job polling, stream readers.
+
+**Summary:** `WaitForJob` + prune action pattern is good reference. Dominant risk: 30s global HTTP client timeout on pull/deploy/push streams; `batch_action` does not fail apply on terminal job failure (unlike prune).
+
+| Severity | Location | Finding | Suggested action |
+|----------|----------|---------|------------------|
+| high | `internal/provider/client.go:961` | Global 30s `http.Client` timeout on most operations | Per-operation long-timeout clients (see `ScanImage` pattern) |
+| high | `internal/provider/client.go:1824-1881` | `PullImage` NDJSON stream bounded by 30s client | Dedicated long-timeout client for pulls |
+| high | `internal/provider/client.go:2761-2780` | `DeployGitStack` reads stream once, no completion wait | Stream-until-terminal or poll job; optional `wait_for_completion` |
+| high | `internal/provider/resource_batch_action.go:205-218` | After `WaitForJob`, no `isFailureStatus` check (prune has it) | Fail apply on failed job status; set `success` computed |
+| med | `internal/provider/client.go:1973-1995` | Default job wait 2m / batch timeout 120s may be short for large jobs | Raise defaults; surface last status on timeout |
+| med | `internal/provider/resource_image_push_action.go:116-127` | Fire-and-forget after HTTP 2xx | Optional completion wait or poll |
+| med | `internal/provider/resource_network_connection_action.go:195-201` | Hardcoded 20s poll; ignores `ctx` during sleep | Configurable timeout; context-aware polling |
+| med | `internal/provider/resource_environment_scanner_action.go:121-137` | Chained `PullImage` calls hit 30s cap | Long-timeout pull client for scanner bootstrap |
+| low | `internal/provider/resource_prune_action.go:193-215` | Correct wait + `success` from job status | Extract shared async helper for batch/deploy |
+
+---
+
+### 2026-07-03 — Acceptance & regression
+
+**Scope:** `acceptance_manifest.json`, `acceptance_pr_ci.json`, manifest tests, sample `*_tf_acc_test.go`, harness env wiring.
+
+**Summary:** Manifest↔provider parity guard (`TestAcceptanceManifestCoverage`) is strong. Gap: manifest claims coverage for git-stack/git-repo/container-file surfaces whose suites **skip** when harness does not export fixture env vars — nightly full can pass with silent skips.
+
+| Severity | Location | Finding | Suggested action |
+|----------|----------|---------|------------------|
+| high | `scripts/run-acceptance-harness.sh:206-229` + manifest git/container-file entries | Harness never exports `DOCKHAND_TEST_GIT_STACK_*`, `DOCKHAND_TEST_FILE_CONTAINER_ID`, `DOCKHAND_TEST_GIT_REPO_ENV_ID` | Bootstrap fixtures in harness or fail on manifest-mapped skips |
+| high | `internal/provider/acceptance_manifest_test.go:169-176` | Manifest `operations` (import/delete) not enforced against test suites | Extend test or secondary operations map |
+| med | `internal/provider/testdata/acceptance_pr_ci.json` | PR subset omits registry CRUD, git-stack lifecycle, container runtime bundle | Add 1–2 high-signal suites or document nightly-only deferral |
+| med | `internal/provider/testdata/acceptance_manifest.json:4,42` | `dockhand_stack` shares action suite; weak create/import/update/destroy proof | Add dedicated `TestAccStackResourceTerraform` or narrow manifest ops |
+| med | `resource_user_acc_test.go` vs `resource_user_tf_acc_test.go` | Manifest maps to weaker client-only test; PR CI runs TF lifecycle test | Point manifest regex at `TestAccUserResourceTerraform` |
+| low | `acceptance_manifest_test.go` / PR CI workflows | `TestAcceptancePRCISuites` only in `go-ci`, not acceptance workflows | Run manifest/PR CI parity tests in acceptance jobs too |
+
+---
+
+### 2026-07-03 — Security engineer
+
+**Scope:** provider auth, sensitive schema attrs, workflows, `.gitignore`, action job output fields.
+
+**Summary:** Provider-level auth (TLS 1.2+, sensitive provider config, no `pull_request_target`) is solid. Main gap: multiple resources store credentials/secrets/log output in state without `Sensitive` marking.
+
+| Severity | Location | Finding | Suggested action |
+|----------|----------|---------|------------------|
+| high | `internal/provider/resource_stack_env.go:90` | `secret_variables.value` not `Sensitive` | Mark nested value sensitive |
+| high | `internal/provider/resource_notification.go:94-98` | `apprise_urls` contain tokens; not sensitive | Mark sensitive |
+| high | `internal/provider/resource_container_file.go:74-77` | `content` not sensitive | Mark sensitive |
+| high | `internal/provider/data_source_system_file_content.go:50-51` | Host file `content` not sensitive | Mark sensitive; warn in docs |
+| high | `internal/provider/resource_batch_action.go:111-112` | `result_json`/`lines_json` may contain secrets from job logs | Mark sensitive; consider redaction |
+| med | `internal/provider/resource_stack_env.go:80-83` | `raw_content` can hold `.env` secrets | Mark sensitive |
+| med | `internal/provider/resource_git_stack_deploy_action.go:59-60` | Deploy stream `output` not sensitive | Mark sensitive; truncate stored output |
+| med | `internal/provider/provider.go:87-94` | `allow_unauthenticated` bootstrap escape hatch | Stronger doc warning |
+| med | `.github/workflows/acceptance-ci.yml:26` | Throwaway CI password in workflow env (public logs) | Acceptable ephemeral; optional move to generated secret |
+| med | `.github/workflows/agent-auto-merge.yml` | Auto-merge with `contents: write` | Ensure `head.repo == github.repository` guard |
+| low | `internal/provider/auth.go:132` | Error bodies may echo server JSON | Truncate/sanitize diagnostics |
+| — | `.github/workflows/*.yml` | No `pull_request_target` | Maintain |
+| — | `.gitignore` | `.env`, `secrets/`, `*.tfvars` ignored | Maintain |
+
+---
+
+### 2026-07-03 — Ops / SRE
+
+**Scope:** `agent-*.yml`, acceptance workflows, `run-acceptance-harness.sh`, `verify.sh`, `go-ci.yml`.
+
+**Summary:** Agent loop (validate → open PR → auto-merge) is wired correctly. Ops gaps: failure artifacts omit container logs; `go-ci` duplicates `verify.sh` with drift risk; uncommitted agent CI not yet on `main`.
+
+| Severity | Location | Finding | Suggested action |
+|----------|----------|---------|------------------|
+| med | `acceptance-ci.yml` / `agent-validate.yml` artifacts | Only `/tmp/dh-*.json` uploaded; Docker logs stdout-only | Persist `dump_logs` output to artifact directory |
+| med | `.github/workflows/go-ci.yml` vs `scripts/verify.sh` | CI reimplements verify steps (shellcheck scope differs) | Call `./scripts/verify.sh --quality` as single source |
+| med | `scripts/run-acceptance-harness.sh:121-125` | Dockhand mounts host docker.sock while tests target DinD env | Document in playbook why |
+| med | Local tree | 37 uncommitted files (agent CI bundle) not on `main` | Commit/push; sync branch protection per `AGENT_DEPLOYMENT.md` |
+| low | `agent-auto-merge.yml:38-52` | Auto-merge enable failure is warning-only | Comment on PR or fail job when enable fails |
+| low | `pr-issue-link.yml:25-27` | Agent PRs skip issue lifecycle labels entirely | Replicate `in-progress`/`awaiting-release` in Agent Open PR |
+| low | `agent-validate.yml` + `acceptance-ci.yml` | Acceptance runs twice per agent PR (by design) | Monitor duration; acceptable tradeoff |
+| — | `agent-validate.yml` → `agent-open-pr.yml` → `agent-auto-merge.yml` | Pipeline complete | Smoke test after merge |
+
+---
+
+### 2026-07-03 — Senior developer
+
+**Scope:** `client.go` structure, `request_retry.go`, `provider.go`, error handling patterns.
+
+**Summary:** Retry policy is well isolated. `client.go` remains a ~3.3k-line god file; acceptable short-term but split by API domain when touching major areas.
+
+| Severity | Location | Finding | Suggested action |
+|----------|----------|---------|------------------|
+| low | `internal/provider/client.go` | Monolithic client (types + all API methods) | Split into domain files when next major client work |
+| low | `internal/provider/request_retry.go` | Centralized retry | Keep new retry logic here |
+| — | `internal/provider/client.go` | `doRequest` body limits (64KiB err / 10MiB success) | Good defensive pattern |
+
+---
+
+### 2026-07-03 — GitOps / IaC practitioner
+
+**Scope:** `docs/index.md`, `docs/resources/`, `examples/scenarios/`, per-resource examples.
+
+**Summary:** Per-resource doc↔example parity (42/42) is strong. Two scenario examples use invalid attribute names; import documented for only ~7 resources despite ~34 import-capable; no central action-vs-resource guide.
+
+| Severity | Location | Finding | Suggested action |
+|----------|----------|---------|------------------|
+| high | `examples/scenarios/gitops-stack/main.tf:32-48` | Invalid attrs: `name`, `environment_id`, `auto_deploy`; env file treated as writable | Rewrite to match real schema (`stack_name`, `env`, `deploy_now`; env file is read/sync) |
+| high | `examples/scenarios/registry-and-image/main.tf` | Invalid `pull`, `registry_id`, `image_id` attrs | Align with `dockhand_image` + scan action schema |
+| med | `docs/resources/*.md` | Import sections for ~7 resources; many more support import in Go | Import doc sweep + central guide in `docs/index.md` |
+| med | `docs/index.md` | No resource vs action vs data source decision table | Add “Choosing the right resource” section |
+| med | `docs/index.md` | `default_env` in schema but weak multi-env narrative | Add worked multi-env example |
+| med | `docs/resources/git_stack_env_file.md` | Read/sync resource; scenario implies write | Clarify; point writes to `env_vars_json` |
+| low | `examples/scenarios/` | No per-scenario `terraform.tfvars.example` | Add for copy-paste onboarding |
+
+---
+
+### 2026-07-03 — Entry-level developer
+
+**Scope:** `README.md`, `CONTRIBUTING.md`, `AGENTS.md`, `docs/LOCAL_DEV.md`, agent docs.
+
+**Summary:** Material exists but is fragmented across 6+ files. No single first-time path; jargon (Hawser, DinD, manifest, harness) undefined for contributors.
+
+| Severity | Location | Finding | Suggested action |
+|----------|----------|---------|------------------|
+| med | `CONTRIBUTING.md` | No sequenced clone → Go → `./scripts/verify.sh --quality` | Add “First-time setup” section |
+| med | Onboarding docs | Hawser, DinD, acceptance harness, manifest undefined | Glossary in CONTRIBUTING or README |
+| med | `docs/LOCAL_DEV.md` | Thin; no Docker/acceptance prerequisites | Expand with harness pointer |
+| med | Agent docs (6 files) | Human vs `agent/**` workflow repeated | Single “Contributor paths” summary with links |
+| med | `CONTRIBUTING.md` vs playbook | Human branch `codex/*` only in playbook | Document both conventions in CONTRIBUTING |
+| med | `AGENTS.md` | Long resource inventory overwhelms onboarding | Trim; link to `docs/index.md` |
+| low | `CONTRIBUTING.md` | Thin CI failure guidance vs `AGENT_RUNBOOK` | Add artifact/`gh pr checks` hints |
+| low | `docs/AGENT_DEPLOYMENT.md` | Maintainer-only steps not bannered | Add audience label at top |
+| — | `CONTRIBUTING.md` | SECURITY.md linked | Good |
+
+---
+
+### 2026-07-03 — Release & upgrade
+
+**Scope:** `README.md`, `docs/testing/release-gate.md`, release workflow, version pins, local uncommitted state.
+
+**Summary:** Release-first workflow is documented. No `CHANGELOG` file. README pins `>= 0.1.63`. Large uncommitted agent CI bundle must land before first post-agent release. Endpoint probe report stale.
+
+| Severity | Location | Finding | Suggested action |
+|----------|----------|---------|------------------|
+| med | Repo root | No `CHANGELOG.md` | Add changelog discipline before next tag |
+| med | `docs/reports/endpoint-probe.md` | Stale (March 2026) | Re-run probe before release |
+| med | Working tree | Agent CI/autonomy work uncommitted | Merge agent bundle; smoke test; sync branch protection |
+| low | `README.md:23` | `version = ">= 0.1.63"` | Bump constraint when tagging |
+| low | `docs/testing/release-gate.md` | Lens review step present | Run tiered lenses before tag per tier |
+| — | `.github/workflows/release-artifacts.yml` | Signed tag → artifacts pipeline exists | Use release-first validation |
+
+---
+
+### Baseline full sweep — verdict
+
+- **Clear to tag a release:** **no** — unresolved **high** product findings (git_stack redeploy loop, batch job success semantics, enabled drift, sensitive schema gaps, broken scenario examples, acceptance silent skips).
+- **Clear to proceed with autonomy deployment (5-step plan):** **yes, with parallel fix backlog** — agent CI wiring is sound; product highs should be filed as issues and fixed via `agent/issue-*` branches, not block landing the automation layer.
+- **Blocking findings (product):**
+  - `deploy_now` / `force_redeploy` perpetual apply on `dockhand_git_stack`
+  - `dockhand_batch_action` succeeds when job failed
+  - Stack/container `enabled` does not reconcile runtime
+  - Manifest-covered acceptance suites skip without harness fixtures
+  - Broken `examples/scenarios/gitops-stack` and `registry-and-image`
+- **Blocking findings (tooling/docs):**
+  - Endpoint probe coverage drift vs client
+  - Import docs / action-vs-resource guide gaps
+- **Deferred medium/low:** track via GitHub issues; see per-lens tables above.
+
+**Recommended issue themes for agent backlog (priority order):**
+
+1. Git stack deploy flags one-shot semantics — **fixed locally**
+2. Batch action job failure detection + shared async helper — **fixed locally**
+3. Harness git-stack/container-file fixtures (stop silent skips) — **fixed locally**
+4. Sensitive schema sweep (`stack_env`, notifications, container file, job JSON) — **fixed locally**
+5. Fix scenario examples + add `docs/index.md` resource chooser — **fixed locally**
+6. Endpoint probe + drift gate alignment with client — **addressed in deferred pass (probe routes + drift prefixes)**
+7. `default_env` persistence consistency across resources — **partially fixed** (`requireResolvedEnv` / `persistEnvAttr`)
+
+---
+
+### 2026-07-03 — Deferred lens backlog (post-baseline fixes)
+
+**Scope:** client split, endpoint probe, import docs, manifest operation enforcement, PR CI suites, CHANGELOG.
+
+**Status:** complete (local; not yet released)
+
+| Item | Result |
+|------|--------|
+| Split `client.go` by API domain | `client_types.go` + `client_{settings,registry,git,config,environment,network,volume,image,schedule,stack,container,system}.go` |
+| Endpoint probe expansion | +15 routes; `force=true` on destructive deletes; `query` merge support |
+| Import doc sweep | `## Import` on all import-capable resource docs (43 files) |
+| Manifest operations enforcement | `validateManifestOperationsInTests` with documented exemptions for known gaps |
+| PR CI expansion | +`TestAccRegistryAndGitCredentialResourcesTerraform`, `TestAccContainerRuntimeSurfacesTerraform`, `TestAccGitStackResourceDestroyRemovesRuntimeTerraform` |
+| CHANGELOG | Added `CHANGELOG.md` with Unreleased section |
+
+**Remaining medium/low (track as issues):**
+
+- Re-run `./scripts/verify.sh --endpoint-probe` against live Dockhand and refresh `docs/reports/endpoint-probe.md` counts
+- Shrink remaining `manifestOperationExemptions` (action delete checks, schedule delete, etc.)
+- Agent autonomy deployment (commit CI bundle, branch protection, smoke test)
+
+### 2026-07-03 — Agent readiness pass (coding standards + test hardening)
+
+**Scope:** `AGENT_CODING_STANDARDS.md`, `AGENT_INTAKE.md`, acceptance import/destroy coverage, `stack_env` ImportState, cursor rules, doc cross-links.
+
+**Status:** complete (local)
+
+| Item | Result |
+|------|--------|
+| Agent coding standards | `docs/AGENT_CODING_STANDARDS.md` + `.cursor/rules/agent-coding-standards.mdc` |
+| Issue intake guide | `docs/AGENT_INTAKE.md` |
+| `dockhand_stack_env` import | `ImportState` + acceptance import/`CheckDestroy` |
+| Acceptance hardening | import/destroy on environment, git_stack, container, image suites |
+| Manifest exemptions | Removed git_stack, environment, container, image, stack_env gaps |
+| Docs | AGENTS, RUNBOOK, CONTRIBUTING, SWEEP, DEPLOYMENT, CHANGELOG updated |
+
+---
+
+### 2026-07-03 — Senior developer (historical baseline)
+
+**Scope:** `client.go` (structure, `doRequest`/retry), `request_retry.go`, `provider.go` (sample), manifest test patterns.
+
+**Summary:** Core HTTP/retry design is solid and centralized. Main maintainability risk is `client.go` size (~3.3k lines); acceptable for now but worth splitting by API domain if it keeps growing.
+
+| Severity | Location | Finding | Suggested action |
+|----------|----------|---------|------------------|
+| low | `internal/provider/client.go` | Single large client file holds all API types + methods | Track; split when touching major areas |
+| low | `internal/provider/request_retry.go` | Retry policy well isolated from resources | Keep new retry behavior here, not in resources |
+| — | `internal/provider/client.go` | `doRequest` limits error body to 64KiB, success to 10MiB | Good pattern; no action |
+
+---
+
+## Post-deferred full lens review (all 11)
+
+- **Tier:** all 11 (minor/major depth — large uncommitted tree)
+- **Started:** 2026-07-03
+- **Base commit:** `96c06b00130446f7a48f3cdd64980f8e0c09c630` (+ ~115 uncommitted local files)
+- **CI gates:** `./scripts/verify.sh --quality` pass (local); GitHub Actions not re-run
+- **Status:** complete
+
+**Delta since baseline:** Client split, import doc sweep, manifest operation enforcement, `AGENT_CODING_STANDARDS.md`, acceptance import/destroy hardening, endpoint probe expansion. Several baseline highs are **fixed**; findings below reflect current tree.
+
+---
+
+### 2026-07-03 — API compatibility (re-run)
+
+**Scope:** `scripts/endpoint-probe.py` (~154 entries), `client_*.go`, `api-drift-gate.py`, `docs/api-matrix.md`, `docs/reports/endpoint-probe.md`.
+
+**Summary:** Client routes are represented in probe paths. Remaining gaps are method/query accuracy and a stale live report.
+
+| Severity | Location | Finding | Suggested action |
+|----------|----------|---------|------------------|
+| high | `endpoint-probe.py:59-66` vs `client_environment.go:122,135,148` | Probe uses PUT; client uses POST for env timezone/update-check/image-prune and scanner settings | Change probe methods to POST |
+| med | `client_environment.go:197` vs `endpoint-probe.py:65-66` | Client DELETE `/api/settings/scanner`; probe only GET+PUT | Add DELETE scanner probe |
+| med | `endpoint-probe.py:145` vs `client_container.go:274-279` | Container DELETE omits `force=true` | Add query `force=true` |
+| med | `docs/reports/endpoint-probe.md` | Report stale vs current ENDPOINTS | Re-run endpoint probe; refresh report |
+| low | `api-drift-gate.py` | Path-only matching; missing configs/backups prefixes | Extend gate |
+| — | stack/volume/image DELETE `force=true` | Aligned with client | Fixed since baseline |
+
+---
+
+### 2026-07-03 — Terraform schema & state (re-run)
+
+**Summary:** `deploy_now` fixed; `force_redeploy` can still drift; inline batch can false-success.
+
+| Severity | Location | Finding | Suggested action |
+|----------|----------|---------|------------------|
+| high | `resource_git_stack.go:592-696` | `force_redeploy` from API not reset like `deploy_now`; HCL `false` does not win over API `true` | Reset `force_redeploy` to false on read; prefer HCL in merge |
+| high | `resource_batch_action.go:190-225` | Inline batch (no job_id) sets success from status only | Parse `submitted.Result` for failures |
+| med | `client_schedule_job.go` | Terminal status variants may cause WaitForJob timeout | Align with extractBatchStatus |
+| med | `resource_stack.go`, `resource_container.go` | enabled unchanged for transitional statuses | Map more statuses or skip with diagnostic |
+| med | `resource_git_stack.go` | env_vars_json write-only | Document or masked read |
+| med | `resource_stack.go` | compose not Sensitive | Mark sensitive or document |
+| — | stack_env ImportState, deploy_now one-shot, enabled reconciliation | Improved | Fixed since baseline |
+
+---
+
+### 2026-07-03 — Dockhand domain / runtime (re-run)
+
+| Severity | Location | Finding | Suggested action |
+|----------|----------|---------|------------------|
+| med | action resources | Resolved default_env not persisted in state | Persist env on create like resource_image |
+| med | `resource_git_repository.go` | environment_id vs default_env confusion | Document; consider defaulting |
+| — | runtime_helpers.go usage | Partial env validation/persistence | Improved since baseline |
+
+---
+
+### 2026-07-03 — Async & long-running operations (re-run)
+
+| Severity | Location | Finding | Suggested action |
+|----------|----------|---------|------------------|
+| med | `client_image.go` PushImage | 30s HTTP client vs 5m for pull/deploy | Use httpClientWithTimeout(5m) |
+| med | `client_git.go` deploy stream | Stream not parsed for failures | Parse stream; fail apply on error |
+| med | image_scan_action | Apply completes on submit not completion | Document async semantics |
+| — | pull/deploy 5m timeouts | Present | Fixed since baseline |
+
+---
+
+### 2026-07-03 — Acceptance & regression (re-run)
+
+| Severity | Location | Finding | Suggested action |
+|----------|----------|---------|------------------|
+| high | `run-acceptance-harness.sh:202-206` | FILE_CONTAINER_ID often empty before tests | Bootstrap container in harness |
+| high | harness | GIT_STACK_ID / ENV_PATH / REGISTRY_CATALOG_ID never exported | Bootstrap fixtures; stop silent skips |
+| high | CI workflows | No t.Skip detection for manifest-mapped tests | Parse go test -json; fail on skips |
+| med | manifestOperationExemptions | 22 entries remain | Shrink over time |
+| med | acceptance_pr_ci.json | 12 suites vs 85 manifest entries | Document; rotate PR suites |
+| — | import/CheckDestroy hardening, exemption shrink | Improved | Fixed since baseline |
+
+---
+
+### 2026-07-03 — Security engineer (re-run)
+
+| Severity | Location | Finding | Suggested action |
+|----------|----------|---------|------------------|
+| high | `data_source_notifications.go` | config_json not Sensitive | Mark Sensitive; redact secrets |
+| high | probe/release-watch artifacts | response_preview may leak tokens | Scrub artifacts |
+| med | acceptance failure artifacts | dh-*.json may include session cookies | Scrub on upload |
+| med | agent-validate.yml | Workflow from agent branch commit | Pin to main workflow ref |
+| med | agent-auto-merge.yml | Auto-merge without human review | Optional required review |
+| — | resource secret schema sweep | Mostly complete | Fixed since baseline |
+
+---
+
+### 2026-07-03 — Ops / SRE (re-run)
+
+| Severity | Location | Finding | Suggested action |
+|----------|----------|---------|------------------|
+| med | workflows | :latest image pins | Pin digests/tags |
+| med | acceptance-full | API_DRIFT_FAIL_ON_NEW=false | Enable when stable |
+| med | PR CI | No endpoint probe | Probe subset on PR or gate nightly |
+| low | verify.sh | Missing acceptance-pr-ci-regex check | Add to core gate |
+| — | Agent CI workflow chain | Ready to land | Documented in AGENT_SWEEP |
+
+---
+
+### 2026-07-03 — Senior developer (re-run)
+
+| Severity | Location | Finding | Suggested action |
+|----------|----------|---------|------------------|
+| med | runtime_helpers.go | persistEnvAttr under-used | Standardize across env-scoped resources |
+| low | client_types.go | Monolithic types file | Split when touching |
+| — | client.go domain split | Done | Fixed since baseline |
+
+---
+
+### 2026-07-03 — GitOps / IaC practitioner (re-run)
+
+| Severity | Location | Finding | Suggested action |
+|----------|----------|---------|------------------|
+| med | gitops-stack example | deploy_now vs deploy_action guidance | Rewrite to deploy_action |
+| med | gitops-stack example | timestamp() trigger | Use static triggers |
+| low | docs/index.md | Incomplete resource chooser | Extend table |
+| — | Import docs, registry-and-image scenario | Complete | Fixed since baseline |
+
+---
+
+### 2026-07-03 — Entry-level developer (re-run)
+
+| Severity | Location | Finding | Suggested action |
+|----------|----------|---------|------------------|
+| low | CONTRIBUTING.md | No CI troubleshooting section | Add failure playbook |
+| low | AGENTS.md | Missing DEPLOYMENT/SWEEP links | Cross-link |
+| — | AGENT_CODING_STANDARDS, AGENT_INTAKE | Added | Fixed since baseline |
+
+---
+
+### 2026-07-03 — Release & upgrade (re-run)
+
+| Severity | Location | Finding | Suggested action |
+|----------|----------|---------|------------------|
+| med | CHANGELOG.md | Unreleased only | Backfill or cut release |
+| med | AGENT_SWEEP.md | Agent CI not merged to main | Complete deployment checklist |
+| low | version pins in README/examples | No migration notes | Align with CHANGELOG |
+
+---
+
+### Post-deferred full sweep — verdict
+
+- **Clear to tag a release:** **no** — highs: force_redeploy drift, inline batch false success, harness skips, notifications config_json sensitivity, probe method gaps.
+- **Clear to proceed with agent autonomy deployment:** **yes, with parallel fix backlog** — land agent CI/docs; file product issues on agent branches.
+- **Fixed since baseline:** deploy_now one-shot, batch failure when job_id present, enabled reconciliation, sensitive schema (most), examples, client split, import docs, manifest enforcement, drift prefixes (partial).
+
+**Recommended agent backlog (priority):**
+
+1. ~~force_redeploy one-shot semantics~~ — fixed
+2. ~~Inline batch result failure parsing~~ — fixed
+3. ~~Harness fixtures + CI skip detection~~ — fixed
+4. ~~notifications config_json Sensitive~~ — fixed
+5. ~~Endpoint probe method/query refresh~~ — fixed (re-run live probe before release)
+6. ~~GitOps scenario rewrite~~ — fixed
+7. ~~PushImage timeout + deploy stream parsing~~ — fixed
+8. ~~Persist env on action resources~~ — fixed
+9. ~~Agent CI trust boundary hardening~~ — fixed (`agent-auto-merge` label + workflow integrity check)
+
+### 2026-07-03 — Lens fix pass — verdict
+
+- **Clear to tag a release:** **yes** after agent CI merge to `main` and green Acceptance Full / Release Watch (compat baselines via **Compat Reports Sync**)
+- **Clear to proceed with agent autonomy deployment:** **yes** — land CI bundle, sync branch protection, add `agent-auto-merge` label in GitHub, smoke test
+- **`./scripts/verify.sh --quality`:** passing
+

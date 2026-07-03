@@ -29,6 +29,38 @@ type acceptanceManifestEntry struct {
 
 var temporaryGenericAcceptanceRegexAllowlist = map[string]struct{}{}
 
+// manifestOperationExemptions skips acceptance-source checks for known coverage gaps.
+// Keys are manifest entry names; values list operations (import, update, delete).
+var manifestOperationExemptions = map[string][]string{
+	"dockhand_stack":                          {"delete"},
+	"dockhand_git_repository":                 {"delete"},
+	"dockhand_git_stack_env_file":             {"delete"},
+	"dockhand_container_file":                 {"delete"},
+	"dockhand_schedule":                       {"delete"},
+	"dockhand_schedule_settings":              {"delete"},
+	"dockhand_registry_image_delete_action":   {"delete"},
+	"dockhand_git_repository_test_action":     {"delete"},
+	"dockhand_git_stack_webhook_action":       {"delete"},
+	"dockhand_git_stack_deploy_action":        {"delete"},
+	"dockhand_notification_test_action":       {"delete"},
+	"dockhand_environment_test_action":        {"delete"},
+	"dockhand_environment_scanner_action":     {"delete"},
+	"dockhand_network_connection_action":      {"delete"},
+	"dockhand_volume_clone_action":            {"delete"},
+	"dockhand_image_push_action":              {"delete"},
+	"dockhand_image_scan_action":              {"delete"},
+	"dockhand_container_action":               {"delete"},
+	"dockhand_container_rename_action":        {"delete"},
+	"dockhand_container_update_action":        {"delete"},
+	"dockhand_container_check_updates_action": {"delete"},
+	"dockhand_schedule_run_action":            {"delete"},
+	"dockhand_prune_action":                   {"delete"},
+	"dockhand_batch_action":                   {"delete"},
+	"dockhand_stack_action":                   {"delete"},
+	"dockhand_stack_scan_action":              {"delete"},
+	"dockhand_stack_adopt_action":             {"delete"},
+}
+
 func TestAcceptanceManifestCoverage(t *testing.T) {
 	t.Helper()
 
@@ -191,10 +223,84 @@ func validateManifestEntry(t *testing.T, surfaceType string, e acceptanceManifes
 
 	for _, testName := range testNames {
 		if re.MatchString(testName) {
+			validateManifestOperationsInTests(t, surfaceType, e, testNames, re)
 			return
 		}
 	}
 	t.Fatalf("%s %q regex %q does not match any TestAcc function", surfaceType, e.Name, testRegex)
+}
+
+func validateManifestOperationsInTests(t *testing.T, surfaceType string, e acceptanceManifestEntry, testNames []string, re *regexp.Regexp) {
+	t.Helper()
+
+	if len(e.Operations) == 0 {
+		return
+	}
+
+	source := acceptanceTestSourceForRegex(t, testNames, re)
+	exempt := map[string]struct{}{}
+	for _, op := range manifestOperationExemptions[e.Name] {
+		exempt[op] = struct{}{}
+	}
+
+	for _, op := range e.Operations {
+		if _, ok := exempt[op]; ok {
+			continue
+		}
+		switch e.Mode {
+		case "stateful":
+			switch op {
+			case "import":
+				if !strings.Contains(source, "ImportState") {
+					t.Fatalf("%s %q requires import coverage in acceptance tests (ImportState)", surfaceType, e.Name)
+				}
+			case "update":
+				if strings.Count(source, "resource.TestStep{") < 2 && !strings.Contains(source, "ImportStateVerify") {
+					t.Fatalf("%s %q requires update coverage in acceptance tests (multiple TestStep blocks)", surfaceType, e.Name)
+				}
+			case "delete":
+				if !strings.Contains(source, "CheckDestroy") && !strings.Contains(source, "Destroy:") {
+					t.Fatalf("%s %q requires delete coverage in acceptance tests (CheckDestroy)", surfaceType, e.Name)
+				}
+			}
+		case "action":
+			switch op {
+			case "delete":
+				if strings.Count(source, "resource.TestStep{") < 1 {
+					t.Fatalf("%s %q requires action acceptance test steps", surfaceType, e.Name)
+				}
+			}
+		}
+	}
+}
+
+func acceptanceTestSourceForRegex(t *testing.T, testNames []string, re *regexp.Regexp) string {
+	t.Helper()
+
+	files, err := filepath.Glob("*_test.go")
+	if err != nil {
+		t.Fatalf("glob test files: %v", err)
+	}
+
+	var b strings.Builder
+	for _, fileName := range files {
+		// #nosec G304 -- fileName comes from filepath.Glob("*_test.go") in this package.
+		raw, err := os.ReadFile(fileName)
+		if err != nil {
+			t.Fatalf("read %s: %v", fileName, err)
+		}
+		text := string(raw)
+		for _, testName := range testNames {
+			if !re.MatchString(testName) {
+				continue
+			}
+			if strings.Contains(text, "func "+testName+"(t *testing.T)") {
+				b.WriteString(text)
+				break
+			}
+		}
+	}
+	return b.String()
 }
 
 func requireOps(t *testing.T, surfaceType string, name string, ops map[string]struct{}, required []string) {

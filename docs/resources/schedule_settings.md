@@ -23,3 +23,11 @@ resource "dockhand_schedule_settings" "global" {
 ### Read-Only
 
 - `id` (String) Singleton resource ID (`schedule-settings`).
+
+## Import
+
+```bash
+terraform import dockhand_schedule_settings.example `settings`
+```
+
+Singleton resource; import ID is the literal `settings`.

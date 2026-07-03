@@ -27,3 +27,10 @@ resource "dockhand_volume_clone_action" "clone" {
 ### Read-Only
 
 - `id` (String) Internal action execution ID.
+## Import
+
+Action resources are one-shot. Import the computed `id` (usually the Dockhand job ID or action record ID) after the action has run:
+
+```bash
+terraform import dockhand_volume_clone_action.example <id>
+```

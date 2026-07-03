@@ -1,0 +1,141 @@
+name: Agent Open PR
+
+on:
+  workflow_run:
+    workflows:
+      - Agent Validate
+    types:
+      - completed
+
+permissions:
+  contents: read
+  pull-requests: write
+  issues: write
+
+jobs:
+  open-pr:
+    name: Agent Open PR
+    if: >-
+      ${{ github.event.workflow_run.conclusion == 'success' &&
+          startsWith(github.event.workflow_run.head_branch, 'agent/') }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Open or update agent pull request
+        uses: actions/github-script@v9
+        with:
+          script: |
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+            const run = context.payload.workflow_run;
+            const branch = run.head_branch || "";
+            const headSha = run.head_sha || "";
+
+            const match = branch.match(/^agent\/issue-(\d+)-(.+)$/i);
+            if (!match) {
+              core.setFailed(
+                `Agent branch ${branch} must match agent/issue-<number>-<slug> for automated PR creation.`
+              );
+              return;
+            }
+
+            const issueNumber = Number(match[1]);
+            const slug = match[2];
+            const title = `fix(agent): issue ${issueNumber} ${slug.replace(/-/g, " ")}`;
+
+            const automationSection = [
+              "### Automation",
+              "",
+              `- Validate run: ${run.html_url}`,
+              `- Branch: \`${branch}\``,
+              `- Head: \`${headSha}\``,
+              "",
+              "Opened by the Agent Open PR workflow.",
+            ].join("\n");
+
+            const defaultBody = [
+              "## Agent-managed change",
+              "",
+              "This pull request was created by the repository agent workflow (Cursor Cloud Agent + GitHub Actions).",
+              "Commits on the branch should include `Co-authored-by: Cursor Agent <noreply@cursor.com>`.",
+              "",
+              `Fixes #${issueNumber}`,
+              "",
+              "## What was fixed",
+              "",
+              "<!-- Required before merge: problem, cause, and code change -->",
+              "",
+              "## User impact",
+              "",
+              "<!-- Required before merge: who is affected and any upgrade/config steps -->",
+              "",
+              "## Validation",
+              "",
+              "- [ ] `./scripts/verify.sh --quality`",
+              `- [ ] Agent Validate: ${run.html_url}`,
+              "",
+              automationSection,
+            ].join("\n");
+
+            const mergeBody = (existingBody) => {
+              if (!existingBody || !existingBody.includes("## What was fixed")) {
+                return defaultBody;
+              }
+              const withoutAutomation = existingBody.replace(
+                /\n### Automation[\s\S]*$/,
+                ""
+              );
+              return `${withoutAutomation.trim()}\n\n${automationSection}`;
+            };
+
+            const existing = await github.paginate(github.rest.pulls.list, {
+              owner,
+              repo,
+              state: "open",
+              head: `${owner}:${branch}`,
+              per_page: 100,
+            });
+
+            if (existing.length > 0) {
+              const pr = existing[0];
+              const prDetail = await github.rest.pulls.get({
+                owner,
+                repo,
+                pull_number: pr.number,
+              });
+              const updatedBody = mergeBody(prDetail.data.body || "");
+              await github.rest.issues.update({
+                owner,
+                repo,
+                issue_number: pr.number,
+                title,
+                body: updatedBody,
+              });
+              await github.rest.issues.addLabels({
+                owner,
+                repo,
+                issue_number: pr.number,
+                labels: ["agent"],
+              });
+              core.info(`Updated existing PR #${pr.number}`);
+              return;
+            }
+
+            const created = await github.rest.pulls.create({
+              owner,
+              repo,
+              title,
+              head: branch,
+              base: "main",
+              body: defaultBody,
+              maintainer_can_modify: true,
+              draft: false,
+            });
+
+            await github.rest.issues.addLabels({
+              owner,
+              repo,
+              issue_number: created.data.number,
+              labels: ["agent"],
+            });
+
+            core.info(`Created PR #${created.data.number}`);

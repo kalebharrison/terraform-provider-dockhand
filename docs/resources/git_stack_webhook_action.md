@@ -24,3 +24,10 @@ resource "dockhand_git_stack_webhook_action" "sync_stack" {
 ### Read-Only
 
 - `id` (String) Internal action execution ID.
+## Import
+
+Action resources are one-shot. Import the computed `id` (usually the Dockhand job ID or action record ID) after the action has run:
+
+```bash
+terraform import dockhand_git_stack_webhook_action.example <id>
+```

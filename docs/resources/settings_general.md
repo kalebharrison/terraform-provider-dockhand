@@ -54,3 +54,10 @@ All attributes are optional; omitted attributes will keep the current server val
 - `primary_stack_location` (String) Set to `null` to clear.
 - `external_stack_paths` (List of String)
 
+## Import
+
+```bash
+terraform import dockhand_settings_general.example `general`
+```
+
+Singleton resource; import ID is the literal `general`.

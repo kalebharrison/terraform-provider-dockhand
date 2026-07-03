@@ -166,7 +166,7 @@ func (r *gitStackResource) Schema(_ context.Context, _ resource.SchemaRequest, r
 				Sensitive: true,
 			},
 			"deploy_now": schema.BoolAttribute{
-				MarkdownDescription: "Whether to request immediate deployment when creating/updating this git stack.",
+				MarkdownDescription: "Request immediate deployment when set to `true`. Only sent to the API when transitioning to `true` (create or after changing from `false`). For ad-hoc redeploys prefer `dockhand_git_stack_deploy_action`.",
 				Optional:            true,
 				Computed:            true,
 				Default:             booldefault.StaticBool(false),
@@ -184,13 +184,14 @@ func (r *gitStackResource) Schema(_ context.Context, _ resource.SchemaRequest, r
 				Default:             booldefault.StaticBool(false),
 			},
 			"force_redeploy": schema.BoolAttribute{
-				MarkdownDescription: "Whether Dockhand should force a redeploy on deploy.",
+				MarkdownDescription: "Force redeploy when set to `true`. Same one-shot semantics as `deploy_now`.",
 				Optional:            true,
 				Computed:            true,
 				Default:             booldefault.StaticBool(false),
 			},
 			"env_vars_json": schema.StringAttribute{
 				MarkdownDescription: "JSON array of env vars: `[{\"key\":\"A\",\"value\":\"B\",\"isSecret\":false}]`.",
+				Sensitive:           true,
 				Optional:            true,
 				Computed:            true,
 				Default:             stringdefault.StaticString("[]"),
@@ -232,13 +233,13 @@ func (r *gitStackResource) Create(ctx context.Context, req resource.CreateReques
 		return
 	}
 
-	env := strings.TrimSpace(r.client.resolveEnv(plan.Env.ValueString()))
-	if env == "" {
-		resp.Diagnostics.AddError("Missing environment", "Set `env` on `dockhand_git_stack` or provider `default_env`.")
+	env, err := r.client.requireResolvedEnv(plan.Env.ValueString())
+	if err != nil {
+		resp.Diagnostics.AddError("Missing environment", err.Error())
 		return
 	}
 
-	payload, err := buildGitStackPayload(plan)
+	payload, err := buildGitStackPayload(plan, gitStackDeployTriggersFrom(plan, gitStackModel{}, true))
 	if err != nil {
 		resp.Diagnostics.AddError("Invalid git stack configuration", err.Error())
 		return
@@ -301,13 +302,13 @@ func (r *gitStackResource) Update(ctx context.Context, req resource.UpdateReques
 		return
 	}
 
-	env := strings.TrimSpace(r.client.resolveEnv(firstKnownString(plan.Env, state.Env)))
-	if env == "" {
-		resp.Diagnostics.AddError("Missing environment", "Set `env` on `dockhand_git_stack` or provider `default_env`.")
+	env, err := r.client.requireResolvedEnv(firstKnownString(plan.Env, state.Env))
+	if err != nil {
+		resp.Diagnostics.AddError("Missing environment", err.Error())
 		return
 	}
 
-	payload, err := buildGitStackPayload(plan)
+	payload, err := buildGitStackPayload(plan, gitStackDeployTriggersFrom(plan, state, false))
 	if err != nil {
 		resp.Diagnostics.AddError("Invalid git stack configuration", err.Error())
 		return
@@ -374,7 +375,7 @@ func (r *gitStackResource) ImportState(ctx context.Context, req resource.ImportS
 	resource.ImportStatePassthroughID(ctx, path.Root("id"), req, resp)
 }
 
-func buildGitStackPayload(plan gitStackModel) (gitStackPayload, error) {
+func buildGitStackPayload(plan gitStackModel, triggers gitStackDeployTriggers) (gitStackPayload, error) {
 	stackName := strings.TrimSpace(plan.StackName.ValueString())
 	if stackName == "" {
 		return gitStackPayload{}, fmt.Errorf("stack_name is required")
@@ -407,10 +408,6 @@ func buildGitStackPayload(plan gitStackModel) (gitStackPayload, error) {
 		webhookSecretAutoGenerate = plan.WebhookSecretAutoGenerate.ValueBool()
 	}
 
-	deployNow := false
-	if !plan.DeployNow.IsNull() && !plan.DeployNow.IsUnknown() {
-		deployNow = plan.DeployNow.ValueBool()
-	}
 	buildOnDeploy := false
 	if !plan.BuildOnDeploy.IsNull() && !plan.BuildOnDeploy.IsUnknown() {
 		buildOnDeploy = plan.BuildOnDeploy.ValueBool()
@@ -419,10 +416,6 @@ func buildGitStackPayload(plan gitStackModel) (gitStackPayload, error) {
 	if !plan.RepullImages.IsNull() && !plan.RepullImages.IsUnknown() {
 		repullImages = plan.RepullImages.ValueBool()
 	}
-	forceRedeploy := false
-	if !plan.ForceRedeploy.IsNull() && !plan.ForceRedeploy.IsUnknown() {
-		forceRedeploy = plan.ForceRedeploy.ValueBool()
-	}
 
 	payload := gitStackPayload{
 		StackName:         stackName,
@@ -430,10 +423,10 @@ func buildGitStackPayload(plan gitStackModel) (gitStackPayload, error) {
 		AutoUpdateEnabled: autoUpdateEnabled,
 		AutoUpdateCron:    autoUpdateCron,
 		WebhookEnabled:    webhookEnabled,
-		DeployNow:         deployNow,
+		DeployNow:         triggers.DeployNow,
 		BuildOnDeploy:     buildOnDeploy,
 		RepullImages:      repullImages,
-		ForceRedeploy:     forceRedeploy,
+		ForceRedeploy:     triggers.ForceRedeploy,
 	}
 	// Support Dockhand API variants that use either autoUpdateEnabled or autoUpdate.
 	payload.AutoUpdate = &autoUpdateEnabled
@@ -596,11 +589,7 @@ func modelFromGitStackResponse(in *gitStackResponse) gitStackModel {
 	} else {
 		out.RepullImages = types.BoolNull()
 	}
-	if in.ForceRedeploy != nil {
-		out.ForceRedeploy = types.BoolValue(*in.ForceRedeploy)
-	} else {
-		out.ForceRedeploy = types.BoolNull()
-	}
+	out.ForceRedeploy = types.BoolValue(false)
 	if in.LastSync != nil {
 		out.LastSync = types.StringValue(*in.LastSync)
 	} else {
@@ -698,9 +687,6 @@ func mergeGitStackState(preferred gitStackModel, remote gitStackModel) gitStackM
 	if (out.RepullImages.IsNull() || out.RepullImages.IsUnknown()) && !preferred.RepullImages.IsNull() && !preferred.RepullImages.IsUnknown() {
 		out.RepullImages = preferred.RepullImages
 	}
-	if (out.ForceRedeploy.IsNull() || out.ForceRedeploy.IsUnknown()) && !preferred.ForceRedeploy.IsNull() && !preferred.ForceRedeploy.IsUnknown() {
-		out.ForceRedeploy = preferred.ForceRedeploy
-	}
 	if (out.CredentialID.IsNull() || out.CredentialID.IsUnknown()) && !preferred.CredentialID.IsNull() && !preferred.CredentialID.IsUnknown() {
 		out.CredentialID = preferred.CredentialID
 	}
@@ -713,13 +699,13 @@ func mergeGitStackState(preferred gitStackModel, remote gitStackModel) gitStackM
 	if (out.Branch.IsNull() || out.Branch.IsUnknown()) && !preferred.Branch.IsNull() && !preferred.Branch.IsUnknown() {
 		out.Branch = preferred.Branch
 	}
-
-	if !preferred.DeployNow.IsNull() && !preferred.DeployNow.IsUnknown() {
-		out.DeployNow = preferred.DeployNow
-	}
 	if !preferred.EnvVarsJSON.IsNull() && !preferred.EnvVarsJSON.IsUnknown() {
 		out.EnvVarsJSON = preferred.EnvVarsJSON
 	}
+
+	// One-shot deploy flags are never persisted as true in state.
+	out.DeployNow = types.BoolValue(false)
+	out.ForceRedeploy = types.BoolValue(false)
 
 	return out
 }

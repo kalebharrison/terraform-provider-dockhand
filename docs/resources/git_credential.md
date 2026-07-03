@@ -52,3 +52,11 @@ The provider sends the key to Dockhand as `sshPrivateKey`.
 - `username` (String)
 - `ssh_key` (String, Sensitive, Write-only)
 - `password` (String, Sensitive, Write-only)
+
+## Import
+
+```bash
+terraform import dockhand_git_credential.example <id>
+```
+
+Git credential ID.

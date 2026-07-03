@@ -70,6 +70,7 @@ func (r *stackResource) Schema(_ context.Context, _ resource.SchemaRequest, resp
 			"compose": schema.StringAttribute{
 				MarkdownDescription: "Stack Docker Compose manifest content.",
 				Required:            true,
+				Sensitive:           true,
 				PlanModifiers: []planmodifier.String{
 					stringplanmodifier.RequiresReplace(),
 				},
@@ -126,7 +127,12 @@ func (r *stackResource) Create(ctx context.Context, req resource.CreateRequest, 
 		return
 	}
 
-	env := plan.Env.ValueString()
+	env, err := r.client.requireResolvedEnv(plan.Env.ValueString())
+	if err != nil {
+		resp.Diagnostics.AddError("Missing environment", err.Error())
+		return
+	}
+	plan.Env = r.client.persistEnvAttr(plan.Env)
 	name := plan.Name.ValueString()
 
 	if err := r.client.CreateStack(ctx, env, stackPayload{
@@ -176,6 +182,11 @@ func (r *stackResource) Read(ctx context.Context, req resource.ReadRequest, resp
 		return
 	}
 
+	resolvedEnv := r.client.persistEnvAttr(state.Env)
+	if !resolvedEnv.IsNull() && !resolvedEnv.IsUnknown() {
+		state.Env = resolvedEnv
+	}
+
 	// Keep configured compose if API doesn't return it in list responses.
 	if stack.Compose != "" {
 		state.Compose = types.StringValue(stack.Compose)
@@ -183,6 +194,9 @@ func (r *stackResource) Read(ctx context.Context, req resource.ReadRequest, resp
 	state.Status = types.StringValue(stack.Status)
 	state.ContainerIDs = stringSliceToListValue(stack.Containers)
 	state.ContainerCount = types.Int64Value(int64(len(stack.Containers)))
+	if enabled, ok := runtimeEnabledFromStatus(stack.Status); ok {
+		state.Enabled = types.BoolValue(enabled)
+	}
 
 	resp.Diagnostics.Append(resp.State.Set(ctx, &state)...)
 }
@@ -297,6 +311,9 @@ func (r *stackResource) refreshStackObservedFields(ctx context.Context, env stri
 		target.Status = types.StringValue(stack.Status)
 		target.ContainerIDs = stringSliceToListValue(stack.Containers)
 		target.ContainerCount = types.Int64Value(int64(len(stack.Containers)))
+		if enabled, ok := runtimeEnabledFromStatus(stack.Status); ok {
+			target.Enabled = types.BoolValue(enabled)
+		}
 		return nil
 	}
 

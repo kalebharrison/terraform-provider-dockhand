@@ -135,15 +135,16 @@ Operational references:
 - `docs/testing/release-gate.md`
 - `docs/MAINTENANCE_PLAYBOOK.md`
 
-## Development and Local Testing
+## Development and CI
 
-Requirements:
+Requirements for optional local work:
 
 - Go 1.25+
 - Terraform CLI or OpenTofu
-- Dockhand test target for acceptance work
 
-Standard local validation:
+**Routine validation runs in GitHub Actions** (ephemeral Dockhand + DinD). See `docs/AGENT_AUTONOMY.md`.
+
+Standard local gate (no Dockhand):
 
 ```bash
 ./scripts/verify.sh --quality
@@ -155,14 +156,9 @@ When dependency, toolchain, or security posture changes:
 ./scripts/verify.sh --security
 ```
 
-When provider behavior changes:
+Dockhand-dependent probes and acceptance run on CI. Local runs are debug-only.
 
-```bash
-./scripts/verify.sh --endpoint-probe
-./scripts/verify.sh --acceptance --test-regex 'TestAcc(<targeted-regex>)'
-```
-
-Local development workflows:
+Optional local Terraform/provider dev:
 
 - `docs/LOCAL_DEV.md`
 - `docs/PRIVATE_DISTRIBUTION.md`
@@ -206,3 +202,14 @@ Environment variable fallbacks:
 - `MAINTAINERS.md`
 - `SUPPORT.md`
 - `CODE_OF_CONDUCT.md`
+
+## Agent-managed workflow
+
+Some changes land through an automated agent loop (Cursor Cloud Agent + GitHub Actions):
+
+- Docs: `docs/AGENT_RUNBOOK.md`, `docs/AGENT_CODING_STANDARDS.md`, `docs/AGENT_IDENTITY.md`, `docs/AGENT_INTAKE.md`
+- Branches: `agent/issue-<number>-<slug>`
+- Commits include `Co-authored-by: Cursor Agent <noreply@cursor.com>`
+- PRs are opened by GitHub Actions as `github-actions[bot]` with the `agent` label
+
+One-time setup after enabling agent CI: `docs/AGENT_DEPLOYMENT.md`.

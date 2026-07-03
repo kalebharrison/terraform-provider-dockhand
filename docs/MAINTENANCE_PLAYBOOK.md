@@ -2,28 +2,25 @@
 
 Operational runbook for keeping `terraform-provider-dockhand` stable, repeatable, and continuously updated.
 
+**Vacation-proof maintenance:** see `docs/AGENT_AUTONOMY.md` — routine Dockhand validation runs in CI, not on a maintainer machine.
+
 ## Canonical Commands
 
 Run from repo root.
 
 ```bash
-# Core local gate (fast, repeatable)
-./scripts/verify.sh
-
-# Extended gate (matches CI quality checks where local tools exist)
+# Core gate (fast, no Dockhand) — matches CI unit/docs checks
 ./scripts/verify.sh --quality
 
 # Dependency/toolchain/security gate
 ./scripts/verify.sh --security
-
-# API contract check against live Dockhand
-./scripts/verify.sh --endpoint-probe
-
-# Full acceptance harness (ephemeral Dockhand + DinD + Hawser + local registry + adopt fixture)
-./scripts/verify.sh --acceptance --test-regex 'TestAcc'
 ```
 
+Dockhand-dependent commands (`--endpoint-probe`, `--acceptance`) are **debug-only** when CI is available. See `docs/ENDPOINT_PROBE.md` and `docs/AGENT_AUTONOMY.md`.
+
 ## Standard Change Flow
+
+Human-maintainer branches use `codex/<short-change-name>`. Agent-managed work uses `agent/issue-<number>-<slug>` — see `docs/AGENT_RUNBOOK.md` and `docs/AGENT_CODING_STANDARDS.md`.
 
 1. Sync and branch
 
@@ -40,24 +37,20 @@ git checkout -b codex/<short-change-name>
 3. Implement narrowly scoped changes
 - Keep API client/schema/tests/docs/examples in the same PR.
 
-4. Run local validation
+4. Run validation
+
+**Agent branches:** push → Agent Validate + PR CI (no local Dockhand).
+
+**Human branches:** optional `./scripts/verify.sh --quality` then push; CI runs acceptance.
 
 ```bash
 ./scripts/verify.sh --quality
 ./scripts/verify.sh --security
 ```
 
-5. If API behavior changed, run live probe
+5. If API behavior changed, update `scripts/endpoint-probe.py` and merge — **Compat Reports Sync** refreshes `docs/reports/` after the next green nightly/release-watch run.
 
-```bash
-./scripts/verify.sh --endpoint-probe
-```
-
-6. If resource/data source behavior changed, run acceptance harness
-
-```bash
-./scripts/verify.sh --acceptance --test-regex 'TestAcc(<targeted-regex>)'
-```
+6. If resource/data source behavior changed, ensure acceptance coverage and `acceptance_pr_ci.json` when the suite should run on PRs. Full recursive acceptance runs nightly in CI.
 
 7. Commit, push, open PR
 
@@ -95,8 +88,9 @@ When adding/changing a resource or data source:
 
 For release candidate `X.Y.Z`:
 
-1. Merge to `main`.
-2. Tag and push:
+1. Merge to `main`; confirm CI release gates in `docs/testing/release-gate.md`.
+2. Agent runs full lens review (`docs/testing/release-lens-review.md`); log **clear to tag** in `docs/reports/agent-review-log.md`.
+3. Tag and push:
 
 ```bash
 git checkout main
@@ -105,14 +99,16 @@ git tag -s vX.Y.Z -m "Release vX.Y.Z"
 git push origin vX.Y.Z
 ```
 
-3. Wait for `.github/workflows/release-artifacts.yml` completion.
-4. Validate the published artifact, not local binaries:
+4. Wait for `.github/workflows/release-artifacts.yml` completion.
+5. Confirm latest **Acceptance Full** and **Dockhand Release Watch** runs are green; **Compat Reports Sync** baseline PR merged or unchanged.
+
+Optional staging check against a long-lived Dockhand (not a release gate):
 
 ```bash
 ./scripts/release-test.sh X.Y.Z
 ```
 
-5. If release validation fails, fix on branch and cut next patch tag.
+6. If release validation fails, fix on branch and cut next patch tag.
 
 ## Continuous Drift Detection (Hands-Off Loop)
 
@@ -124,6 +120,9 @@ Automated workflows already in place:
   - Uploads compatibility artifacts.
 - `.github/workflows/acceptance-full.yml` (nightly)
   - Full recursive acceptance run.
+  - Uploads compat artifact for **Compat Reports Sync**.
+- `.github/workflows/compat-reports-sync.yml`
+  - Opens PR to refresh `docs/reports/` after green full/release-watch runs.
 
 On failures:
 

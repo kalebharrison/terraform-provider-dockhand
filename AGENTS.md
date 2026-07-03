@@ -13,6 +13,29 @@ Start here for AI agents working in this repo.
 - **Rules:** `.cursor/rules/repo-basics.mdc`
 - **Ignore:** `.cursorignore` — excludes build artifacts, Terraform cache, secrets from indexing
 
+## Autonomous agent loop
+
+Agents owning this repo should start with:
+
+- `docs/AGENT_RUNBOOK.md` — branch naming, validation, CI map
+- `docs/AGENT_ISSUE_RESPONSE.md` — issue comments, release notices, regression reopen
+- `docs/AGENT_CODING_STANDARDS.md` — how to write provider code, tests, and docs
+- `docs/AGENT_IDENTITY.md` — transparency and `Co-authored-by` requirements
+- `docs/AGENT_INTAKE.md` — how issues enter the agent queue
+- `docs/AGENT_DEPLOYMENT.md` — one-time agent CI rollout (maintainers)
+- `docs/AGENT_SWEEP.md` — readiness checklist tracker
+
+Quick loop:
+
+1. Branch `agent/issue-<n>-<slug>`
+2. Commit with `Co-authored-by: Cursor Agent <noreply@cursor.com>`
+3. Push → **Agent Validate**
+4. Green → **Agent Open PR** → **Agent Auto Merge** when checks pass
+
+Focused review lenses (on demand): `docs/AGENT_REVIEW_LENSES.md` — log: `docs/reports/agent-review-log.md`.
+
+**Before every release:** lens review per tier — `docs/testing/release-lens-review.md` (patch: core 5; minor/major: all 11).
+
 ## Purpose
 
 Repository guidance for coding agents working on `terraform-provider-dockhand`.
@@ -120,19 +143,13 @@ Repository guidance for coding agents working on `terraform-provider-dockhand`.
 
 ## Validation Commands
 
-Run from repo root:
+**Agents:** push and rely on CI (`docs/AGENT_AUTONOMY.md`). Optional local gate with no Dockhand:
 
 ```bash
 ./scripts/verify.sh --quality
-
-# When API contracts changed:
-./scripts/verify.sh --endpoint-probe
-
-# When behavior coverage changed:
-./scripts/verify.sh --acceptance --test-regex 'TestAcc(<targeted-regex>)'
 ```
 
-If tests require Dockhand access, clearly separate them as acceptance tests.
+Dockhand-dependent validation (acceptance, endpoint probe, drift audits) runs on GitHub Actions only.
 
 ## Operational Breadcrumbs
 
@@ -144,16 +161,15 @@ If tests require Dockhand access, clearly separate them as acceptance tests.
   - `make verify-quality`
   - `make verify-docs`
 
-## Release-First Workflow (Local Testing)
+## Release-First Workflow
 
-When making provider changes, prefer testing the exact same artifact that users will consume:
+Release validation uses CI artifacts, not a maintainer laptop:
 
-- Create a Git tag `vX.Y.Z` and push it.
-- Wait for the `Release Artifacts` workflow to publish a GitHub Release and zip assets.
-- Download the release zip(s) into the repo-local filesystem mirror at `./terraform/dockhand/mirror`.
-- Run Terraform from `./terraform/dockhand/test` using `TF_CLI_CONFIG_FILE=../terraformrc.dockhand`.
+- Tag `vX.Y.Z` → **Release Artifacts** workflow publishes signed zips (repo `GPG_*` secrets).
+- **Acceptance Full** and **Dockhand Release Watch** validate against ephemeral Dockhand on GitHub runners.
+- **Compat Reports Sync** keeps `docs/reports/` current.
 
-Avoid testing by building local zips for release validation.
+Optional: download release zips into `./terraform/dockhand/mirror` for local Terraform testing (`docs/LOCAL_DEV.md`). Not required for agent maintenance.
 
 ## Terraform Provider Notes
 
@@ -260,8 +276,7 @@ Avoid testing by building local zips for release validation.
   - `POST /api/batch`
   - `GET /api/jobs/{id}`
 - Verify response payload shapes against live Dockhand responses before release.
-- Endpoint presence should be re-verified with `scripts/endpoint-probe.py` and reviewed in:
-  - `docs/reports/endpoint-probe.md`
+- Endpoint presence is tracked by `scripts/endpoint-probe.py` on CI; review `docs/reports/endpoint-probe.md` (refreshed by **Compat Reports Sync**).
   - `docs/non-present-endpoints.md`
 
 ## CI Expectations

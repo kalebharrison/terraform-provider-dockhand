@@ -45,3 +45,10 @@ resource "dockhand_prune_action" "containers" {
 - `result_json` (String) Raw prune result payload JSON.
 - `lines_json` (String) Async job output lines JSON array.
 - `error` (String) Error message if a run fails.
+## Import
+
+Action resources are one-shot. Import the computed `id` (usually the Dockhand job ID or action record ID) after the action has run:
+
+```bash
+terraform import dockhand_prune_action.example <id>
+```

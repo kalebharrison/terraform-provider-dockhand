@@ -16,6 +16,7 @@ RUN_DOCS_REFERENCE_AUDIT="${RUN_DOCS_REFERENCE_AUDIT:-false}"
 RUN_PRIVATE_ENDPOINT_PROBE="${RUN_PRIVATE_ENDPOINT_PROBE:-false}"
 DOCKHAND_TEST_ENDPOINT="${DOCKHAND_TEST_ENDPOINT:-http://127.0.0.1:13001}"
 DOCKHAND_TEST_USERNAME="${DOCKHAND_TEST_USERNAME:-tfacc}"
+# Default matches acceptance-ci.yml; ephemeral CI-only creds, not production secrets.
 DOCKHAND_TEST_PASSWORD="${DOCKHAND_TEST_PASSWORD:-tfaccpass123!}"
 DOCKHAND_TEST_AUTH_PROVIDER="${DOCKHAND_TEST_AUTH_PROVIDER:-local}"
 DOCKHAND_TEST_DIND_HOST="${DOCKHAND_TEST_DIND_HOST:-}"
@@ -198,6 +199,60 @@ EOF
 docker exec "${DOCKHAND_CONTAINER}" mkdir -p "${stack_adopt_dir}"
 docker cp /tmp/dh-stack-adopt-compose.yaml "${DOCKHAND_CONTAINER}:${stack_adopt_compose_path}"
 
+echo "Bootstrapping acceptance fixtures"
+
+bootstrap_ctr="tf-acc-bootstrap-file-${SUFFIX}"
+create_ctr_payload="$(jq -nc --arg n "${bootstrap_ctr}" '{name:$n,image:"busybox:1.36.1",command:["sleep","3600"],enabled:false}')"
+curl -sS -b /tmp/dh-cookies.txt -H "Content-Type: application/json" \
+  -d "${create_ctr_payload}" \
+  "${DOCKHAND_TEST_ENDPOINT}/api/containers?env=${existing_id}" >/tmp/dh-bootstrap-container.json
+file_container_id="$(jq -r '.id // empty' /tmp/dh-bootstrap-container.json)"
+if [[ -z "${file_container_id}" ]]; then
+  echo "Failed to bootstrap file container fixture" >&2
+  cat /tmp/dh-bootstrap-container.json >&2 || true
+  exit 1
+fi
+export DOCKHAND_TEST_FILE_CONTAINER_ID="${file_container_id}"
+
+registry_payload="$(jq -nc --arg url "http://registry:5000" --arg name "ci-catalog-${SUFFIX}" \
+  '{name:$name,url:$url,isDefault:false}')"
+curl -sS -b /tmp/dh-cookies.txt -H "Content-Type: application/json" \
+  -d "${registry_payload}" \
+  "${DOCKHAND_TEST_ENDPOINT}/api/registries" >/tmp/dh-bootstrap-registry.json
+registry_catalog_id="$(jq -r '.id // empty' /tmp/dh-bootstrap-registry.json)"
+if [[ -n "${registry_catalog_id}" ]]; then
+  export DOCKHAND_TEST_REGISTRY_CATALOG_ID="${registry_catalog_id}"
+fi
+
+git_repo_payload="$(jq -nc \
+  --arg name "ci-git-repo-${SUFFIX}" \
+  --arg url "${DOCKHAND_TEST_GIT_STACK_REPO_URL}" \
+  --arg branch "${DOCKHAND_TEST_GIT_STACK_BRANCH}" \
+  --arg compose "${DOCKHAND_TEST_GIT_STACK_COMPOSE_PATH}" \
+  --argjson env_id "${existing_id}" \
+  '{name:$name,url:$url,branch:$branch,composePath:$compose,environmentId:$env_id}')"
+curl -sS -b /tmp/dh-cookies.txt -H "Content-Type: application/json" \
+  -d "${git_repo_payload}" \
+  "${DOCKHAND_TEST_ENDPOINT}/api/git/repositories" >/tmp/dh-bootstrap-git-repo.json
+git_repo_id="$(jq -r '.id // empty' /tmp/dh-bootstrap-git-repo.json)"
+if [[ -n "${git_repo_id}" ]]; then
+  git_stack_name="tf-acc-bootstrap-git-${SUFFIX}"
+  git_stack_payload="$(jq -nc \
+    --arg name "${git_stack_name}" \
+    --argjson env_id "${existing_id}" \
+    --argjson repo_id "${git_repo_id}" \
+    --arg compose "${DOCKHAND_TEST_GIT_STACK_COMPOSE_PATH}" \
+    '{stackName:$name,environmentId:$env_id,repositoryId:$repo_id,composePath:$compose,deployNow:false,buildOnDeploy:false,repullImages:false,autoUpdateEnabled:false,autoUpdateCron:"0 3 * * *",webhookEnabled:false}')"
+  curl -sS -b /tmp/dh-cookies.txt -H "Content-Type: application/json" \
+    -d "${git_stack_payload}" \
+    "${DOCKHAND_TEST_ENDPOINT}/api/git/stacks?env=${existing_id}" >/tmp/dh-bootstrap-git-stack.json
+  git_stack_id="$(jq -r '.id // empty' /tmp/dh-bootstrap-git-stack.json)"
+  if [[ -n "${git_stack_id}" ]]; then
+    export DOCKHAND_TEST_GIT_STACK_ID="${git_stack_id}"
+    export DOCKHAND_TEST_GIT_STACK_ENV_PATH=".env"
+  fi
+fi
+
 agent_token="ci-agent-${SUFFIX}"
 dockhand_ip="$(docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' "${DOCKHAND_CONTAINER}")"
 dockhand_ws_url="ws://${dockhand_ip}:3000/api/hawser/connect"
@@ -217,6 +272,10 @@ export DOCKHAND_TEST_REGISTRY_HOST_URL="http://127.0.0.1:${DOCKHAND_TEST_REGISTR
 export DOCKHAND_TEST_GIT_HELPER_REPO_URL="${DOCKHAND_TEST_GIT_HELPER_REPO_URL}"
 export DOCKHAND_TEST_GIT_HELPER_BRANCH="${DOCKHAND_TEST_GIT_HELPER_BRANCH}"
 export DOCKHAND_TEST_GIT_HELPER_COMPOSE_PATH="${DOCKHAND_TEST_GIT_HELPER_COMPOSE_PATH}"
+export DOCKHAND_TEST_GIT_STACK_REPO_URL="${DOCKHAND_TEST_GIT_STACK_REPO_URL:-${DOCKHAND_TEST_GIT_HELPER_REPO_URL}}"
+export DOCKHAND_TEST_GIT_STACK_BRANCH="${DOCKHAND_TEST_GIT_STACK_BRANCH:-${DOCKHAND_TEST_GIT_HELPER_BRANCH}}"
+export DOCKHAND_TEST_GIT_STACK_COMPOSE_PATH="${DOCKHAND_TEST_GIT_STACK_COMPOSE_PATH:-${DOCKHAND_TEST_GIT_HELPER_COMPOSE_PATH}}"
+export DOCKHAND_TEST_GIT_REPO_ENV_ID="${DOCKHAND_TEST_GIT_REPO_ENV_ID:-${existing_id}}"
 export DOCKHAND_TEST_STACK_ADOPT_ENV_ID="${existing_id}"
 export DOCKHAND_TEST_STACK_ADOPT_NAME="${stack_adopt_name}"
 export DOCKHAND_TEST_STACK_ADOPT_COMPOSE_PATH="${stack_adopt_compose_path}"
@@ -235,9 +294,17 @@ export DOCKHAND_DEFAULT_ENV="${existing_id}"
 export DOCKHAND_INSECURE="${DOCKHAND_INSECURE:-false}"
 
 echo "Running acceptance tests with regex: ${TEST_REGEX}"
+TEST_JSON="/tmp/acceptance-test-${SUFFIX}.jsonl"
+set +e
 GOCACHE="${GOCACHE:-$PWD/.cache/go-build}" \
 GOMODCACHE="${GOMODCACHE:-$PWD/.cache/gomod}" \
-go test -v ./internal/provider -run "${TEST_REGEX}"
+go test -json ./internal/provider -run "${TEST_REGEX}" | tee "${TEST_JSON}"
+test_exit="${PIPESTATUS[0]}"
+set -e
+/usr/bin/python3 scripts/check-acceptance-skips.py "${TEST_JSON}"
+if [[ "${test_exit}" -ne 0 ]]; then
+  exit "${test_exit}"
+fi
 
 if [[ "${RUN_ENDPOINT_PROBE}" == "true" ]]; then
   echo "Running endpoint compatibility probe"

@@ -1,0 +1,18 @@
+{
+  "version": 1,
+  "description": "Targeted acceptance suites run on pull_request. Full TestAcc coverage runs nightly in acceptance-full.yml.",
+  "suites": [
+    "TestAccUserResourceTerraform",
+    "TestAccContainerRenameActionTerraform",
+    "TestAccContainerUpdateActionTerraform",
+    "TestAccEnvironmentResourceDirectDinDTerraform",
+    "TestAccEnvironmentResourceAgentTokenTerraform",
+    "TestAccScannerAndImageScanActionsTerraform",
+    "TestAccImagePushActionTerraform",
+    "TestAccStackAdoptActionTerraform",
+    "TestAccGitHelperSurfacesTerraform",
+    "TestAccRegistryAndGitCredentialResourcesTerraform",
+    "TestAccContainerRuntimeSurfacesTerraform",
+    "TestAccGitStackResourceDestroyRemovesRuntimeTerraform"
+  ]
+}

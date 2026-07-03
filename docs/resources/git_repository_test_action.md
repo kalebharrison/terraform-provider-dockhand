@@ -35,3 +35,10 @@ resource "dockhand_git_repository_test_action" "example" {
 - `resolved_branch` (String) Branch Dockhand actually tested.
 - `last_commit` (String) Last commit hash returned by Dockhand when the test succeeds.
 - `result_json` (String) Raw normalized result JSON from the test response.
+## Import
+
+Action resources are one-shot. Import the computed `id` (usually the Dockhand job ID or action record ID) after the action has run:
+
+```bash
+terraform import dockhand_git_repository_test_action.example <id>
+```

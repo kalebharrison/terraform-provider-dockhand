@@ -28,3 +28,11 @@ resource "dockhand_git_stack_env_file" "example" {
 - `id` (String)
 - `vars_json` (String)
 - `file_paths` (List of String)
+
+## Import
+
+```bash
+terraform import dockhand_git_stack_env_file.example <stack_id>:<path>
+```
+
+Git stack ID and env file path separated by a colon.

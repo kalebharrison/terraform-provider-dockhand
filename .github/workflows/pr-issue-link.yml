@@ -18,8 +18,14 @@ jobs:
         uses: actions/github-script@v9
         with:
           script: |
-            const action = context.payload.action;
             const pr = context.payload.pull_request;
+            const action = context.payload.action;
+            const headRef = pr?.head?.ref || "";
+
+            if (headRef.startsWith("agent/")) {
+              core.info("Skipping issue-link enforcement for agent branch.");
+              return;
+            }
 
             if (pr?.user?.type === "Bot") {
               core.info("Skipping issue-link enforcement for bot PR.");

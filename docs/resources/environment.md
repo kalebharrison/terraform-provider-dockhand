@@ -71,3 +71,11 @@ resource "dockhand_environment" "agent" {
     - `trivy_version`
 - Scanner image installation uses Dockhand image pulls (`anchore/grype:latest` / `aquasec/trivy:latest`) and fails if the target environment cannot reach its Docker/image sources.
 - Some Dockhand builds may not return cert/key bodies on read for security reasons. The provider preserves prior state values in that case.
+
+## Import
+
+```bash
+terraform import dockhand_environment.example <id>
+```
+
+Numeric Dockhand environment ID.

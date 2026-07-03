@@ -2,6 +2,8 @@
 
 Runs a one-shot vulnerability scan for an image.
 
+Apply succeeds when Dockhand accepts the scan request (`POST /api/images/scan`). The provider does **not** wait for scan completion or poll job status. Use `result` as the API acknowledgment marker; inspect Dockhand UI or activity logs for final scan output.
+
 ## Example Usage
 
 ```terraform
@@ -27,3 +29,10 @@ resource "dockhand_image_scan_action" "scan_redis" {
 
 - `id` (String) Internal action execution ID.
 - `result` (String) Scan request result marker.
+## Import
+
+Action resources are one-shot. Import the computed `id` (usually the Dockhand job ID or action record ID) after the action has run:
+
+```bash
+terraform import dockhand_image_scan_action.example <id>
+```

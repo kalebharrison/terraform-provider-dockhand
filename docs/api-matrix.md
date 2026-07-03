@@ -5,7 +5,7 @@ Source: [Dockhand Manual API Reference](https://dockhand.pro/manual/#api-referen
 Live verification artifacts:
 
 - Endpoint probe script: `scripts/endpoint-probe.py`
-- Latest safe probe report: `docs/reports/endpoint-probe.md` (March 8, 2026)
+- Latest safe probe report: `docs/reports/endpoint-probe.md` (refreshed by **Compat Reports Sync** on CI)
 - Latest WebUI endpoint inventory: `docs/reports/webui-api-endpoints.txt` (March 7, 2026)
 - Latest WebUI/provider gap audit: `docs/reports/webui-endpoint-gap-audit.md` (March 8, 2026)
 - Non-present backlog: `docs/non-present-endpoints.md`
@@ -100,12 +100,12 @@ Live verification artifacts:
 | `dockhand_volume` | Delete | `DELETE /api/volumes/{name}?force=true&env={env_id}` | `404` treated as already deleted. | partial |
 | `dockhand_image` | Create | `POST /api/images/pull?env={env_id}` | Pulls image by reference; then resolves image by tags from list. | partial |
 | `dockhand_image` | Read | `GET /api/images?env={env_id}` | Matches by `id`, then by tags if needed. | partial |
-| `dockhand_image` | Delete | `DELETE /api/images/{id}?env={env_id}` | `404` treated as already deleted. | partial |
+| `dockhand_image` | Delete | `DELETE /api/images/{id}?force=true&env={env_id}` | `404` treated as already deleted. | partial |
 | `dockhand_image_scan_action` | Execute scan | `POST /api/images/scan?env={env_id}` | One-shot image scan action; payload uses `imageName`. | implemented |
 | `dockhand_container` | Create | `POST /api/containers?env={env_id}` | Supports create payload for name/image, runtime options, memory/cpu, and capability adds. | partial |
 | `dockhand_container` | Read | `GET /api/containers?env={env_id}` | Reads full list and matches by container `id`. | partial |
 | `dockhand_container` | Update runtime | `POST /api/containers/{id}/start` or `POST /api/containers/{id}/stop` | `enabled` toggles runtime state. | implemented |
-| `dockhand_container` | Delete | `DELETE /api/containers/{id}?env={env_id}` | `404` treated as already deleted. | implemented |
+| `dockhand_container` | Delete | `DELETE /api/containers/{id}?force=true&env={env_id}` | `404` treated as already deleted. | implemented |
 | `dockhand_container` | Import | `GET /api/containers?env={env_id}` | Import formats: `<id>` or `<env>:<id>`. | implemented |
 | `dockhand_container_action` | Execute action | `POST /api/containers/{id}/start`, `POST /api/containers/{id}/stop`, `POST /api/containers/{id}/restart` | One-shot runtime action resource with replace-by-trigger behavior. | implemented |
 | `dockhand_container_file` | Manage file/directory | `POST /api/containers/{id}/files/create`, `GET/PUT /api/containers/{id}/files/content`, `DELETE /api/containers/{id}/files/delete` | Supports creating `file` or `directory`; content read/write applies to `file` type. | implemented |

@@ -36,5 +36,5 @@ jobs:
           stale-issue-label: stale
           stale-pr-label: stale
           exempt-issue-labels: security,pinned,in-progress,awaiting-release,released
-          exempt-pr-labels: security,pinned
+          exempt-pr-labels: security,pinned,agent,in-progress
           operations-per-run: 200

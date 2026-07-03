@@ -109,6 +109,7 @@ func (r *volumeCloneActionResource) Create(ctx context.Context, req resource.Cre
 		return
 	}
 
+	plan.Env = r.client.persistEnvAttr(plan.Env)
 	status, err := r.client.CloneVolume(ctx, plan.Env.ValueString(), sourceName, targetName)
 	if err != nil {
 		resp.Diagnostics.AddError("Error cloning Dockhand volume", err.Error())

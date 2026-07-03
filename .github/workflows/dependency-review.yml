@@ -12,7 +12,6 @@ env:
 jobs:
   dependency-review:
     name: dependency-review
-    if: ${{ vars.ENABLE_DEPENDENCY_REVIEW == 'true' }}
     runs-on: ubuntu-latest
     permissions:
       contents: read

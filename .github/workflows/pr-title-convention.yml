@@ -21,7 +21,13 @@ jobs:
             const actor = context.payload.sender?.login || "";
             const author = pr?.user?.login || "";
             const authorType = pr?.user?.type || "";
+            const headRef = pr?.head?.ref || "";
             const title = (pr?.title || "").trim();
+
+            if (headRef.startsWith("agent/")) {
+              core.info("Skipping title convention check for agent branch.");
+              return;
+            }
 
             // Skip title convention checks for bot-authored PRs (Dependabot and other automation).
             if (

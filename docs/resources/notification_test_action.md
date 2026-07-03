@@ -38,3 +38,10 @@ resource "dockhand_notification_test_action" "smtp" {
 - `error` (String) Error message returned by Dockhand.
 - `message` (String) Informational message returned by Dockhand.
 - `result_json` (String) Raw test result payload as JSON.
+## Import
+
+Action resources are one-shot. Import the computed `id` (usually the Dockhand job ID or action record ID) after the action has run:
+
+```bash
+terraform import dockhand_notification_test_action.example <id>
+```

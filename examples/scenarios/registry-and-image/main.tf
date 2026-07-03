@@ -23,13 +23,13 @@ resource "dockhand_registry" "ghcr" {
 }
 
 resource "dockhand_image" "app" {
-  env        = var.dockhand_default_env
-  name       = var.image_name
-  pull       = true
-  registry_id = dockhand_registry.ghcr.id
+  env             = var.dockhand_default_env
+  name            = var.image_name
+  scan_after_pull = false
 }
 
 resource "dockhand_image_scan_action" "app" {
-  env      = var.dockhand_default_env
-  image_id = dockhand_image.app.id
+  env        = var.dockhand_default_env
+  image_name = dockhand_image.app.name
+  trigger    = timestamp()
 }

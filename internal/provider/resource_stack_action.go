@@ -100,6 +100,7 @@ func (r *stackActionResource) Create(ctx context.Context, req resource.CreateReq
 	}
 
 	action := strings.ToLower(strings.TrimSpace(plan.Action.ValueString()))
+	plan.Env = r.client.persistEnvAttr(plan.Env)
 	env := plan.Env.ValueString()
 	name := plan.StackName.ValueString()
 

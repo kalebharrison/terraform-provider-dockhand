@@ -22,27 +22,28 @@ resource "dockhand_git_credential" "github_pat" {
 }
 
 resource "dockhand_git_repository" "stacks_repo" {
-  name          = "platform-stacks"
-  url           = var.git_repository_url
-  branch        = var.git_branch
-  credential_id = dockhand_git_credential.github_pat.id
-  environment_id = var.dockhand_default_env
+  name            = "platform-stacks"
+  url             = var.git_repository_url
+  branch          = var.git_branch
+  credential_id   = dockhand_git_credential.github_pat.id
+  environment_id  = var.dockhand_default_env
 }
 
 resource "dockhand_git_stack" "app" {
-  name          = var.stack_name
+  stack_name    = var.stack_name
   repository_id = dockhand_git_repository.stacks_repo.id
-  environment_id = var.dockhand_default_env
   compose_path  = var.compose_path
-  auto_deploy   = true
+  deploy_now    = false
   webhook_enabled = false
 }
 
+resource "dockhand_git_stack_deploy_action" "initial_deploy" {
+  stack_id = dockhand_git_stack.app.id
+  trigger  = "initial"
+}
+
 resource "dockhand_git_stack_env_file" "app_env" {
-  git_stack_id = dockhand_git_stack.app.id
-  file_name    = ".env"
-  content      = <<-ENV
-    APP_ENV=production
-    TZ=UTC
-  ENV
+  stack_id = dockhand_git_stack.app.id
+  path     = ".env"
+  trigger  = "initial"
 }

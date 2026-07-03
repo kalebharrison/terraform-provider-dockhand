@@ -1,0 +1,20 @@
+---
+description: Provider coding standards for terraform-provider-dockhand
+globs:
+  - "internal/provider/**"
+  - "docs/resources/**"
+  - "docs/data-sources/**"
+  - "examples/**"
+  - "scripts/endpoint-probe.py"
+---
+
+# Provider coding standards
+
+Follow `docs/AGENT_CODING_STANDARDS.md` when editing matched paths.
+
+Quick rules:
+
+- New API methods go in the correct `client_*.go` domain file.
+- New resources need manifest entry, docs (`## Import` when adoptable), example, and `TestAcc` coverage.
+- Mark secrets `Sensitive`; one-shot deploy flags must not persist as always-true.
+- Run `./scripts/verify.sh --quality` before push.

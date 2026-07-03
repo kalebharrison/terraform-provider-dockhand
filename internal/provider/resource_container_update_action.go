@@ -146,6 +146,7 @@ func (r *containerUpdateActionResource) Create(ctx context.Context, req resource
 		return
 	}
 
+	plan.Env = r.client.persistEnvAttr(plan.Env)
 	result, status, err := r.client.UpdateContainer(ctx, plan.Env.ValueString(), containerID, payload)
 	if err != nil {
 		resp.Diagnostics.AddError("Error updating Dockhand container", err.Error())

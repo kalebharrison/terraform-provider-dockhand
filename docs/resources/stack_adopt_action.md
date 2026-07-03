@@ -36,3 +36,10 @@ resource "dockhand_stack_adopt_action" "adopt" {
 - `id` (String)
 - `adopted` (List of String)
 - `failed` (List of String)
+## Import
+
+Action resources are one-shot. Import the computed `id` (usually the Dockhand job ID or action record ID) after the action has run:
+
+```bash
+terraform import dockhand_stack_adopt_action.example <id>
+```
