@@ -499,13 +499,7 @@ func (r *containerResource) ImportState(ctx context.Context, req resource.Import
 		return
 	}
 
-	env := ""
-	id := raw
-	parts := strings.SplitN(raw, ":", 2)
-	if len(parts) == 2 {
-		env = strings.TrimSpace(parts[0])
-		id = strings.TrimSpace(parts[1])
-	}
+	env, id := splitImportEnvID(raw)
 	if id == "" {
 		resp.Diagnostics.AddError("Invalid import ID", "Container ID cannot be empty.")
 		return

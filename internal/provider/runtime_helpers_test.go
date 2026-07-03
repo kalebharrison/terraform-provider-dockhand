@@ -24,6 +24,17 @@ func TestGitStackBoolTriggerRequested(t *testing.T) {
 	})
 }
 
+func TestSplitImportEnvID(t *testing.T) {
+	env, id := splitImportEnvID("11:abc123")
+	if env != "11" || id != "abc123" {
+		t.Fatalf("got env=%q id=%q", env, id)
+	}
+	env, id = splitImportEnvID("sha256:deadbeef")
+	if env != "" || id != "sha256:deadbeef" {
+		t.Fatalf("got env=%q id=%q want whole sha256 id", env, id)
+	}
+}
+
 func TestRuntimeEnabledFromStatus(t *testing.T) {
 	enabled, ok := runtimeEnabledFromStatus("running")
 	if !ok || !enabled {

@@ -277,13 +277,7 @@ func (r *imageResource) ImportState(ctx context.Context, req resource.ImportStat
 		return
 	}
 
-	env := ""
-	id := raw
-	parts := strings.SplitN(raw, ":", 2)
-	if len(parts) == 2 {
-		env = strings.TrimSpace(parts[0])
-		id = strings.TrimSpace(parts[1])
-	}
+	env, id := splitImportEnvID(raw)
 	if id == "" {
 		resp.Diagnostics.AddError("Invalid import ID", "Image ID cannot be empty.")
 		return

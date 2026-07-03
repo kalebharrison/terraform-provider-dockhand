@@ -24,6 +24,36 @@ func runtimeEnabledFromStatus(status string) (bool, bool) {
 	}
 }
 
+// splitImportEnvID parses `<env>:<id>` import IDs. IDs that contain non-numeric
+// prefixes before the first colon (for example sha256 digests) are returned whole.
+func splitImportEnvID(raw string) (env string, id string) {
+	id = strings.TrimSpace(raw)
+	if id == "" {
+		return "", ""
+	}
+	idx := strings.Index(id, ":")
+	if idx <= 0 {
+		return "", id
+	}
+	prefix := strings.TrimSpace(id[:idx])
+	if prefix == "" || !isDigitsOnly(prefix) {
+		return "", id
+	}
+	return prefix, strings.TrimSpace(id[idx+1:])
+}
+
+func isDigitsOnly(value string) bool {
+	if value == "" {
+		return false
+	}
+	for _, r := range value {
+		if r < '0' || r > '9' {
+			return false
+		}
+	}
+	return true
+}
+
 func (c *Client) requireResolvedEnv(value string) (string, error) {
 	env := strings.TrimSpace(c.resolveEnv(value))
 	if env == "" {
