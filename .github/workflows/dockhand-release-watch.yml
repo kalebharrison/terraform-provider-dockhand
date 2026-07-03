@@ -129,7 +129,7 @@ jobs:
             echo "Latest detected digest: \`${{ steps.pick.outputs.digest || 'none' }}\`"
             echo "Last tested tag: \`${{ steps.state.outputs.last_tag || 'none' }}\`"
             echo "Last tested digest: \`${{ steps.state.outputs.last_digest || 'none' }}\`"
-            echo "State cache: \`${{ steps.watch-state.cache-hit == 'true' && 'hit' || 'miss' }}\`"
+            echo "State cache: \`${{ steps.watch-state.outputs.cache-hit == 'true' && 'hit' || 'miss' }}\`"
             echo "Run required: \`${{ steps.state.outputs.should_run }}\` (\`${{ steps.state.outputs.reason }}\`)"
           } >> "${GITHUB_STEP_SUMMARY}"
 
