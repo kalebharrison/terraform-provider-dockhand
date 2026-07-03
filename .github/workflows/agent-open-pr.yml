@@ -20,8 +20,12 @@ jobs:
       ${{ github.event.workflow_run.conclusion == 'success' &&
           startsWith(github.event.workflow_run.head_branch, 'agent/') }}
     runs-on: ubuntu-latest
+    outputs:
+      pull_number: ${{ steps.open.outputs.pull_number }}
+      auto_merge_enabled: ${{ steps.open.outputs.auto_merge_enabled }}
     steps:
       - name: Open or update agent pull request
+        id: open
         uses: actions/github-script@v9
         with:
           script: |
@@ -30,6 +34,9 @@ jobs:
             const run = context.payload.workflow_run;
             const branch = run.head_branch || "";
             const headSha = run.head_sha || "";
+
+            core.setOutput("pull_number", "");
+            core.setOutput("auto_merge_enabled", "false");
 
             const match = branch.match(/^agent\/issue-(\d+)-(.+)$/i);
             if (!match) {
@@ -161,6 +168,11 @@ jobs:
                   labels: ["agent-auto-merge"],
                 });
               }
+              core.setOutput("pull_number", String(pr.number));
+              core.setOutput(
+                "auto_merge_enabled",
+                !placeholder(whatFixed) && !placeholder(userImpact) ? "true" : "false"
+              );
               core.info(`Updated existing PR #${pr.number}`);
               return;
             }
@@ -192,6 +204,11 @@ jobs:
               });
             }
 
+            core.setOutput("pull_number", String(created.data.number));
+            core.setOutput(
+              "auto_merge_enabled",
+              !placeholder(whatFixed) && !placeholder(userImpact) ? "true" : "false"
+            );
             core.info(`Created PR #${created.data.number}`);
 
   approve-ci:
@@ -257,3 +274,218 @@ jobs:
             } else {
               core.info(`Approved ${approved} workflow run(s) for ${sha}.`);
             }
+
+  enable-auto-merge:
+    name: Agent Enable Auto Merge
+    needs: [open-pr, approve-ci]
+    if: >-
+      ${{ github.event.workflow_run.conclusion == 'success' &&
+          startsWith(github.event.workflow_run.head_branch, 'agent/') &&
+          needs.open-pr.outputs.auto_merge_enabled == 'true' }}
+    runs-on: ubuntu-latest
+    outputs:
+      enabled: ${{ steps.merge.outputs.enabled }}
+    steps:
+      - name: Enable squash auto-merge
+        id: merge
+        uses: actions/github-script@v9
+        with:
+          script: |
+            core.setOutput("enabled", "false");
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+            const pullNumber = Number("${{ needs.open-pr.outputs.pull_number }}");
+            if (!pullNumber) {
+              core.setFailed("Missing pull request number from open-pr job.");
+              return;
+            }
+
+            const { data: pr } = await github.rest.pulls.get({
+              owner,
+              repo,
+              pull_number: pullNumber,
+            });
+
+            try {
+              await github.graphql(
+                `mutation($pullId: ID!) {
+                  enablePullRequestAutoMerge(input: { pullRequestId: $pullId, mergeMethod: SQUASH }) {
+                    pullRequest { autoMergeRequest { enabledAt } }
+                  }
+                }`,
+                { pullId: pr.node_id }
+              );
+              core.info(`Enabled auto-merge for PR #${pullNumber}`);
+              core.setOutput("enabled", "true");
+            } catch (error) {
+              core.warning(`Could not enable auto-merge for PR #${pullNumber}: ${error.message}`);
+            }
+
+  close-linked-issues:
+    name: Close linked issues after merge
+    needs: [open-pr, enable-auto-merge]
+    if: >-
+      ${{ github.event.workflow_run.conclusion == 'success' &&
+          startsWith(github.event.workflow_run.head_branch, 'agent/') &&
+          needs.enable-auto-merge.outputs.enabled == 'true' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Wait for merge and close linked issues
+        uses: actions/github-script@v9
+        with:
+          script: |
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+            const pullNumber = Number("${{ needs.open-pr.outputs.pull_number }}");
+            const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+            const closeRegex = /\b(?:close[sd]?|fix(?:e[sd])?|resolve[sd]?)\s+#(\d+)\b/gi;
+            const parseLinkedIssues = (body) => {
+              const linked = new Set();
+              let match;
+              while ((match = closeRegex.exec(body || "")) !== null) {
+                linked.add(Number(match[1]));
+              }
+              return linked;
+            };
+
+            const ensureLabel = async (name, color, description) => {
+              try {
+                await github.rest.issues.getLabel({ owner, repo, name });
+              } catch (error) {
+                if (error.status === 404) {
+                  await github.rest.issues.createLabel({ owner, repo, name, color, description });
+                } else {
+                  throw error;
+                }
+              }
+            };
+
+            const section = (prBody, heading) => {
+              const re = new RegExp(`## ${heading}\\s*\\n+([\\s\\S]*?)(?=\\n## |$)`, "i");
+              const m = prBody.match(re);
+              return m ? m[1].trim() : "";
+            };
+
+            const closeForMergedPR = async (pr) => {
+              const issueNumbers = parseLinkedIssues(pr.body || "");
+              if (issueNumbers.size === 0) {
+                core.info("No linked issues in PR body.");
+                return;
+              }
+
+              await ensureLabel(
+                "awaiting-release",
+                "FBCA04",
+                "Issue fixed on main and waiting for a tagged release"
+              );
+
+              const whatFixed = section(pr.body || "", "What was fixed");
+              const userImpact = section(pr.body || "", "User impact");
+              let summary = whatFixed || (pr.title || "").replace(/^fix(\([^)]+\))?:\s*/i, "").trim();
+              if (!summary) {
+                summary = "_See linked pull request for details._";
+              }
+              const impactBlock = userImpact ? `### User impact\n\n${userImpact}\n\n` : "";
+
+              for (const issueNumber of issueNumbers) {
+                const issue = await github.rest.issues.get({ owner, repo, issue_number: issueNumber });
+                if (issue.data.state === "closed") {
+                  core.info(`Issue #${issueNumber} already closed.`);
+                } else {
+                  await github.rest.issues.update({
+                    owner,
+                    repo,
+                    issue_number: issueNumber,
+                    state: "closed",
+                  });
+                  core.info(`Closed issue #${issueNumber} via agent merge workflow.`);
+                }
+
+                try {
+                  await github.rest.issues.removeLabel({
+                    owner,
+                    repo,
+                    issue_number: issueNumber,
+                    name: "in-progress",
+                  });
+                } catch (error) {
+                  if (error.status !== 404) throw error;
+                }
+
+                await github.rest.issues.addLabels({
+                  owner,
+                  repo,
+                  issue_number: issueNumber,
+                  labels: ["awaiting-release"],
+                });
+
+                const comments = await github.paginate(github.rest.issues.listComments, {
+                  owner,
+                  repo,
+                  issue_number: issueNumber,
+                  per_page: 100,
+                });
+                const alreadyNotified = comments.some((c) =>
+                  (c.body || "").includes("Posted by Agent Close Linked Issues")
+                );
+                if (alreadyNotified) {
+                  continue;
+                }
+
+                const body = [
+                  "## Fix merged to `main`",
+                  "",
+                  `This issue was addressed in PR #${pr.number}: ${pr.html_url}`,
+                  "",
+                  "### What was fixed",
+                  "",
+                  summary,
+                  "",
+                  impactBlock,
+                  "### Release status",
+                  "",
+                  "The change is on `main` but **not yet in a tagged release**.",
+                  "When a version is published, **Release Issue Notify** will comment here with the tag and upgrade instructions.",
+                  "",
+                  "### If the problem continues",
+                  "",
+                  "Comment here with **reopen** or describe what still fails after upgrading.",
+                  "",
+                  "---",
+                  "_Posted by Agent Close Linked Issues._",
+                ].join("\n");
+
+                await github.rest.issues.createComment({
+                  owner,
+                  repo,
+                  issue_number: issueNumber,
+                  body,
+                });
+              }
+            };
+
+            for (let attempt = 0; attempt < 120; attempt += 1) {
+              const { data: pr } = await github.rest.pulls.get({
+                owner,
+                repo,
+                pull_number: pullNumber,
+              });
+
+              if (pr.merged) {
+                await closeForMergedPR(pr);
+                return;
+              }
+
+              if (pr.state === "closed" && !pr.merged) {
+                core.info(`PR #${pullNumber} closed without merge; not closing linked issues.`);
+                return;
+              }
+
+              if (attempt === 0) {
+                core.info(`Waiting for PR #${pullNumber} to merge (auto-merge enabled)...`);
+              }
+              await sleep(30000);
+            }
+
+            core.warning(`Timed out waiting for PR #${pullNumber} to merge; linked issues not closed.`);
