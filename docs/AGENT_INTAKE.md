@@ -2,17 +2,31 @@
 
 How work enters the autonomous agent loop for `terraform-provider-dockhand`.
 
-## Current model (manual dispatch)
+## Event-driven intake (default)
 
-There is **no** always-on watcher for **new** open issues yet. Work starts when:
+**Issue Agent Intake** (`.github/workflows/issue-agent-intake.yml`) dispatches a **Cursor Cloud Agent** when:
 
-1. A maintainer or agent **creates or selects a GitHub issue** with clear acceptance criteria.
-2. An agent creates branch `agent/issue-<number>-<slug>`.
-3. Push triggers **Agent Validate** → **Agent Open PR** → **Agent Auto Merge** when green.
+| Trigger | Condition |
+|---------|-----------|
+| Issue **labeled** `agent` | Label added to an open issue |
+| Issue **opened** with `agent` | Rare; same handler |
+| Comment **`/agent`** on open issue | Adds `agent` label if missing, then dispatches |
+| **`workflow_dispatch`** | Manual retry with issue number |
 
-**Closed-issue feedback** is handled by **Issue Regression Intake** (reopens + `regression` label). See `docs/AGENT_ISSUE_RESPONSE.md`.
+The workflow:
 
-This keeps humans in the loop for prioritization while automation handles validation and merge.
+1. Creates branch `agent/issue-<n>-<slug>` from `main` (if missing)
+2. Calls Cursor Cloud Agents API (`POST /v1/agents`) with runbook prompt
+3. Labels issue `agent-dispatched` + `in-progress`
+4. Comments with next automated steps
+
+**Required secret:** `CURSOR_API_KEY` (Cursor Dashboard → Integrations / API Keys). Add in GitHub **Settings → Secrets and variables → Actions**.
+
+After the agent pushes:
+
+1. **Agent Validate** → **Agent Open PR** (prefills **What was fixed** / **User impact** from issue body)
+2. **Agent Approve CI** — approves pending PR workflow runs (no more yellow “Action required” gate)
+3. **Agent Auto Merge** — when checks pass, PR has `agent-auto-merge`, and resolution sections are filled
 
 ## Issue quality bar
 
@@ -28,29 +42,39 @@ Good agent issues include:
 Labels (recommended):
 
 - `bug`, `enhancement`, `documentation` — type
-- `agent` — safe for autonomous pickup (no secrets, no release tagging)
+- `agent` — triggers Cloud Agent dispatch
+- `agent-auto-merge` — added automatically when PR sections are prefilled (opt-out by removing label)
 - `good first issue` — small, well-bounded
 
-## Dispatch options
+## Manual dispatch options
 
-### A. Cursor Cloud Agent (recommended)
+### A. Label-only (recommended)
 
-1. Connect GitHub read/write on this repo (Cursor dashboard).
-2. Open issue → **Assign to Cloud Agent** or paste issue URL into agent chat.
-3. Agent reads `docs/AGENT_RUNBOOK.md`, `docs/AGENT_CODING_STANDARDS.md`, and `docs/AGENT_ISSUE_RESPONSE.md`.
-4. Agent pushes `agent/issue-<n>-<slug>`; CI completes the loop.
+1. Open or edit issue with clear acceptance criteria
+2. Add label **`agent`**
+3. Wait for intake comment + Cloud Agent run
 
-### B. Local Cursor agent
+### B. Comment dispatch
+
+Comment on an open issue:
+
+```text
+/agent
+```
+
+### C. Cursor Cloud Agent (direct)
+
+1. Connect GitHub read/write on this repo (Cursor dashboard)
+2. Assign issue to Cloud Agent or paste issue URL into agent chat
+3. Ensure branch follows `agent/issue-<n>-<slug>` contract
+
+### D. Local Cursor agent
 
 1. `git checkout main && git pull`
 2. `git checkout -b agent/issue-<n>-<slug>`
-3. Implement fix per coding standards.
+3. Implement fix per coding standards
 4. `./scripts/agent-commit-msg.sh "fix(provider): ..." | git commit -F -`
 5. `git push -u origin HEAD`
-
-### C. Future: GitHub Actions intake on new issues (optional)
-
-Not implemented. **Issue Regression Intake** handles feedback on closed issues today.
 
 ## What agents should not pick up without human review
 
@@ -62,23 +86,21 @@ Not implemented. **Issue Regression Intake** handles feedback on closed issues t
 
 ## After merge
 
-1. **Issue Resolution Notify** posts on linked issues (what was fixed, awaiting release, reopen instructions).
-2. Issue may auto-close via `Fixes #N` when the PR merges.
-3. Maintainer cuts `vX.Y.Z` when ready (`docs/MAINTENANCE_PLAYBOOK.md`).
-4. **Release Issue Notify** comments with version and upgrade steps.
-5. **Lens review** before tag per `docs/testing/release-lens-review.md`.
+1. **Issue Resolution Notify** posts on linked issues (what was fixed, awaiting release, reopen instructions)
+2. Issue may auto-close via `Fixes #N` when the PR merges
+3. Maintainer cuts `vX.Y.Z` when ready (`docs/MAINTENANCE_PLAYBOOK.md`)
+4. **Release Issue Notify** comments with version and upgrade steps
+5. **Lens review** before tag per `docs/testing/release-lens-review.md`
 
 See `docs/AGENT_ISSUE_RESPONSE.md` for the full issue communication standard.
 
 ## Regression / feedback on closed issues
 
-**Issue Regression Intake** watches **new comments on closed issues**. When feedback indicates the fix did not work, it reopens the issue and adds `regression` + `agent` labels.
+**Issue Regression Intake** watches **new comments on closed issues**. When feedback indicates the fix did not work, it reopens the issue, removes `agent-dispatched`, and adds `regression` + `agent` — which triggers **Issue Agent Intake** again.
 
-Agents should pick up reopened issues the same way as new work (`agent/issue-<n>-<slug>`).
+## Re-dispatch
 
-## Future: GitHub Actions intake (optional)
-
-A workflow could comment `/agent` or react 🤖 on **new** issues to spawn a branch. **Issue Regression Intake** already handles closed-issue feedback. Track optional `/agent` on open issues in `docs/AGENT_SWEEP.md`.
+Remove label `agent-dispatched`, then comment `/agent` or re-add `agent`, or use **Actions → Issue Agent Intake → Run workflow**.
 
 ## Smoke test
 

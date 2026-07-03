@@ -42,6 +42,42 @@ jobs:
             const slug = match[2];
             const title = `fix(agent): issue ${issueNumber} ${slug.replace(/-/g, " ")}`;
 
+            let issueBody = "";
+            try {
+              const issue = await github.rest.issues.get({ owner, repo, issue_number: issueNumber });
+              issueBody = issue.data.body || "";
+            } catch (error) {
+              core.warning(`Could not load issue #${issueNumber}: ${error.message}`);
+            }
+
+            const sectionFromIssue = (body, headings) => {
+              if (!body) return "";
+              for (const heading of headings) {
+                const re = new RegExp(
+                  `##\\s*${heading.replace(/[.*+?^${}()|[\\]\\\\]/g, "\\\\$&")}[^\\n]*\\n([\\s\\S]*?)(?=\\n## |$)`,
+                  "i"
+                );
+                const found = body.match(re);
+                if (found && found[1].trim()) {
+                  return found[1].trim();
+                }
+              }
+              return "";
+            };
+
+            const whatFixed =
+              sectionFromIssue(issueBody, ["What was fixed", "Problem", "Description", "Summary"]) ||
+              issueBody.split("\n").find((line) => line.trim()) ||
+              title;
+            const userImpact =
+              sectionFromIssue(issueBody, ["User impact", "Done when", "Acceptance criteria", "Expected behavior"]) ||
+              "See linked issue for operator impact and verification steps.";
+
+            const placeholder = (value) =>
+              !value ||
+              value.includes("<!-- Required before merge") ||
+              value.trim().length < 8;
+
             const automationSection = [
               "### Automation",
               "",
@@ -62,11 +98,11 @@ jobs:
               "",
               "## What was fixed",
               "",
-              "<!-- Required before merge: problem, cause, and code change -->",
+              whatFixed,
               "",
               "## User impact",
               "",
-              "<!-- Required before merge: who is affected and any upgrade/config steps -->",
+              userImpact,
               "",
               "## Validation",
               "",
@@ -116,6 +152,14 @@ jobs:
                 issue_number: pr.number,
                 labels: ["agent"],
               });
+              if (!placeholder(whatFixed) && !placeholder(userImpact)) {
+                await github.rest.issues.addLabels({
+                  owner,
+                  repo,
+                  issue_number: pr.number,
+                  labels: ["agent-auto-merge"],
+                });
+              }
               core.info(`Updated existing PR #${pr.number}`);
               return;
             }
@@ -137,5 +181,14 @@ jobs:
               issue_number: created.data.number,
               labels: ["agent"],
             });
+
+            if (!placeholder(whatFixed) && !placeholder(userImpact)) {
+              await github.rest.issues.addLabels({
+                owner,
+                repo,
+                issue_number: created.data.number,
+                labels: ["agent-auto-merge"],
+              });
+            }
 
             core.info(`Created PR #${created.data.number}`);

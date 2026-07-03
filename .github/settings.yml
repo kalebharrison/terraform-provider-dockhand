@@ -78,6 +78,9 @@ labels:
   - name: regression
     color: "B60205"
     description: Reporter indicates fix did not work; needs follow-up
+  - name: agent-dispatched
+    color: "5319E7"
+    description: Cursor Cloud Agent dispatched for this issue
   - name: question
     color: d876e3
     description: Usage or clarification requests

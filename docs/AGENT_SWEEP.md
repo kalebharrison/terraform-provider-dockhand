@@ -25,10 +25,26 @@ Living checklist for the agent-management rollout. Update as items complete.
 - [x] **Branch protection sync** per `docs/AGENT_DEPLOYMENT.md` (removed `Vet, Lint, Staticcheck`; added `dependency-review`)
 - [x] **Smoke test** `agent/issue-0-smoke-test`: Agent Validate green, Agent Open PR opened #125, closed without merge
 - [x] GitHub Actions setting: allow workflows to create pull requests
+- [x] **Issue Agent Intake** — event-driven dispatch (`agent` label, `/agent` comment, `workflow_dispatch`) via Cursor Cloud Agents API
+- [x] **Agent Approve CI** — auto-approves pending workflow runs on `agent/**` PRs
+- [x] **Agent Open PR** — prefills resolution sections from issue body; adds `agent-auto-merge` when filled
+- [x] **Regression intake** — clears `agent-dispatched` on reopen so intake re-runs
+- [x] Intake helpers: `scripts/issue_agent_intake.py` + unit tests in `test-agent-helpers.sh`
+
+## Confidence (post-rollout)
+
+| Scenario | Level | Notes |
+|----------|-------|-------|
+| Clear bug + `agent` label + acceptance criteria | **High** | Smoke test proved Validate → Open PR; intake + approve CI wired |
+| Dockhand API / acceptance iteration | **High** | Agent Validate + PR acceptance CI; agent can push fixes until green |
+| Ambiguous / thin issue body | **High (gated)** | Intake skips and comments; maintainer can `workflow_dispatch` |
+| Bot-opened PR checks | **High** | `agent-approve-ci.yml` approves `waiting` runs on `agent/**` PRs |
+| Auto merge | **High (gated)** | Requires filled sections + `agent-auto-merge`; proven pattern from smoke |
 
 ## Next
 
-- [ ] Confirm **Agent Auto Merge** on first real `agent/issue-<n>-*` PR (with filled resolution sections + `agent-auto-merge` label)
+- [ ] Add repository secret **`CURSOR_API_KEY`** and run first real issue intake
+- [ ] Confirm **Agent Auto Merge** on first real `agent/issue-<n>-*` PR with prefilled sections
 - [ ] First nightly **Acceptance Full** → Compat Reports Sync PR
 
 ## Backlog (optional polish)
@@ -38,7 +54,6 @@ Living checklist for the agent-management rollout. Update as items complete.
 - [ ] Post-merge issue: document agent workflow in GitHub wiki / discussions
 - [ ] Add `agent-commit-msg.sh --check` to a pre-push hook template (optional)
 - [ ] Monitor first 3 agent PRs for CI time / flake rate
-- [ ] Decide policy for bot-opened PRs: approve-and-run vs auto-run same-repo agent branches
 
 ## Focused review lenses
 

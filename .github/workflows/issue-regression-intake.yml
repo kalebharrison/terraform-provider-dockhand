@@ -90,6 +90,17 @@ jobs:
                 owner,
                 repo,
                 issue_number: issueNumber,
+                name: "agent-dispatched",
+              });
+            } catch (error) {
+              if (error.status !== 404) throw error;
+            }
+
+            try {
+              await github.rest.issues.removeLabel({
+                owner,
+                repo,
+                issue_number: issueNumber,
                 name: "released",
               });
             } catch (error) {

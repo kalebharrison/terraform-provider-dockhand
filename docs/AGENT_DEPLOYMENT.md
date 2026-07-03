@@ -36,11 +36,20 @@ gh api repos/kalebharrison/terraform-provider-dockhand/branches/main/protection 
 
 ## 2. Ensure labels exist
 
-- `agent` — automated agent PRs
+- `agent` — automated agent PRs; **triggers Issue Agent Intake**
 - `agent-auto-merge` — opt-in label that enables squash auto-merge when checks pass
-- `in-progress`, `awaiting-release` — issue lifecycle (if not already present)
+- `agent-dispatched` — intake already spawned a Cloud Agent for this issue
+- `in-progress`, `awaiting-release`, `regression` — issue lifecycle
 
-## 3. Smoke test the loop
+## 2b. Configure Cursor API secret
+
+Add repository secret **`CURSOR_API_KEY`** (Cursor Dashboard → Integrations / API Keys).
+
+Without it, **Issue Agent Intake** fails fast with an actionable error. The rest of the agent loop (Validate, Open PR, Approve CI, Auto Merge) still works for manually pushed `agent/**` branches.
+
+Also enable **Settings → Actions → General → Allow GitHub Actions to create and approve pull requests** (required for Agent Open PR and Agent Approve CI).
+
+## 3. Smoke test the loop (branch push)
 
 ```bash
 git checkout main
@@ -59,6 +68,15 @@ Expected:
 4. **Agent Auto Merge** enables auto-merge when green
 
 Close the smoke PR without merging if it was only for validation.
+
+## 3b. Smoke test issue intake
+
+1. Open a test issue with **Problem** and **Done when** sections
+2. Add label **`agent`**
+3. Confirm **Issue Agent Intake** comments and dispatches Cloud Agent
+4. Or comment **`/agent`** on an existing well-scoped issue
+
+Requires **`CURSOR_API_KEY`** secret (step 2b).
 
 ## 4. Cursor Cloud Agent setup
 
