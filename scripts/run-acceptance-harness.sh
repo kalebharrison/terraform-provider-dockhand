@@ -31,7 +31,8 @@ DOCKHAND_TEST_GIT_HELPER_BRANCH="${DOCKHAND_TEST_GIT_HELPER_BRANCH:-master}"
 DOCKHAND_TEST_GIT_HELPER_COMPOSE_PATH="${DOCKHAND_TEST_GIT_HELPER_COMPOSE_PATH:-nginx-flask-mysql/compose.yaml}"
 DOCKHAND_TEST_GIT_STACK_REPO_URL="${DOCKHAND_TEST_GIT_STACK_REPO_URL:-${DOCKHAND_TEST_GIT_HELPER_REPO_URL}}"
 DOCKHAND_TEST_GIT_STACK_BRANCH="${DOCKHAND_TEST_GIT_STACK_BRANCH:-${DOCKHAND_TEST_GIT_HELPER_BRANCH}}"
-DOCKHAND_TEST_GIT_STACK_COMPOSE_PATH="${DOCKHAND_TEST_GIT_STACK_COMPOSE_PATH:-${DOCKHAND_TEST_GIT_HELPER_COMPOSE_PATH}}"
+# postgresql-pgadmin ships a committed .env beside compose.yaml (nginx-flask-mysql does not).
+DOCKHAND_TEST_GIT_STACK_COMPOSE_PATH="${DOCKHAND_TEST_GIT_STACK_COMPOSE_PATH:-postgresql-pgadmin/compose.yaml}"
 TF_ACC_TERRAFORM_PATH="${TF_ACC_TERRAFORM_PATH:-}"
 TF_ACC_TERRAFORM_VERSION="${TF_ACC_TERRAFORM_VERSION:-1.14.8}"
 
@@ -206,7 +207,7 @@ docker cp /tmp/dh-stack-adopt-compose.yaml "${DOCKHAND_CONTAINER}:${stack_adopt_
 echo "Bootstrapping acceptance fixtures"
 
 bootstrap_ctr="tf-acc-bootstrap-file-${SUFFIX}"
-create_ctr_payload="$(jq -nc --arg n "${bootstrap_ctr}" '{name:$n,image:"busybox:1.36.1",command:["sleep","3600"],enabled:false}')"
+create_ctr_payload="$(jq -nc --arg n "${bootstrap_ctr}" '{name:$n,image:"busybox:1.36.1",command:["sleep","3600"],enabled:true}')"
 curl -sS -b /tmp/dh-cookies.txt -H "Content-Type: application/json" \
   -d "${create_ctr_payload}" \
   "${DOCKHAND_TEST_ENDPOINT}/api/containers?env=${existing_id}" >/tmp/dh-bootstrap-container.json
@@ -216,6 +217,17 @@ if [[ -z "${file_container_id}" ]]; then
   cat /tmp/dh-bootstrap-container.json >&2 || true
   exit 1
 fi
+curl -sS -b /tmp/dh-cookies.txt -X POST \
+  "${DOCKHAND_TEST_ENDPOINT}/api/containers/${file_container_id}/start?env=${existing_id}" >/tmp/dh-bootstrap-container-start.json || true
+for _ in $(seq 1 30); do
+  ctr_state="$(curl -sS -b /tmp/dh-cookies.txt \
+    "${DOCKHAND_TEST_ENDPOINT}/api/containers/${file_container_id}?env=${existing_id}" \
+    | jq -r '.state // .status // empty' 2>/dev/null || true)"
+  if [[ "${ctr_state}" == "running" ]]; then
+    break
+  fi
+  sleep 1
+done
 export DOCKHAND_TEST_FILE_CONTAINER_ID="${file_container_id}"
 
 registry_payload="$(jq -nc --arg url "http://registry:5000" --arg name "ci-catalog-${SUFFIX}" \
@@ -253,7 +265,22 @@ if [[ -n "${git_repo_id}" ]]; then
   git_stack_id="$(jq -r '.id // empty' /tmp/dh-bootstrap-git-stack.json)"
   if [[ -n "${git_stack_id}" ]]; then
     export DOCKHAND_TEST_GIT_STACK_ID="${git_stack_id}"
-    export DOCKHAND_TEST_GIT_STACK_ENV_PATH=".env"
+    env_path=""
+    for _ in $(seq 1 45); do
+      curl -sS -b /tmp/dh-cookies.txt \
+        "${DOCKHAND_TEST_ENDPOINT}/api/git/stacks/${git_stack_id}/env-files" >/tmp/dh-env-files.json || true
+      env_path="$(jq -r '.files[]? | select(. == ".env") // empty' /tmp/dh-env-files.json | head -n 1)"
+      if [[ -z "${env_path}" ]]; then
+        env_path="$(jq -r '.files[0] // empty' /tmp/dh-env-files.json)"
+      fi
+      if [[ -n "${env_path}" ]]; then
+        break
+      fi
+      sleep 2
+    done
+    if [[ -n "${env_path}" ]]; then
+      export DOCKHAND_TEST_GIT_STACK_ENV_PATH="${env_path}"
+    fi
   fi
 fi
 

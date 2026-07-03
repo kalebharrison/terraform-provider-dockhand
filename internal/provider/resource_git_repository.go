@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"strconv"
+	"strings"
 
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
@@ -183,6 +184,12 @@ func (r *gitRepositoryResource) Create(ctx context.Context, req resource.CreateR
 	}
 
 	state := mergeGitRepositoryState(plan, modelFromGitRepositoryResponse(created))
+	if hydrated, err := r.hydrateGitRepositoryState(ctx, plan, state); err != nil {
+		resp.Diagnostics.AddError("Error reading Dockhand git repository", err.Error())
+		return
+	} else {
+		state = hydrated
+	}
 	resp.Diagnostics.Append(resp.State.Set(ctx, &state)...)
 }
 
@@ -209,6 +216,12 @@ func (r *gitRepositoryResource) Read(ctx context.Context, req resource.ReadReque
 	}
 
 	newState := mergeGitRepositoryState(state, modelFromGitRepositoryResponse(repo))
+	if hydrated, err := r.hydrateGitRepositoryState(ctx, state, newState); err != nil {
+		resp.Diagnostics.AddError("Error reading Dockhand git repository", err.Error())
+		return
+	} else {
+		newState = hydrated
+	}
 	resp.Diagnostics.Append(resp.State.Set(ctx, &newState)...)
 }
 
@@ -245,6 +258,12 @@ func (r *gitRepositoryResource) Update(ctx context.Context, req resource.UpdateR
 	}
 
 	newState := mergeGitRepositoryState(plan, modelFromGitRepositoryResponse(updated))
+	if hydrated, err := r.hydrateGitRepositoryState(ctx, plan, newState); err != nil {
+		resp.Diagnostics.AddError("Error reading Dockhand git repository", err.Error())
+		return
+	} else {
+		newState = hydrated
+	}
 	resp.Diagnostics.Append(resp.State.Set(ctx, &newState)...)
 }
 
@@ -412,4 +431,37 @@ func mergeGitRepositoryState(preferred gitRepositoryModel, remote gitRepositoryM
 	}
 
 	return out
+}
+
+func gitRepositoryEnvironmentIDFromList(repos []gitRepositoryResponse, id string) *int64 {
+	target := strings.TrimSpace(id)
+	if target == "" {
+		return nil
+	}
+	for _, item := range repos {
+		if fmt.Sprintf("%d", item.ID) == target && item.EnvironmentID != nil {
+			return item.EnvironmentID
+		}
+	}
+	return nil
+}
+
+func (r *gitRepositoryResource) hydrateGitRepositoryState(ctx context.Context, preferred gitRepositoryModel, state gitRepositoryModel) (gitRepositoryModel, error) {
+	if !state.EnvironmentID.IsNull() && !state.EnvironmentID.IsUnknown() {
+		return state, nil
+	}
+	if r.client == nil {
+		return state, nil
+	}
+
+	repos, _, err := r.client.ListGitRepositories(ctx)
+	if err != nil {
+		return state, err
+	}
+	if envID := gitRepositoryEnvironmentIDFromList(repos, state.ID.ValueString()); envID != nil {
+		state.EnvironmentID = types.StringValue(fmt.Sprintf("%d", *envID))
+		return state, nil
+	}
+
+	return mergeGitRepositoryState(preferred, state), nil
 }

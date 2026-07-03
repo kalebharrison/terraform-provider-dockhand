@@ -24,6 +24,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Shrunk `manifestOperationExemptions` as coverage improved.
 - `DELETE` probe calls for stacks, volumes, and images now send `force=true` to match the provider client.
 - Agent docs (`AGENTS.md`, runbook, cursor rules, CONTRIBUTING) cross-link coding standards and intake guide.
+- Acceptance harness git-stack bootstrap uses `postgresql-pgadmin/compose.yaml` so env-file fixtures include a committed `.env`.
 
 ### Fixed
 
@@ -39,6 +40,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Agent workflows on `agent/**` branches cannot modify workflow files vs `main`; auto-merge requires `agent-auto-merge` label and filled issue resolution PR sections.
 - Issue Resolution Notify, Release Issue Notify, and Issue Regression Intake workflows for substantive issue communication.
 - GitOps example uses `dockhand_git_stack_deploy_action` with static triggers.
+- Latest Dockhand compatibility: acceptance harness starts the file-container fixture and discovers git-stack env file paths after sync.
+- `dockhand_git_repository` hydrates `environment_id` from the repositories list when single-repo GET omits it (import/read drift against Dockhand latest).
+- Git stack deploy acceptance expects `deploy_completed` after deploy-stream finishes synchronously.
 
 ### Changed
 
