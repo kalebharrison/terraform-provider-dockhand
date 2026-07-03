@@ -90,8 +90,7 @@ If the new acceptance suite should run on PRs, add the exact `TestAcc...` functi
 | `go-ci.yml` | PR + push to `main` | fmt, tidy, docs/examples, vet, golangci-lint, staticcheck, shellcheck, unit tests, build |
 | `acceptance-ci.yml` | PR | Dockhand + DinD + Hawser targeted acceptance |
 | `agent-validate.yml` | push to `agent/**` | Agent pre-PR validation |
-| `agent-open-pr.yml` | after successful Agent Validate | Opens/updates PR as `github-actions[bot]` |
-| `agent-approve-ci.yml` | agent PR opened/updated | Approves pending workflow runs |
+| `agent-open-pr.yml` | after successful Agent Validate | Opens/updates PR; approves pending PR workflow runs |
 | `agent-auto-merge.yml` | agent PR events | Enables auto-merge |
 | `issue-agent-intake.yml` | issue labeled `agent`, `/agent` comment | Dispatches Cursor Cloud Agent |
 | `acceptance-full.yml` | nightly | Full `TestAcc` + drift audits |
