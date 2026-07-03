@@ -1,0 +1,127 @@
+name: Agent Release Tag
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - docs/reports/agent-review-log.md
+  schedule:
+    - cron: "17 */6 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  publish-tag:
+    name: Publish signed release tag when lens verdict clears
+    runs-on: ubuntu-latest
+    env:
+      GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
+      HAS_GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE != '' }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Evaluate release gate for tagging
+        id: gate
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if ! /usr/bin/python3 scripts/release_gate_check.py --mode tag --json > /tmp/release-gate.json; then
+            echo "ready=false" >> "${GITHUB_OUTPUT}"
+            cat /tmp/release-gate.json || true
+            exit 0
+          fi
+          {
+            echo "ready=true"
+            echo "tag=$(jq -r '.tag' /tmp/release-gate.json)"
+            echo "version=$(jq -r '.version' /tmp/release-gate.json)"
+          } >> "${GITHUB_OUTPUT}"
+
+      - name: Verify signing secrets are present
+        if: steps.gate.outputs.ready == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ -z "${{ secrets.GPG_PRIVATE_KEY }}" ]]; then
+            echo "Missing secret: GPG_PRIVATE_KEY" >&2
+            exit 2
+          fi
+
+      - name: Import GPG key (passphrase)
+        if: steps.gate.outputs.ready == 'true' && env.HAS_GPG_PASSPHRASE == 'true'
+        uses: crazy-max/ghaction-import-gpg@v7
+        with:
+          gpg_private_key: ${{ secrets.GPG_PRIVATE_KEY }}
+          passphrase: ${{ env.GPG_PASSPHRASE }}
+
+      - name: Import GPG key (no passphrase)
+        if: steps.gate.outputs.ready == 'true' && env.HAS_GPG_PASSPHRASE != 'true'
+        uses: crazy-max/ghaction-import-gpg@v7
+        with:
+          gpg_private_key: ${{ secrets.GPG_PRIVATE_KEY }}
+
+      - name: Create and push signed tag
+        if: steps.gate.outputs.ready == 'true'
+        env:
+          TAG: ${{ steps.gate.outputs.tag }}
+          VERSION: ${{ steps.gate.outputs.version }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          if git rev-parse "${TAG}" >/dev/null 2>&1; then
+            echo "Tag ${TAG} already exists locally."
+            exit 0
+          fi
+          git tag -s "${TAG}" -m "Release ${TAG}"
+          git push origin "${TAG}"
+
+      - name: Close release lens issue
+        if: steps.gate.outputs.ready == 'true'
+        uses: actions/github-script@v9
+        env:
+          VERSION: ${{ steps.gate.outputs.version }}
+          TAG: ${{ steps.gate.outputs.tag }}
+        with:
+          script: |
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+            const version = process.env.VERSION;
+            const tag = process.env.TAG;
+            const search = await github.rest.search.issuesAndPullRequests({
+              q: `repo:${owner}/${repo} is:issue is:open in:title "release: prepare v${version}"`,
+            });
+            if (search.data.total_count === 0) {
+              core.info("No open release lens issue to close.");
+              return;
+            }
+            const issue = search.data.items[0];
+            await github.rest.issues.createComment({
+              owner,
+              repo,
+              issue_number: issue.number,
+              body: [
+                `## Released automatically`,
+                "",
+                `Signed tag \`${tag}\` was published by **Agent Release Tag**.`,
+                "",
+                "Release Artifacts and Release Issue Notify will run automatically.",
+                "",
+                "---",
+                "_Posted by Agent Release Tag._",
+              ].join("\n"),
+            });
+            await github.rest.issues.update({
+              owner,
+              repo,
+              issue_number: issue.number,
+              state: "closed",
+            });

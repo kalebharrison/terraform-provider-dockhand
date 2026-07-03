@@ -1,0 +1,48 @@
+name: Agent PR Approve CI
+
+on:
+  pull_request:
+    types:
+      - opened
+      - synchronize
+      - reopened
+      - ready_for_review
+  workflow_dispatch:
+    inputs:
+      head_sha:
+        description: "Commit SHA to approve CI runs for"
+        required: true
+        type: string
+
+permissions:
+  actions: write
+  contents: read
+  pull-requests: read
+
+jobs:
+  approve:
+    name: Approve blocked PR checks
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      startsWith(github.event.pull_request.head.ref, 'agent/')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Approve or re-run blocked workflow runs
+        env:
+          HEAD_SHA: ${{ inputs.head_sha || github.event.pull_request.head.sha }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ -z "${HEAD_SHA}" ]]; then
+            echo "Missing head SHA." >&2
+            exit 1
+          fi
+          /usr/bin/python3 scripts/agent_approve_pr_ci.py --head-sha "${HEAD_SHA}" --json | tee /tmp/approve-pr-ci.json
+          remaining="$(jq -r '.remaining' /tmp/approve-pr-ci.json)"
+          if [[ "${remaining}" != "0" ]]; then
+            echo "Some workflow runs still require approval (${remaining} remaining)." >&2
+            exit 1
+          fi

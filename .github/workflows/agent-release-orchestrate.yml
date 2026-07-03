@@ -1,0 +1,116 @@
+name: Agent Release Orchestrate
+
+on:
+  push:
+    branches:
+      - main
+  workflow_run:
+    workflows:
+      - Release Drafter
+      - Go CI
+      - Acceptance Full
+    types:
+      - completed
+  schedule:
+    - cron: "0 9 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+  actions: read
+
+jobs:
+  dispatch-release-lens:
+    name: Open release lens issue when gate is ready
+    if: >-
+      github.event_name == 'push' ||
+      github.event_name == 'schedule' ||
+      github.event_name == 'workflow_dispatch' ||
+      (
+        github.event.workflow_run.conclusion == 'success' &&
+        github.event.workflow_run.head_branch == github.event.repository.default_branch
+      )
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Evaluate release gate for lens dispatch
+        id: gate
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if ! /usr/bin/python3 scripts/release_gate_check.py --mode lens --json > /tmp/release-gate.json; then
+            echo "ready=false" >> "${GITHUB_OUTPUT}"
+            cat /tmp/release-gate.json || true
+            exit 0
+          fi
+          jq -r '.ready_for_lens_dispatch' /tmp/release-gate.json > /tmp/ready
+          jq -r '.version' /tmp/release-gate.json > /tmp/version
+          jq -r '.tier' /tmp/release-gate.json > /tmp/tier
+          jq -r '.awaiting_release_issues | join(", ")' /tmp/release-gate.json > /tmp/awaiting
+          {
+            echo "ready=$(cat /tmp/ready)"
+            echo "version=$(cat /tmp/version)"
+            echo "tier=$(cat /tmp/tier)"
+            echo "awaiting=$(cat /tmp/awaiting)"
+          } >> "${GITHUB_OUTPUT}"
+
+      - name: Create release lens issue
+        if: steps.gate.outputs.ready == 'true'
+        uses: actions/github-script@v9
+        env:
+          VERSION: ${{ steps.gate.outputs.version }}
+          TIER: ${{ steps.gate.outputs.tier }}
+          AWAITING: ${{ steps.gate.outputs.awaiting }}
+        with:
+          script: |
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+            const version = process.env.VERSION;
+            const tier = process.env.TIER || "patch";
+            const awaiting = process.env.AWAITING || "";
+            const title = `release: prepare v${version}`;
+
+            const ensureLabel = async (name, color, description) => {
+              try {
+                await github.rest.issues.getLabel({ owner, repo, name });
+              } catch (error) {
+                if (error.status !== 404) throw error;
+                await github.rest.issues.createLabel({ owner, repo, name, color, description });
+              }
+            };
+
+            await ensureLabel("release-candidate", "5319E7", "Automated provider release lens review");
+            await ensureLabel("agent", "0E8A16", "Automated agent-authored work");
+
+            const body = [
+              "## Problem",
+              `Provider release **v${version}** is ready for automated release-tier lens review and tagging.`,
+              "",
+              "CI release gates passed. Fixes are on `main` and issues are awaiting release.",
+              "",
+              "## Done when",
+              `- Complete release-tier lens review per \`docs/testing/release-lens-review.md\` (**${tier}** tier)`,
+              `- Append \`### Release v${version} — verdict\` with **Clear to tag: yes** to \`docs/reports/agent-review-log.md\` when all required lenses pass`,
+              "- No unresolved **high** severity findings remain",
+              "- Push the agent branch and let **Agent Release Tag** publish the signed tag after merge",
+              "",
+              "## Context",
+              `- Tier: ${tier}`,
+              `- Awaiting-release issues: ${awaiting || "none listed"}`,
+              `- Gate script: \`scripts/release_gate_check.py\``,
+              `- Tagging workflow: \`.github/workflows/agent-release-tag.yml\``,
+            ].join("\n");
+
+            const created = await github.rest.issues.create({
+              owner,
+              repo,
+              title,
+              body,
+              labels: ["release-candidate", "agent"],
+            });
+            core.info(`Created release lens issue #${created.data.number}`);

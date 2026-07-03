@@ -31,7 +31,6 @@ jobs:
             const defaultBranch = context.payload.repository?.default_branch || "main";
             const branch = wr.head_branch || defaultBranch;
             const runUrl = wr.html_url || `https://github.com/${owner}/${repo}/actions/runs/${wr.id}`;
-            const issueTitle = `[Security] Workflow failing: ${workflowName}`;
             const issueMarker = `<!-- security-issue-notify:${workflowName} -->`;
             const failureStates = new Set([
               "action_required",
@@ -40,6 +39,9 @@ jobs:
               "startup_failure",
               "timed_out",
             ]);
+            const dispatchAgent = true;
+            const issueTitle = `Security CI failure: ${workflowName}`;
+            const legacyTitle = `[Security] Workflow failing: ${workflowName}`;
 
             if (eventName === "pull_request") {
               core.info("Skipping pull_request-triggered workflow run.");
@@ -70,6 +72,7 @@ jobs:
 
             await ensureLabel("ci", "5319e7", "CI, release, or automation work");
             await ensureLabel("security", "b60205", "Security hardening or vulnerability work");
+            await ensureLabel("agent", "0E8A16", "Automated agent-authored work");
 
             const issues = await github.paginate(github.rest.issues.listForRepo, {
               owner,
@@ -77,9 +80,9 @@ jobs:
               state: "all",
               per_page: 100,
             });
-            const existingIssue = issues
-              .filter((issue) => !issue.pull_request && issue.title === issueTitle)
-              .sort((left, right) => right.number - left.number)[0];
+            const findIssue = (title) =>
+              issues.filter((issue) => !issue.pull_request && issue.title === title).sort((left, right) => right.number - left.number)[0];
+            const existingIssue = findIssue(issueTitle) || findIssue(legacyTitle);
 
             let failedJobs = [];
             try {
@@ -98,20 +101,27 @@ jobs:
               ? failedJobs.map((job) => `- \`${job.name}\`${job.html_url ? `: ${job.html_url}` : ""}`).join("\n")
               : "- Workflow failed before any individual job reported a failure.";
 
-            const issueBody = `${issueMarker}
-            Security automation is failing on the default branch.
-
-            - Workflow: \`${workflowName}\`
-            - Conclusion: \`${conclusion || "unknown"}\`
-            - Event: \`${eventName}\`
-            - Branch: \`${branch}\`
-            - Commit: \`${wr.head_sha || "unknown"}\`
-            - Run: ${runUrl}
-
-            Failed jobs:
-            ${failedJobLines}
-
-            This issue is managed automatically. It is updated on repeated failures and closed when the workflow succeeds again.`;
+            const issueBody = [
+              issueMarker,
+              "## Problem",
+              `Security workflow **${workflowName}** is failing on the default branch.`,
+              "",
+              "Investigate the failed jobs and restore a green security gate on `main`.",
+              "",
+              "## Done when",
+              `- **${workflowName}** succeeds on the default branch`,
+              "- Findings are remediated or documented with an accepted allowlist where appropriate",
+              "",
+              "## Context",
+              `- Conclusion: \`${conclusion || "unknown"}\``,
+              `- Commit: \`${wr.head_sha || "unknown"}\``,
+              `- Run: ${runUrl}`,
+              "",
+              "Failed jobs:",
+              failedJobLines,
+              "",
+              dispatchAgent ? "Issue Agent Intake should dispatch a Cloud Agent automatically." : "",
+            ].filter(Boolean).join("\n");
 
             if (failureStates.has(conclusion)) {
               if (existingIssue) {
@@ -123,6 +133,12 @@ jobs:
                   body: issueBody,
                   state: "open",
                 });
+                await github.rest.issues.addLabels({
+                  owner,
+                  repo,
+                  issue_number: existingIssue.number,
+                  labels: ["security", "ci", "agent"],
+                });
                 core.info(`Updated issue #${existingIssue.number}.`);
               } else {
                 const created = await github.rest.issues.create({
@@ -130,27 +146,32 @@ jobs:
                   repo,
                   title: issueTitle,
                   body: issueBody,
-                  labels: ["security", "ci"],
+                  labels: ["security", "ci", "agent"],
                 });
                 core.info(`Opened issue #${created.data.number}.`);
               }
               return;
             }
 
-            if (conclusion === "success" && existingIssue?.state === "open") {
-              await github.rest.issues.createComment({
-                owner,
-                repo,
-                issue_number: existingIssue.number,
-                body: `Recovered in ${runUrl}. Closing this automatically managed issue.`,
-              });
-              await github.rest.issues.update({
-                owner,
-                repo,
-                issue_number: existingIssue.number,
-                state: "closed",
-              });
-              core.info(`Closed issue #${existingIssue.number}.`);
+            if (conclusion === "success") {
+              for (const title of new Set([issueTitle, legacyTitle])) {
+                const issue = findIssue(title);
+                if (issue?.state === "open") {
+                  await github.rest.issues.createComment({
+                    owner,
+                    repo,
+                    issue_number: issue.number,
+                    body: `Recovered in ${runUrl}. Closing this automatically managed issue.`,
+                  });
+                  await github.rest.issues.update({
+                    owner,
+                    repo,
+                    issue_number: issue.number,
+                    state: "closed",
+                  });
+                  core.info(`Closed issue #${issue.number}.`);
+                }
+              }
               return;
             }
 

@@ -1,30 +1,30 @@
 # Release Lens Review
 
-Required agent review pass **before** creating a signed `vX.Y.Z` tag.
+Automated release-tier lens review before **Agent Release Tag** publishes `vX.Y.Z`.
 
 Playbook detail for each lens: `docs/AGENT_REVIEW_LENSES.md`  
-Log output: `docs/reports/agent-review-log.md`
+Log output: `docs/reports/agent-review-log.md`  
+Gate script: `scripts/release_gate_check.py`
 
 Depth is **proportional to what changed** — not a fixed time per lens. See **Sweep depth** in `AGENT_REVIEW_LENSES.md`.
 
-## When
+## When (automated)
 
-After `main` is green and release CI gates pass (`docs/testing/release-gate.md`), **before** `git tag -s vX.Y.Z`.
-
-Maintainer prompt examples:
-
-- `prepare release v0.2.0`
-- `run release lens review for v0.2.0`
+1. Fixes are on `main` with `awaiting-release` issues.
+2. CI release gates pass (`docs/testing/release-gate.md`).
+3. **Agent Release Orchestrate** opens `release: prepare vX.Y.Z`.
+4. **Issue Agent Intake** dispatches a Cloud Agent with the tier lens set.
+5. Agent logs sweeps and a **Clear to tag** verdict.
+6. **Agent Release Tag** publishes the signed tag when the verdict is on `main`.
 
 ## Release tier
 
-Pick the tier from what is shipping. Maintainer can override (e.g. request full 11 on a patch).
+Tier is computed automatically from the draft release version vs the latest published tag (`scripts/release_semver.py`).
 
 | Tier | When | Lenses |
 |------|------|--------|
 | **Patch** | Bugfix, narrow change, docs/CI-only | **Core 5** (below) |
 | **Minor / major** | New/changed resources, schema, or API client | **All 11** (order below) |
-| **First release after agent CI** | Baseline audit | **All 11** at least standard depth |
 
 ### Core 5 (patch releases)
 
@@ -34,29 +34,23 @@ Pick the tier from what is shipping. Maintainer can override (e.g. request full 
 4. Security engineer  
 5. Release & upgrade  
 
-Skip the other six unless the patch touches their area (then run those at **standard** depth too).
+### Order (all 11 — minor/major)
 
-## Order (all 11 — minor/major / baseline)
-
-| Step | Lens | Why this order |
-|------|------|----------------|
-| 1 | API compatibility | Confirm Dockhand contract before judging provider code |
-| 2 | Terraform schema & state | Core correctness for Terraform users |
-| 3 | Dockhand domain / runtime | Operator-facing behavior |
-| 4 | Async & long-running operations | Actions and jobs |
-| 5 | Acceptance & regression | Proof tests match reality |
-| 6 | Security engineer | Secrets, auth, supply chain |
-| 7 | Ops / SRE | CI and harness health |
-| 8 | Senior developer | Go structure and maintainability |
-| 9 | GitOps / IaC practitioner | Docs, examples, HCL UX |
-| 10 | Entry-level developer | Onboarding and contributor path |
-| 11 | Release & upgrade | This release's notes, version pins, gate checklist |
-
-Steps may span multiple agent sessions. Track progress in the review log header.
+| Step | Lens |
+|------|------|
+| 1 | API compatibility |
+| 2 | Terraform schema & state |
+| 3 | Dockhand domain / runtime |
+| 4 | Async & long-running operations |
+| 5 | Acceptance & regression |
+| 6 | Security engineer |
+| 7 | Ops / SRE |
+| 8 | Senior developer |
+| 9 | GitOps / IaC practitioner |
+| 10 | Entry-level developer |
+| 11 | Release & upgrade |
 
 ## Review log header
-
-Start each release pass with:
 
 ```markdown
 ## Release vX.Y.Z — lens review
@@ -64,12 +58,11 @@ Start each release pass with:
 - Tier: patch | minor/major
 - Started: YYYY-MM-DD
 - Base commit: <sha>
-- CI gates: <links or pass/fail summary>
+- CI gates: pass (release_gate_check.py)
 - Status: in progress | blocked | clear to tag
-
 ```
 
-Append one `### YYYY-MM-DD — <lens>` section per step (format in `AGENT_REVIEW_LENSES.md`).
+Append one `### YYYY-MM-DD — <lens>` section per step (format in `docs/AGENT_REVIEW_LENSES.md`).
 
 Close with:
 
@@ -81,19 +74,16 @@ Close with:
 - **Deferred medium/low:** <issue links>
 ```
 
+**Agent Release Tag** requires **Clear to tag: yes** (`scripts/release_verdict.py`).
+
 ## Gate rules
 
 | Severity | Before tag |
 |----------|------------|
-| **High** | Must fix or explicitly abort release |
+| **High** | Must fix or block release (verdict stays **no**) |
 | **Medium** | Fix or document deferral in release notes + issue |
 | **Low** | Issue filed; may ship |
 
 ## After lenses clear
 
-Continue with `docs/testing/release-gate.md`:
-
-1. `git tag -s vX.Y.Z -m "Release vX.Y.Z"`
-2. `git push origin vX.Y.Z`
-3. Wait for release artifacts workflow
-4. `./scripts/release-test.sh X.Y.Z`
+**Agent Release Tag** pushes the signed tag; then see `docs/testing/release-gate.md` for artifact validation.

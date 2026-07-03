@@ -144,7 +144,7 @@ Debug-only local commands (not merge gates):
 - **Conventional commits** — `fix(provider):`, `feat:`, `docs:`, `test:`, `chore:`.
 - **PRs** — opened by Agent Open PR for `agent/**`; humans use normal PR flow with `Fixes #N`.
 - **Issue responses** — follow `docs/AGENT_ISSUE_RESPONSE.md`; fill PR resolution sections before merge.
-- **Do not** merge, tag releases, or push secrets without explicit maintainer instruction.
+- **Do not** merge, tag releases, or push secrets manually — **Agent Auto Merge** and **Agent Release Tag** handle routine merge and release publish
 
 ## Anti-patterns (never)
 

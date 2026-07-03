@@ -9,9 +9,13 @@ import re
 import sys
 
 SKIP_LABELS = frozenset({"released", "awaiting-release", "no-agent"})
-BOT_AUTO_LABELS = frozenset({"compatibility", "api-drift"})
-RETRIGGER_LABELS = frozenset({"agent", "compatibility", "api-drift", "regression"})
-AUTOMATION_TRACKER_PREFIX = "[Automation] Workflow failing:"
+BOT_AUTO_LABELS = frozenset({"compatibility", "api-drift", "ci", "security", "agent"})
+RETRIGGER_LABELS = frozenset({"agent", "compatibility", "api-drift", "regression", "release-candidate", "ci", "security"})
+AUTOMATION_TRACKER_PREFIXES = (
+    "[Automation] Workflow failing:",
+    "[Automation] Release gate blocked",
+    "[Automation] Secret configuration required",
+)
 
 ACCEPTANCE_SECTION_RE = re.compile(
     r"(?m)^#{2,3}\s*("
@@ -51,15 +55,23 @@ def intake_eligible(
         blocked = ", ".join(sorted(labels_l & SKIP_LABELS))
         return False, f"issue has skip label(s): {blocked}"
 
-    if title_s.startswith(AUTOMATION_TRACKER_PREFIX):
-        return False, "automation workflow tracker (not agent work)"
+    if any(title_s.startswith(prefix) for prefix in AUTOMATION_TRACKER_PREFIXES):
+        return False, "automation tracker (not agent work)"
+
+    if "release-candidate" in labels_l or title_s.lower().startswith("release:"):
+        if has_dispatched and not has_regression and trigger != "manual":
+            return False, "already has agent-dispatched label"
+        body_trim = (body or "").strip()
+        if len(body_trim) < 80 and not has_acceptance_section(body_trim):
+            return False, "release issue body too vague for dispatch"
+        return True, None
 
     if has_dispatched and not has_regression and trigger != "manual":
         return False, "already has agent-dispatched label"
 
     if trigger == "labeled":
         label = (labeled_name or "").strip().lower()
-        if label not in RETRIGGER_LABELS:
+        if label not in RETRIGGER_LABELS and label != "release-candidate":
             return False, f"ignored label event: {label or 'unknown'}"
 
     if trigger == "comment":
@@ -69,7 +81,7 @@ def intake_eligible(
         if not has_regression and not re.search(r"(^|\s)/agent(\s|$)", text, re.IGNORECASE):
             return False, "comment did not request agent (/agent) and issue is not regression"
 
-    if trigger in {"opened", "labeled", "comment", "manual"}:
+    if trigger in {"opened", "labeled", "comment", "manual", "edited"}:
         if is_bot(author_type, author_login):
             if not (labels_l & BOT_AUTO_LABELS):
                 return False, "bot-opened issue without compatibility/api-drift labels"

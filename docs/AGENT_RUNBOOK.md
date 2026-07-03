@@ -92,9 +92,11 @@ If the new acceptance suite should run on PRs, add the exact `TestAcc...` functi
 | `agent-validate.yml` | push to `agent/**` | Agent pre-PR validation |
 | `agent-open-pr.yml` | after successful Agent Validate | Opens PR; approves CI; enables auto-merge; closes linked issues; skips duplicate PRs when issue is complete; deletes agent branch after merge |
 | `agent-auto-merge.yml` | manual `workflow_dispatch` | Recovery-only auto-merge enable |
-| `issue-agent-intake.yml` | issue opened/labeled, regression comment | Dispatches Cursor Cloud Agent |
+| `issue-agent-intake.yml` | issue opened/labeled | Dispatches Cursor Cloud Agent + lens set |
 | `acceptance-full.yml` | nightly | Full `TestAcc` + drift audits |
 | `dockhand-release-watch.yml` | every 6h | New Dockhand image compatibility |
+| `agent-release-orchestrate.yml` | after Release Drafter / main CI | Opens release lens issue when gate passes |
+| `agent-release-tag.yml` | review log on `main` / schedule | Publishes signed tag when verdict clears |
 | `compat-reports-sync.yml` | after full/release-watch success | PR to refresh `docs/reports/` baselines |
 | `issue-resolution-notify.yml` | fix PR merged | Substantive comment on linked issues |
 | `issue-regression-intake.yml` | comment on closed issue | Reopen + `regression` when fix failed |
@@ -110,16 +112,15 @@ If the new acceptance suite should run on PRs, add the exact `TestAcc...` functi
 ## Never
 
 - Commit secrets, `.env`, Terraform state, or local override files
-- Merge or tag releases without explicit maintainer instruction
+- Do not merge or tag releases manually — **Agent Release Tag** publishes signed tags when the automated release lens verdict clears
 - Use bare `TestAcc` manifest mappings
 - Bypass manifest/docs/examples parity
 
-## Maintainer-only
+## Ops-only (not routine release gates)
 
-- Signed release tags (`vX.Y.Z`) and release artifact validation
-- **Release lens review** before every tag (`docs/testing/release-lens-review.md`)
-- Rotating production Dockhand credentials
+- Rotating `CURSOR_API_KEY`, GPG signing keys, or production Dockhand credentials
 - Changing branch protection or required checks
+- Security advisories and org-level policy
 
 ## Related docs
 

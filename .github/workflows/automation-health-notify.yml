@@ -1,0 +1,158 @@
+name: Automation Health Notify
+
+on:
+  schedule:
+    - cron: "45 */6 * * *"
+  workflow_run:
+    workflows:
+      - Agent Release Orchestrate
+      - Agent Release Tag
+      - Go CI
+      - Dockhand Release Watch
+    types:
+      - completed
+  workflow_dispatch:
+
+permissions:
+  actions: read
+  contents: read
+  issues: write
+
+jobs:
+  notify:
+    name: Release gate health
+    if: >-
+      github.event_name == 'schedule' ||
+      github.event_name == 'workflow_dispatch' ||
+      (
+        github.event.workflow_run.head_branch == github.event.repository.default_branch &&
+        (github.event.workflow_run.conclusion == 'success' || github.event.workflow_run.conclusion == 'failure')
+      )
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Restore health state cache
+        uses: actions/cache/restore@v4
+        id: health-state
+        with:
+          path: .ci-state/automation-health
+          key: automation-health-state
+
+      - name: Evaluate automation health gate
+        id: health
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          /usr/bin/python3 scripts/automation_health_gate.py --json > /tmp/automation-health.json
+          {
+            echo "should_alert=$(jq -r '.should_alert' /tmp/automation-health.json)"
+            echo "should_close=$(jq -r '.should_close_issue' /tmp/automation-health.json)"
+            echo "issue_title=$(jq -r '.issue_title' /tmp/automation-health.json)"
+          } >> "${GITHUB_OUTPUT}"
+
+      - name: Save health state cache
+        if: always()
+        uses: actions/cache/save@v4
+        with:
+          path: .ci-state/automation-health
+          key: automation-health-state
+
+      - name: Open or update release gate health issue
+        if: steps.health.outputs.should_alert == 'true'
+        uses: actions/github-script@v9
+        env:
+          ISSUE_TITLE: ${{ steps.health.outputs.issue_title }}
+        with:
+          script: |
+            const fs = require("fs");
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+            const title = process.env.ISSUE_TITLE;
+            const health = JSON.parse(fs.readFileSync("/tmp/automation-health.json", "utf8"));
+            const body = health.issue_body || "";
+
+            const ensureLabel = async (name, color, description) => {
+              try {
+                await github.rest.issues.getLabel({ owner, repo, name });
+              } catch (error) {
+                if (error.status !== 404) throw error;
+                await github.rest.issues.createLabel({ owner, repo, name, color, description });
+              }
+            };
+
+            await ensureLabel("no-agent", "ededed", "Automation tracker — do not dispatch Cloud Agent");
+            await ensureLabel("maintenance", "c5def5", "Refactors, cleanup, or repo hygiene");
+
+            const issues = await github.paginate(github.rest.issues.listForRepo, {
+              owner,
+              repo,
+              state: "all",
+              per_page: 100,
+            });
+            const existing = issues
+              .filter((issue) => !issue.pull_request && issue.title === title)
+              .sort((a, b) => b.number - a.number)[0];
+
+            if (existing) {
+              await github.rest.issues.update({
+                owner,
+                repo,
+                issue_number: existing.number,
+                title,
+                body,
+                state: "open",
+              });
+              await github.rest.issues.addLabels({
+                owner,
+                repo,
+                issue_number: existing.number,
+                labels: ["no-agent", "maintenance"],
+              });
+              core.info(`Updated automation health issue #${existing.number}`);
+              return;
+            }
+
+            const created = await github.rest.issues.create({
+              owner,
+              repo,
+              title,
+              body,
+              labels: ["no-agent", "maintenance"],
+            });
+            core.info(`Created automation health issue #${created.data.number}`);
+
+      - name: Close release gate health issue when recovered
+        if: steps.health.outputs.should_close == 'true'
+        uses: actions/github-script@v9
+        env:
+          ISSUE_TITLE: ${{ steps.health.outputs.issue_title }}
+        with:
+          script: |
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+            const title = process.env.ISSUE_TITLE;
+            const issues = await github.paginate(github.rest.issues.listForRepo, {
+              owner,
+              repo,
+              state: "open",
+              per_page: 100,
+            });
+            const existing = issues.find((issue) => !issue.pull_request && issue.title === title);
+            if (!existing) return;
+
+            await github.rest.issues.createComment({
+              owner,
+              repo,
+              issue_number: existing.number,
+              body: "Release gate blockers cleared. Closing this automatically managed issue.",
+            });
+            await github.rest.issues.update({
+              owner,
+              repo,
+              issue_number: existing.number,
+              state: "closed",
+            });

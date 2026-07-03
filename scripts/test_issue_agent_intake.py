@@ -24,6 +24,7 @@ class IssueAgentIntakeTest(unittest.TestCase):
         self.assertIn("Issue #7", prompt)
         self.assertIn("Problem details", prompt)
         self.assertIn("Co-authored-by: Cursor Agent", prompt)
+        self.assertIn("Required automated lens sweep", prompt)
 
 
 if __name__ == "__main__":

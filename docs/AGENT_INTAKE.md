@@ -8,8 +8,9 @@ How work enters the autonomous agent loop for `terraform-provider-dockhand`.
 
 | Trigger | Condition |
 |---------|-----------|
-| Issue **opened** by a user | Bug/feature reports from templates; no `/agent` required |
+| Issue **opened** or **edited** by a user | Bug/feature reports from templates; re-runs when body is improved |
 | Issue **opened** by CI with `compatibility` or `api-drift` | Release Watch compatibility/drift failures |
+| Issue **opened** by CI with `ci` / `security` + `agent` | Main-branch CI/security failures (`CI failure: …`, `Security CI failure: …`) |
 | Issue **labeled** `agent`, `compatibility`, `api-drift`, or `regression` | Re-dispatch or CI follow-up |
 | Comment on open **regression** issue | Human follow-up re-dispatches |
 | **`workflow_dispatch`** | Manual retry with issue number |
@@ -27,8 +28,10 @@ The workflow:
 
 1. Creates branch `agent/issue-<n>-<slug>` from `main` (if missing)
 2. Adds `agent`, `agent-dispatched`, and `in-progress` labels
-3. Calls Cursor Cloud Agents API (`POST /v1/agents`) with runbook prompt
+3. Selects review lenses from labels/title and calls Cursor Cloud Agents API with runbook + lens sweep instructions
 4. Comments with next automated steps
+
+**Agent Validate** requires an update to `docs/reports/agent-review-log.md` on the agent branch before acceptance tests run.
 
 **Required secret:** `CURSOR_API_KEY` (Cursor Dashboard → Integrations / API Keys). Add in GitHub **Settings → Secrets and variables → Actions**.
 
@@ -44,11 +47,14 @@ After the agent pushes:
 |--------|-------|----------------|
 | **Dockhand Release Watch** `report_failure` | `Compatibility failure: dockhand …` | Yes — structured Problem/Done when + `agent` label |
 | **Dockhand Release Watch** API drift gate | `API drift detected: dockhand …` | Yes — same pattern |
-| **Automation Issue Notify** | `[Automation] Workflow failing: …` | No — `no-agent` tracker only (Release Watch removed from this notifier) |
+| **Automation Issue Notify** | `CI failure: …` | Yes — structured Problem/Done when + `agent` label |
+| **Security Issue Notify** | `Security CI failure: …` | Yes — same pattern |
+| **Automation Issue Notify** (ops-only) | `[Automation] Workflow failing: …` | No — `no-agent` tracker (e.g. Release Artifacts) |
+| **Automation Health Notify** | `[Automation] Release gate blocked` | No — informational tracker |
 
 ## Issue quality bar
 
-GitHub issue templates already include enough detail for user reports. Thin issues get an **Agent intake skipped** comment asking for Problem + Done when.
+GitHub issue templates already include enough detail for user reports. Thin issues get an **Agent intake skipped** comment; editing the issue body re-runs intake automatically.
 
 Good agent issues include:
 
@@ -72,21 +78,20 @@ Labels (informational):
 
 Optional: comment `/agent` on an open issue to re-dispatch after removing `agent-dispatched`.
 
-## What agents should not pick up without human review
+## What stays outside routine automation
 
-- Release tagging or registry publishing
+These are intentionally not auto-dispatched (security / blast radius):
+
 - Branch protection or org-level settings changes
 - Credential rotation or production Dockhand access changes
 - Large cross-cutting refactors without a dedicated epic issue
-- Issues requiring unaudited third-party API behavior
 
 ## After merge
 
-1. **Close linked issues after merge** (in `agent-open-pr.yml`) closes issues linked via `Fixes #N` when bot auto-merge merges
-2. **Issue Resolution Notify** posts on linked issues (what was fixed, awaiting release, reopen instructions)
-3. Maintainer cuts `vX.Y.Z` when ready (`docs/MAINTENANCE_PLAYBOOK.md`)
+1. **Close linked issues after merge** (`agent-open-pr.yml`) closes issues, labels `awaiting-release`
+2. **Issue Resolution Notify** posts resolution comments on linked issues
+3. **Agent Release Orchestrate** → release lens issue → **Agent Release Tag** when gates pass
 4. **Release Issue Notify** comments with version and upgrade steps
-5. **Lens review** before tag per `docs/testing/release-lens-review.md`
 
 See `docs/AGENT_ISSUE_RESPONSE.md` for the full issue communication standard.
 

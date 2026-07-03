@@ -32,6 +32,13 @@ Living checklist for the agent-management rollout. Update as items complete.
 - [x] Intake helpers: `scripts/issue_agent_intake.py` + unit tests in `test-agent-helpers.sh`
 - [x] **Issue intake smoke** `#126`: dispatch → Cloud Agent commit → Validate → Open PR (#127)
 - [x] **Fully automated loop smoke** `#129`: intake → commit → Validate → Open PR → Approve CI → PR CI green → Agent Auto Merge (#130)
+- [x] **Automation health notify** — posts `[Automation] Release gate blocked` after 24h of gate blockers
+- [x] **CI failure → agent bridge** — `CI failure:` / `Security CI failure:` issues dispatch agents
+- [x] **Agent stall watchdog** — re-dispatch after 24h without branch/PR progress
+- [x] **Issue edited intake** — re-evaluates eligibility when issue body is updated
+- [x] **Dependabot auto-merge** — squash auto-merge when checks pass
+- [x] **Secret smoke** — weekly missing-secret tracker
+- [x] **`enforce_admins: true`** on `main` branch protection
 - [ ] **Issue auto-close smoke** `#132`: intake → commit → Validate → Open PR → PR CI green → Agent Auto Merge → Close linked issues after merge (in progress: PR #133)
 
 ## Confidence (post-rollout)
@@ -40,7 +47,7 @@ Living checklist for the agent-management rollout. Update as items complete.
 |----------|-------|-------|
 | Clear bug + `agent` label + acceptance criteria | **High** | Smoke test proved Validate → Open PR; intake + approve CI wired |
 | Dockhand API / acceptance iteration | **High** | Agent Validate + PR acceptance CI; agent can push fixes until green |
-| Ambiguous / thin issue body | **High (gated)** | Intake skips and comments; maintainer can `workflow_dispatch` |
+| Ambiguous / thin issue body | **High (gated)** | Intake skips and comments; editing the issue re-runs intake |
 | Bot-opened PR checks | **High** | `agent-approve-ci.yml` approves `waiting` runs on `agent/**` PRs |
 | Auto merge | **High (gated)** | Requires filled sections + `agent-auto-merge`; proven pattern from smoke |
 
@@ -69,4 +76,4 @@ Living checklist for the agent-management rollout. Update as items complete.
 
 - Separate GitHub machine user (transparency via co-author + bot PR is enough)
 - Running full DinD acceptance inside Cursor Cloud Agent VM (use GitHub Actions)
-- Auto-tagging releases without maintainer action
+- Auto-tagging releases without maintainer action → **done** (`agent-release-tag.yml`)
