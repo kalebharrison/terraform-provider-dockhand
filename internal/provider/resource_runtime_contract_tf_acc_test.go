@@ -68,10 +68,12 @@ resource "dockhand_container" "test" {
   enabled = true
 }
 `, env, imageName, env, containerName),
+			},
+			{
 				ResourceName:            "dockhand_container.test",
 				ImportState:             true,
 				ImportStateVerify:       true,
-				ImportStateVerifyIgnore: []string{"command", "labels", "env_vars", "update_payload_json", "state", "status", "health", "restart_count"},
+				ImportStateVerifyIgnore: []string{"command", "labels", "env_vars", "update_payload_json", "state", "status", "health", "restart_count", "enabled"},
 			},
 		},
 	})

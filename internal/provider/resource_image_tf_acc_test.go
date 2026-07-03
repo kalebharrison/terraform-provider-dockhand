@@ -27,7 +27,6 @@ func TestAccImageResourceImportTerraform(t *testing.T) {
 				),
 			},
 			{
-				Config:            testAccImageResourceConfig(env, imageName),
 				ResourceName:      "dockhand_image.test",
 				ImportState:       true,
 				ImportStateVerify: true,
