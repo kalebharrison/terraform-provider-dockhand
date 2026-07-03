@@ -183,6 +183,12 @@ func (r *imageResource) Read(ctx context.Context, req resource.ReadRequest, resp
 	}
 
 	env := strings.TrimSpace(state.Env.ValueString())
+	resolvedEnv := strings.TrimSpace(r.client.resolveEnv(env))
+	envVal := state.Env
+	if resolvedEnv != "" {
+		envVal = types.StringValue(resolvedEnv)
+	}
+
 	images, _, err := r.client.ListImages(ctx, env)
 	if err != nil {
 		resp.Diagnostics.AddError("Error reading Dockhand image", err.Error())
@@ -208,8 +214,12 @@ func (r *imageResource) Read(ctx context.Context, req resource.ReadRequest, resp
 		return
 	}
 
-	newState, diags := modelFromImageResponse(ctx, state.Env, state.Name.ValueString(), found)
-	newState.ScanAfterPull = state.ScanAfterPull
+	newState, diags := modelFromImageResponse(ctx, envVal, imageNameForState(state.Name.ValueString(), found), found)
+	if state.ScanAfterPull.IsNull() || state.ScanAfterPull.IsUnknown() {
+		newState.ScanAfterPull = types.BoolValue(false)
+	} else {
+		newState.ScanAfterPull = state.ScanAfterPull
+	}
 	resp.Diagnostics.Append(diags...)
 	resp.Diagnostics.Append(resp.State.Set(ctx, &newState)...)
 }
@@ -258,7 +268,52 @@ func (r *imageResource) Delete(ctx context.Context, req resource.DeleteRequest, 
 }
 
 func (r *imageResource) ImportState(ctx context.Context, req resource.ImportStateRequest, resp *resource.ImportStateResponse) {
-	resource.ImportStatePassthroughID(ctx, path.Root("id"), req, resp)
+	raw := strings.TrimSpace(req.ID)
+	if raw == "" {
+		resp.Diagnostics.AddError("Invalid import ID", "Expected `<id>` or `<env>:<id>`.")
+		return
+	}
+
+	env := ""
+	id := raw
+	parts := strings.SplitN(raw, ":", 2)
+	if len(parts) == 2 {
+		env = strings.TrimSpace(parts[0])
+		id = strings.TrimSpace(parts[1])
+	}
+	if id == "" {
+		resp.Diagnostics.AddError("Invalid import ID", "Image ID cannot be empty.")
+		return
+	}
+
+	resp.Diagnostics.Append(resp.State.SetAttribute(ctx, path.Root("id"), id)...)
+	if env != "" {
+		resp.Diagnostics.Append(resp.State.SetAttribute(ctx, path.Root("env"), env)...)
+	}
+}
+
+func imageNameForState(configured string, img *imageResponse) string {
+	if name := strings.TrimSpace(configured); name != "" {
+		return name
+	}
+	return imageNameFromTags(img)
+}
+
+func imageNameFromTags(img *imageResponse) string {
+	if img == nil || len(img.Tags) == 0 {
+		return ""
+	}
+	for _, tag := range img.Tags {
+		tag = strings.TrimSpace(tag)
+		if tag == "" || strings.HasPrefix(tag, "sha256:") {
+			continue
+		}
+		if strings.HasPrefix(tag, "library/") {
+			return strings.TrimPrefix(tag, "library/")
+		}
+		return tag
+	}
+	return strings.TrimSpace(img.Tags[0])
 }
 
 func modelFromImageResponse(ctx context.Context, env types.String, name string, img *imageResponse) (imageModel, diag.Diagnostics) {
