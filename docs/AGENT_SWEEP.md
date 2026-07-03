@@ -30,6 +30,7 @@ Living checklist for the agent-management rollout. Update as items complete.
 - [x] **Agent Open PR** — prefills resolution sections from issue body; adds `agent-auto-merge` when filled
 - [x] **Regression intake** — clears `agent-dispatched` on reopen so intake re-runs
 - [x] Intake helpers: `scripts/issue_agent_intake.py` + unit tests in `test-agent-helpers.sh`
+- [x] **Issue intake smoke** `#126`: dispatch → Cloud Agent commit → Validate → Open PR (#127)
 
 ## Confidence (post-rollout)
 
