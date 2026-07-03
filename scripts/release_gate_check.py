@@ -120,7 +120,7 @@ def draft_release_tag() -> Version | None:
 
 def tag_exists(tag: str) -> bool:
     proc = subprocess.run(
-        ["gh", "release", "view", tag, "--repo", _repo()],
+        ["gh", "api", f"repos/{_repo()}/git/refs/tags/{tag}"],
         cwd=ROOT,
         capture_output=True,
         text=True,
@@ -155,11 +155,29 @@ def open_compatibility_issues() -> list[int]:
 
 
 def awaiting_release_issues() -> list[int]:
-    query = f"repo:{_repo()} is:issue label:awaiting-release -label:released"
-    data = _gh_json(["search", "issues", query, "--json", "number", "--limit", "100"])
+    data = _gh_json(
+        [
+            "issue",
+            "list",
+            "--state",
+            "all",
+            "--label",
+            "awaiting-release",
+            "--json",
+            "number,labels",
+            "--limit",
+            "100",
+        ]
+    )
     if not isinstance(data, list):
         return []
-    return [int(item["number"]) for item in data]
+    numbers: list[int] = []
+    for item in data:
+        labels = {label.get("name", "") for label in item.get("labels", [])}
+        if "released" in labels:
+            continue
+        numbers.append(int(item["number"]))
+    return numbers
 
 
 def workflow_green(name: str) -> bool:

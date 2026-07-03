@@ -38,9 +38,11 @@ jobs:
             cat /tmp/release-gate.json || true
             exit 0
           fi
-          echo "ready=true" >> "${GITHUB_OUTPUT}"
-          echo "tag=$(jq -r '.tag' /tmp/release-gate.json)" >> "${GITHUB_OUTPUT}"
-          echo "version=$(jq -r '.version' /tmp/release-gate.json)" >> "${GITHUB_OUTPUT}"
+          {
+            echo "ready=true"
+            echo "tag=$(jq -r '.tag' /tmp/release-gate.json)"
+            echo "version=$(jq -r '.version' /tmp/release-gate.json)"
+          } >> "${GITHUB_OUTPUT}"
 
       - name: Verify signing secrets are present
         if: steps.gate.outputs.ready == 'true'

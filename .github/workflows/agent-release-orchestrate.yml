@@ -52,10 +52,12 @@ jobs:
           jq -r '.version' /tmp/release-gate.json > /tmp/version
           jq -r '.tier' /tmp/release-gate.json > /tmp/tier
           jq -r '.awaiting_release_issues | join(", ")' /tmp/release-gate.json > /tmp/awaiting
-          echo "ready=$(cat /tmp/ready)" >> "${GITHUB_OUTPUT}"
-          echo "version=$(cat /tmp/version)" >> "${GITHUB_OUTPUT}"
-          echo "tier=$(cat /tmp/tier)" >> "${GITHUB_OUTPUT}"
-          echo "awaiting=$(cat /tmp/awaiting)" >> "${GITHUB_OUTPUT}"
+          {
+            echo "ready=$(cat /tmp/ready)"
+            echo "version=$(cat /tmp/version)"
+            echo "tier=$(cat /tmp/tier)"
+            echo "awaiting=$(cat /tmp/awaiting)"
+          } >> "${GITHUB_OUTPUT}"
 
       - name: Create release lens issue
         if: steps.gate.outputs.ready == 'true'
