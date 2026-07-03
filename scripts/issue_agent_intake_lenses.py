@@ -15,6 +15,29 @@ LENS_SENIOR = "Senior developer"
 LENS_DOCKHAND = "Dockhand domain / runtime"
 LENS_ASYNC = "Async & long-running operations"
 LENS_GITOPS = "GitOps / IaC practitioner"
+LENS_RELEASE = "Release & upgrade"
+
+RELEASE_CORE_5 = [
+    LENS_API,
+    LENS_SCHEMA,
+    LENS_ACCEPTANCE,
+    LENS_SECURITY,
+    LENS_RELEASE,
+]
+
+RELEASE_ALL_11 = [
+    LENS_API,
+    LENS_SCHEMA,
+    LENS_DOCKHAND,
+    "Async & long-running operations",
+    LENS_ACCEPTANCE,
+    LENS_SECURITY,
+    LENS_OPS,
+    LENS_SENIOR,
+    LENS_GITOPS,
+    "Entry-level developer",
+    LENS_RELEASE,
+]
 
 REVIEW_LOG = "docs/reports/agent-review-log.md"
 LENSES_DOC = "docs/AGENT_REVIEW_LENSES.md"
@@ -39,10 +62,30 @@ def _dedupe(items: Iterable[str]) -> list[str]:
     return ordered
 
 
-def select_lenses(labels: list[str], title: str) -> list[str]:
+def release_lenses_for_tier(tier: str) -> list[str]:
+    if tier in {"minor", "major"}:
+        return list(RELEASE_ALL_11)
+    return list(RELEASE_CORE_5)
+
+
+def parse_release_tier(title: str, body: str) -> str:
+    body_l = (body or "").lower()
+    for line in body_l.splitlines():
+        if line.strip().startswith("tier:"):
+            value = line.split(":", 1)[1].strip()
+            if value in {"patch", "minor", "major"}:
+                return value
+    return "patch"
+
+
+def select_lenses(labels: list[str], title: str, body: str = "") -> list[str]:
     """Return ordered lens names required for this issue."""
     labels_l = {label.strip().lower() for label in labels if label.strip()}
     title_l = (title or "").strip().lower()
+
+    if "release-candidate" in labels_l or title_l.startswith("release:"):
+        return release_lenses_for_tier(parse_release_tier(title, body))
+
     lenses: list[str] = []
 
     compatibility = bool(
@@ -85,11 +128,29 @@ def build_lens_instructions(
     *,
     issue_number: int,
     title: str,
+    is_release: bool = False,
+    release_version: str = "",
 ) -> str:
     if not lenses:
         return ""
 
     lens_lines = "\n".join(f"- **{name}**" for name in lenses)
+    release_close = ""
+    if is_release and release_version:
+        release_close = f"""
+6. Close the release block with:
+
+```markdown
+### Release v{release_version} — verdict
+
+- **Clear to tag:** yes | no
+- **Blocking findings:** <none or list>
+- **Deferred medium/low:** <issue links>
+```
+
+Set **Clear to tag: yes** only when all required lenses pass with no unresolved **high** findings.
+"""
+
     return f"""## Required automated lens sweep (before finishing)
 
 Every agent issue runs focused review lenses automatically. For issue #{issue_number} run:
@@ -98,15 +159,16 @@ Every agent issue runs focused review lenses automatically. For issue #{issue_nu
 
 ### How to run (mandatory)
 1. Open `{LENSES_DOC}` and complete the **Goal**, **Priority paths**, and **Checklist** for each lens above.
-2. Append one `### YYYY-MM-DD — <lens name>` section per lens to `{REVIEW_LOG}` using the finding table format in `{LENSES_DOC}`.
-3. Start the log block with:
-   `## Issue #{issue_number} — {title.strip()}`
-4. Fix **high** severity findings in this branch before push. File GitHub issues for deferred medium/low items and link them in the log.
-5. Commit the review log update on `{issue_number}` branch **before or with** your fix commits — **Agent Validate** fails if `{REVIEW_LOG}` is not updated on this branch.
-
+2. Follow tier order in `docs/testing/release-lens-review.md` when this is a release candidate issue.
+3. Append one `### YYYY-MM-DD — <lens name>` section per lens to `{REVIEW_LOG}` using the finding table format in `{LENSES_DOC}`.
+4. Start the log block with:
+   `## {"Release v" + release_version if is_release else f"Issue #{issue_number} — {title.strip()}"}`
+5. Fix **high** severity findings in this branch before push. File GitHub issues for deferred medium/low items and link them in the log.
+6. Commit the review log update on this branch **before or with** your fix commits — **Agent Validate** fails if `{REVIEW_LOG}` is not updated on this branch.
+{release_close}
 Then implement the issue fix below.
 """
 
 
-def lenses_required(labels: list[str], title: str) -> bool:
-    return bool(select_lenses(labels, title))
+def lenses_required(labels: list[str], title: str, body: str = "") -> bool:
+    return bool(select_lenses(labels, title, body))

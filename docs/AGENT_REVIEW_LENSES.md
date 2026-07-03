@@ -21,28 +21,9 @@ Each lens lists **Does not cover** to avoid overlap with other lenses.
 | `security` | Security engineer |
 | Default | Senior developer, Acceptance & regression |
 
-### Before every `v*` release (required)
+### Before every `v*` release (automated)
 
-Run the lens set for the **release tier** below. Append each sweep to `docs/reports/agent-review-log.md` under a single release header.
-
-- **Block the tag** if any finding is **high** severity and unresolved.
-- **Medium** findings: fix before tag or document explicit deferral in the release notes / review log.
-- **Low** findings: may ship with issues filed for follow-up.
-
-The maintainer says *"prepare release vX.Y.Z"* or *"run release lens review"* to start the release-tier pass (not covered by per-issue automation above).
-
-See `docs/testing/release-lens-review.md` for tier definitions and lens order.
-
-### Ad hoc (maintainer override)
-
-| Trigger | Suggested lens |
-|---------|----------------|
-| Maintainer names a lens | That lens only |
-| After auth/credential change | Security engineer |
-| After new resource/data source | Terraform schema & state + Acceptance & regression |
-| After CI/harness change | Ops / SRE |
-
-Per-issue automation already runs API compatibility on Dockhand drift failures. Use ad hoc when you need an extra lens beyond the intake mapping.
+When **Agent Release Orchestrate** opens `release: prepare vX.Y.Z`, **Issue Agent Intake** assigns the release-tier lens set (core 5 or all 11). The Cloud Agent must log sweeps and a **Clear to tag** verdict; **Agent Release Tag** publishes the signed tag when the verdict clears.
 
 **Do not** run lenses on a timer or `/loop`.
 

@@ -10,28 +10,28 @@ Provider releases should only be cut when all of the following pass on `main`:
 6. `Acceptance Full` (most recent scheduled/dispatch run)
 7. `Dockhand Release Watch` (most recent run)
 
-## Release lens review (agent)
+## Release lens review (automated)
 
-Before creating `vX.Y.Z`, the agent runs the **release-tier lens set** per `docs/testing/release-lens-review.md` (core 5 for patch, all 11 for minor/major) and logs to `docs/reports/agent-review-log.md`.
+**Agent Release Orchestrate** opens a `release: prepare vX.Y.Z` issue when CI gates pass and fixes are `awaiting-release`. **Issue Agent Intake** dispatches a Cloud Agent with the release-tier lens set per `docs/testing/release-lens-review.md`. **Agent Release Tag** publishes the signed tag when `docs/reports/agent-review-log.md` contains **Clear to tag: yes** for that version.
 
-Do not tag while **high** severity findings are open.
+Do not tag while **high** severity findings are open in the release verdict.
 
 ## Operational Gate Checklist
 
-Before creating `vX.Y.Z`:
+Programmatic gate: `scripts/release_gate_check.py`
 
-1. Ensure no open `compatibility` issues for current Dockhand release.
-2. Confirm `TestAcceptanceManifestCoverage` passes.
-3. Confirm docs/examples parity check passes (`/usr/bin/python3 scripts/check-doc-example-coverage.py`).
-4. Confirm committed `docs/reports/endpoint-probe.md` is current **or** a green **Acceptance Full** / **Release Watch** run completed since the last probe script change ( **Compat Reports Sync** PR merged or pending).
-5. Confirm latest `Dockhand Release Watch` run produced compatibility artifacts (`endpoint-probe.*`, `webui-api-endpoints.txt`, `webui-endpoint-gap-audit.md`, `docs-reference-*`, `private-endpoint-probe.*`, `api-drift-gate.md`).
-6. Complete release lens review (`docs/testing/release-lens-review.md`) — **clear to tag** verdict in review log.
-7. Cut signed tag:
+- `--mode lens` — ready to open `release: prepare vX.Y.Z` for automated lens review
+- `--mode tag` — ready for **Agent Release Tag** to publish the signed tag
 
-```bash
-git tag -s vX.Y.Z -m "Release vX.Y.Z"
-git push origin vX.Y.Z
-```
+Before **Agent Release Tag** publishes `vX.Y.Z`:
+
+1. No open `compatibility` issues for the current Dockhand release.
+2. Required workflows green on `main` (Go CI, Govulncheck, Workflow Lint, Gitleaks, Acceptance Full, Dockhand Release Watch).
+3. Release Drafter draft exists for `vX.Y.Z` and the tag is not published yet.
+4. At least one `awaiting-release` issue exists (for lens dispatch) **or** the review log already contains **Clear to tag: yes** for `vX.Y.Z`.
+5. `docs/reports/agent-review-log.md` on `main` contains `### Release vX.Y.Z — verdict` with **Clear to tag: yes**.
+
+Tagging is performed by `.github/workflows/agent-release-tag.yml` (signed GPG tag in Actions). **Release Artifacts** runs on tag push.
 
 ## Why This Gate Exists
 

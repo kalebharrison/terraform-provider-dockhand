@@ -35,6 +35,11 @@ def branch_name(issue_number: int, title: str) -> str:
     return f"agent/issue-{issue_number}-{slugify(title)}"
 
 
+def parse_release_version(title: str) -> str:
+    match = re.search(r"release:\s*prepare\s+v(\d+\.\d+\.\d+)", (title or ""), re.IGNORECASE)
+    return match.group(1) if match else ""
+
+
 def build_prompt(
     issue_number: int,
     title: str,
@@ -47,11 +52,31 @@ def build_prompt(
         issue_body = "(No description provided — infer scope from the title and codebase.)"
 
     label_list = labels or []
+    labels_l = {label.lower() for label in label_list}
+    is_release = "release-candidate" in labels_l or (title or "").lower().startswith("release:")
+    release_version = parse_release_version(title)
+    selected = select_lenses(label_list, title, issue_body)
     lens_block = build_lens_instructions(
-        select_lenses(label_list, title),
+        selected,
         issue_number=issue_number,
         title=title,
+        is_release=is_release,
+        release_version=release_version,
     )
+
+    if is_release:
+        done_when = f"""## Done when
+1. Complete the release-tier lens set in `docs/reports/agent-review-log.md`
+2. Append `### Release v{release_version or "X.Y.Z"} — verdict` with **Clear to tag: yes** when all required lenses pass with no unresolved **high** findings
+3. Push branch `{branch}` — **Agent Validate** and **Agent Open PR** run automatically
+4. **Agent Release Tag** publishes the signed tag after the verdict merges to `main` — do not tag manually"""
+    else:
+        done_when = f"""## Done when
+1. Required lens sweep sections are appended to `docs/reports/agent-review-log.md`
+2. Fix is implemented with focused diffs and tests/docs as required by AGENT_CODING_STANDARDS.md
+3. `./scripts/verify.sh --quality` passes locally before push
+4. Branch `{branch}` is pushed to origin — GitHub **Agent Validate** and **Agent Open PR** run automatically
+5. When the PR opens, ensure **What was fixed** and **User impact** in the PR body are filled (not placeholders)"""
 
     return f"""You are implementing a fix for GitHub issue #{issue_number} in terraform-provider-dockhand.
 
@@ -72,12 +97,7 @@ Use `./scripts/agent-commit-msg.sh` to format commit messages.
 
 {issue_body}
 
-## Done when
-1. Required lens sweep sections are appended to `docs/reports/agent-review-log.md`
-2. Fix is implemented with focused diffs and tests/docs as required by AGENT_CODING_STANDARDS.md
-3. `./scripts/verify.sh --quality` passes locally before push
-4. Branch `{branch}` is pushed to origin — GitHub **Agent Validate** and **Agent Open PR** run automatically
-5. When the PR opens, ensure **What was fixed** and **User impact** in the PR body are filled (not placeholders)
+{done_when}
 
 Do not merge PRs, tag releases, or change branch protection. Push and let CI complete the loop.
 """
@@ -148,7 +168,7 @@ def main(argv: list[str] | None = None) -> int:
                 {
                     "branch": branch,
                     "prompt_chars": len(prompt),
-                    "lenses": select_lenses(labels, args.title),
+                    "lenses": select_lenses(labels, args.title, body),
                 },
                 indent=2,
             )

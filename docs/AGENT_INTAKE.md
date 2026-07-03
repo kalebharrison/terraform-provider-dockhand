@@ -88,7 +88,7 @@ Optional: comment `/agent` on an open issue to re-dispatch after removing `agent
 2. **Issue Resolution Notify** posts on linked issues (what was fixed, awaiting release, reopen instructions)
 3. Maintainer cuts `vX.Y.Z` when ready (`docs/MAINTENANCE_PLAYBOOK.md`)
 4. **Release Issue Notify** comments with version and upgrade steps
-5. **Lens review** before tag per `docs/testing/release-lens-review.md`
+5. **Lens review** — automated per issue and per release (`docs/AGENT_REVIEW_LENSES.md`, `docs/testing/release-lens-review.md`)
 
 See `docs/AGENT_ISSUE_RESPONSE.md` for the full issue communication standard.
 

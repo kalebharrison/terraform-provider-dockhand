@@ -44,6 +44,14 @@ class IssueAgentIntakeLensesTest(unittest.TestCase):
         self.assertIn("Required automated lens sweep", prompt)
         self.assertIn("AGENT_REVIEW_LENSES.md", prompt)
 
+    def test_release_candidate_uses_core_or_full_lenses(self) -> None:
+        body = "Tier: patch\n\n## Problem\nRelease\n\n## Done when\n- clear"
+        lenses = select_lenses(["release-candidate", "agent"], "release: prepare v0.2.0", body)
+        self.assertEqual(len(lenses), 5)
+        body_minor = "Tier: minor\n\n## Problem\nRelease\n\n## Done when\n- clear"
+        lenses_minor = select_lenses(["release-candidate"], "release: prepare v0.3.0", body_minor)
+        self.assertEqual(len(lenses_minor), 11)
+
 
 if __name__ == "__main__":
     unittest.main()
