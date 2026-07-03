@@ -104,4 +104,7 @@ Remove label `agent-dispatched`, then comment `/agent` or re-add `agent`, or use
 
 ## Smoke test
 
-Use `agent/issue-0-smoke-test` per `docs/AGENT_DEPLOYMENT.md` after enabling agent CI on `main`.
+Two checks after enabling agent CI on `main`:
+
+1. **CI loop** — branch `agent/issue-0-smoke-test` per `docs/AGENT_DEPLOYMENT.md` (Validate → Open PR; close without merge).
+2. **Issue intake** — open a smoke issue labeled `agent` (e.g. `#126`) with done-when criteria for dispatch → Cloud Agent commit → Validate → Open PR → Approve CI; close PR and issue without merge when green.
