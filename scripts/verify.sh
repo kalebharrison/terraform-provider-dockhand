@@ -121,7 +121,7 @@ if [[ "${RUN_QUALITY}" == "true" ]]; then
   run staticcheck ./...
 
   if command -v shellcheck >/dev/null 2>&1; then
-    run shellcheck scripts/*.sh
+    run shellcheck -x -e SC1091 scripts/*.sh
   else
     echo "warning: shellcheck not installed; skipping."
   fi
