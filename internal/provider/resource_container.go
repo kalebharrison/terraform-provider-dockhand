@@ -521,6 +521,12 @@ func applyContainerRuntimeToState(state *containerResourceModel, container *cont
 	if container == nil {
 		return
 	}
+	if (state.Name.IsNull() || state.Name.IsUnknown()) && strings.TrimSpace(container.Name) != "" {
+		state.Name = types.StringValue(container.Name)
+	}
+	if (state.Image.IsNull() || state.Image.IsUnknown()) && strings.TrimSpace(container.Image) != "" {
+		state.Image = types.StringValue(container.Image)
+	}
 	state.State = types.StringValue(container.State)
 	state.Status = types.StringValue(container.Status)
 	state.Health = types.StringValue(container.Health)
