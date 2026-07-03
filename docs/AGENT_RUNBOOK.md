@@ -92,7 +92,7 @@ If the new acceptance suite should run on PRs, add the exact `TestAcc...` functi
 | `agent-validate.yml` | push to `agent/**` | Agent pre-PR validation |
 | `agent-open-pr.yml` | after successful Agent Validate | Opens PR; approves CI; enables auto-merge; closes linked issues; skips duplicate PRs when issue is complete; deletes agent branch after merge |
 | `agent-auto-merge.yml` | manual `workflow_dispatch` | Recovery-only auto-merge enable |
-| `issue-agent-intake.yml` | issue labeled `agent`, `/agent` comment | Dispatches Cursor Cloud Agent |
+| `issue-agent-intake.yml` | issue opened/labeled, regression comment | Dispatches Cursor Cloud Agent |
 | `acceptance-full.yml` | nightly | Full `TestAcc` + drift audits |
 | `dockhand-release-watch.yml` | every 6h | New Dockhand image compatibility |
 | `compat-reports-sync.yml` | after full/release-watch success | PR to refresh `docs/reports/` baselines |

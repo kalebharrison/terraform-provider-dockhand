@@ -262,16 +262,20 @@ jobs:
             const runUrl = `${context.serverUrl}/${owner}/${repo}/actions/runs/${context.runId}`;
             const endpointLines = endpoints.slice(0, 100).map((e) => `- \`${e}\``).join("\n");
             const body = [
+              `## Problem`,
               `Detected new Dockhand API routes not currently tracked by provider probe coverage.`,
               ``,
+              `## Done when`,
+              `- New routes are covered in provider/probe/tests **or** explicitly allowlisted in \`docs/non-present-endpoints.md\``,
+              `- API drift gate passes on a subsequent compatibility run`,
+              ``,
+              `## Context`,
               `- Image: \`${process.env.IMAGE_REF}\``,
               `- Run: ${runUrl}`,
               `- Count: \`${endpoints.length}\``,
               ``,
               `## Endpoints`,
               endpointLines || "- None",
-              ``,
-              `Action: add provider/probe coverage or explicitly allowlist intentional gaps in \`docs/non-present-endpoints.md\`.`,
             ].join("\n");
 
             const ensureLabel = async (name, color, description) => {
@@ -288,6 +292,7 @@ jobs:
 
             await ensureLabel("compatibility", "5319E7", "Dockhand compatibility validation and drift tracking");
             await ensureLabel("api-drift", "D93F0B", "New Dockhand API drift detected by scheduled audits");
+            await ensureLabel("agent", "0E8A16", "Automated agent-authored work");
 
             const search = await github.rest.search.issuesAndPullRequests({
               q: `repo:${owner}/${repo} is:issue is:open in:title "${title}"`,
@@ -310,7 +315,7 @@ jobs:
               repo,
               title,
               body,
-              labels: ["bug", "compatibility", "api-drift"],
+              labels: ["bug", "compatibility", "api-drift", "agent"],
             });
             core.info(`Created issue #${created.data.number}`);
 
@@ -453,11 +458,18 @@ jobs:
             const repo = context.repo.repo;
             const title = `Compatibility failure: dockhand ${process.env.IMAGE_TAG}`;
             const body = [
+              `## Problem`,
               `Automated compatibility validation failed for \`${process.env.IMAGE_REF}\`.`,
               ``,
-              `Workflow run: ${context.serverUrl}/${owner}/${repo}/actions/runs/${context.runId}`,
+              `Investigate failing acceptance tests, endpoint probes, or provider drift against this Dockhand image.`,
               ``,
-              `Please triage endpoint/resource drift before next provider release.`
+              `## Done when`,
+              `- **Dockhand Release Watch** validate job passes for \`${process.env.IMAGE_REF}\``,
+              `- Root cause addressed in provider code, tests, harness, or documented allowlists as appropriate`,
+              `- \`./scripts/verify.sh --quality\` passes and relevant acceptance coverage is updated if behavior changed`,
+              ``,
+              `## Context`,
+              `- Workflow run: ${context.serverUrl}/${owner}/${repo}/actions/runs/${context.runId}`,
             ].join("\n");
 
             const existing = await github.rest.search.issuesAndPullRequests({
@@ -487,13 +499,14 @@ jobs:
             };
 
             await ensureLabel("compatibility", "5319E7", "Dockhand compatibility validation and drift tracking");
+            await ensureLabel("agent", "0E8A16", "Automated agent-authored work");
 
             await github.rest.issues.create({
               owner,
               repo,
               title,
               body,
-              labels: ["bug", "compatibility"],
+              labels: ["bug", "compatibility", "agent"],
             });
         env:
           IMAGE_REF: ${{ needs.discover.outputs.image }}

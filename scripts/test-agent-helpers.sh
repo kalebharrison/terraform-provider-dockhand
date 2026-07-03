@@ -29,3 +29,4 @@ esac
 
 echo "agent helper smoke tests passed"
 run /usr/bin/python3 -m unittest scripts/test_issue_agent_intake.py
+run /usr/bin/python3 -m unittest scripts/test_issue_agent_intake_eligibility.py

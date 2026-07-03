@@ -6,7 +6,6 @@ on:
       - Go CI
       - Acceptance Full
       - Release Artifacts
-      - Dockhand Release Watch
       - Agent Validate
     types:
       - completed
@@ -50,6 +49,7 @@ jobs:
 
             await ensureLabel("ci", "5319e7", "CI, release, or automation work");
             await ensureLabel("maintenance", "c5def5", "Refactors, cleanup, or repo hygiene");
+            await ensureLabel("no-agent", "ededed", "Automation tracker — do not dispatch Cloud Agent");
 
             const issues = await github.paginate(github.rest.issues.listForRepo, { owner, repo, state: "all", per_page: 100 });
             const existingIssue = issues.filter((issue) => !issue.pull_request && issue.title === issueTitle).sort((a, b) => b.number - a.number)[0];
@@ -83,8 +83,9 @@ jobs:
             if (failureStates.has(conclusion)) {
               if (existingIssue) {
                 await github.rest.issues.update({ owner, repo, issue_number: existingIssue.number, title: issueTitle, body: issueBody, state: "open" });
+                await github.rest.issues.addLabels({ owner, repo, issue_number: existingIssue.number, labels: ["no-agent"] });
               } else {
-                await github.rest.issues.create({ owner, repo, title: issueTitle, body: issueBody, labels: ["ci", "maintenance"] });
+                await github.rest.issues.create({ owner, repo, title: issueTitle, body: issueBody, labels: ["ci", "maintenance", "no-agent"] });
               }
               return;
             }

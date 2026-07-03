@@ -45,6 +45,8 @@ jobs:
 
             let issueNumber = null;
             let trigger = "unknown";
+            let labeledName = "";
+            let commentBody = "";
 
             if (eventName === "workflow_dispatch") {
               issueNumber = Number(context.payload.inputs.issue_number);
@@ -52,18 +54,9 @@ jobs:
             } else if (eventName === "issues") {
               issueNumber = context.payload.issue.number;
               if (context.payload.action === "labeled") {
-                const label = (context.payload.label?.name || "").toLowerCase();
-                if (label !== "agent") {
-                  core.info("Ignoring non-agent label event.");
-                  return;
-                }
+                labeledName = context.payload.label?.name || "";
                 trigger = "labeled";
               } else {
-                const labels = (context.payload.issue.labels || []).map((l) => l.name.toLowerCase());
-                if (!labels.includes("agent")) {
-                  core.info("Issue opened without agent label; skipping.");
-                  return;
-                }
                 trigger = "opened";
               }
             } else if (eventName === "issue_comment") {
@@ -73,29 +66,8 @@ jobs:
                 core.info("Issue is not open; skipping.");
                 return;
               }
-              const userType = context.payload.comment.user?.type || "";
-              const login = (context.payload.comment.user?.login || "").toLowerCase();
-              if (userType === "Bot" || login.includes("[bot]")) {
-                core.info("Ignoring bot comment.");
-                return;
-              }
-              const text = (context.payload.comment.body || "").trim();
-              if (!/(^|\s)\/agent(\s|$)/i.test(text)) {
-                core.info("Comment did not include /agent; skipping.");
-                return;
-              }
+              commentBody = context.payload.comment.body || "";
               trigger = "comment";
-              const commentLabels = (issue.labels || []).map((l) =>
-                (typeof l === "string" ? l : l.name).toLowerCase()
-              );
-              if (!commentLabels.includes("agent")) {
-                await github.rest.issues.addLabels({
-                  owner,
-                  repo,
-                  issue_number: issueNumber,
-                  labels: ["agent"],
-                });
-              }
             }
 
             if (!issueNumber || Number.isNaN(issueNumber)) {
@@ -106,50 +78,116 @@ jobs:
             const issue = await github.rest.issues.get({ owner, repo, issue_number: issueNumber });
             const title = issue.data.title || "";
             const body = issue.data.body || "";
-            const labels = (issue.data.labels || []).map((l) => (typeof l === "string" ? l : l.name).toLowerCase());
-            const hasAgent = labels.includes("agent");
-            const hasRegression = labels.includes("regression");
-            const hasDispatched = labels.includes("agent-dispatched");
+            const labels = (issue.data.labels || []).map((l) =>
+              typeof l === "string" ? l : l.name
+            );
+            const authorType = issue.data.user?.type || "";
+            const authorLogin = issue.data.user?.login || "";
+            const labelsLower = labels.map((l) => l.toLowerCase());
+            const hasRegression = labelsLower.includes("regression");
+            const hasDispatched = labelsLower.includes("agent-dispatched");
 
-            if (!hasAgent && trigger !== "comment") {
-              core.info("Issue missing agent label; skipping.");
-              return;
-            }
+            const fs = require("fs");
+            const bodyPath = `${process.env.RUNNER_TEMP}/issue-body.txt`;
+            fs.writeFileSync(bodyPath, body, "utf8");
 
-            if (hasDispatched && !hasRegression && trigger !== "manual") {
-              core.info("Issue already has agent-dispatched label; skipping duplicate dispatch.");
-              return;
-            }
+            core.setOutput("issue_number", String(issueNumber));
+            core.setOutput("title", title);
+            core.setOutput("body_path", bodyPath);
+            core.setOutput("labels", labels.join(","));
+            core.setOutput("author_type", authorType);
+            core.setOutput("author_login", authorLogin);
+            core.setOutput("trigger", trigger);
+            core.setOutput("labeled_name", labeledName);
+            core.setOutput("comment_body", commentBody);
+            core.setOutput("has_dispatched", hasDispatched ? "true" : "false");
+            core.setOutput("has_regression", hasRegression ? "true" : "false");
 
-            const hasAcceptanceSection = (text) =>
-              /##\s*(done when|acceptance criteria|expected behavior|problem|what was fixed|scope)/i.test(text || "");
-            const bodyTrimmed = (body || "").trim();
-            if (
-              trigger !== "manual" &&
-              bodyTrimmed.length < 80 &&
-              !hasAcceptanceSection(bodyTrimmed)
-            ) {
-              await github.rest.issues.createComment({
+      - name: Evaluate intake eligibility
+        id: eligible
+        if: steps.ctx.outputs.issue_number != ''
+        shell: bash
+        run: |
+          set -euo pipefail
+          args=(
+            /usr/bin/python3 scripts/issue_agent_intake_eligibility.py
+            --json
+            --title "${{ steps.ctx.outputs.title }}"
+            --labels "${{ steps.ctx.outputs.labels }}"
+            --author-type "${{ steps.ctx.outputs.author_type }}"
+            --author-login "${{ steps.ctx.outputs.author_login }}"
+            --trigger "${{ steps.ctx.outputs.trigger }}"
+            --body-file "${{ steps.ctx.outputs.body_path }}"
+            --labeled-name "${{ steps.ctx.outputs.labeled_name }}"
+            --comment-body "${{ steps.ctx.outputs.comment_body }}"
+          )
+          if [[ "${{ steps.ctx.outputs.has_dispatched }}" == "true" ]]; then
+            args+=(--has-dispatched)
+          fi
+          if [[ "${{ steps.ctx.outputs.has_regression }}" == "true" ]]; then
+            args+=(--has-regression)
+          fi
+          result="$("${args[@]}")"
+          eligible="$(printf '%s' "${result}" | jq -r '.eligible')"
+          reason="$(printf '%s' "${result}" | jq -r '.reason // empty')"
+          echo "eligible=${eligible}" >> "${GITHUB_OUTPUT}"
+          echo "reason=${reason}" >> "${GITHUB_OUTPUT}"
+
+      - name: Explain skipped intake
+        if: >-
+          steps.eligible.outputs.eligible == 'false' &&
+          (contains(steps.eligible.outputs.reason, 'too short') ||
+           contains(steps.eligible.outputs.reason, 'too vague'))
+        uses: actions/github-script@v9
+        env:
+          SKIP_REASON: ${{ steps.eligible.outputs.reason }}
+        with:
+          script: |
+            const issueNumber = Number("${{ steps.ctx.outputs.issue_number }}");
+            const reason = process.env.SKIP_REASON || "not eligible";
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: issueNumber,
+              body: [
+                "## Agent intake skipped",
+                "",
+                `This issue was not dispatched automatically (${reason}).`,
+                "",
+                "Add a clear **Problem** / **Description** and **Done when** / **Acceptance criteria** section so an agent can work with high confidence.",
+                "",
+                "Maintainers can force dispatch via **Actions → Issue Agent Intake → Run workflow**.",
+                "",
+                "---",
+                "_Posted by Issue Agent Intake._",
+              ].join("\n"),
+            });
+
+      - name: Prepare dispatch
+        id: dispatch
+        if: steps.eligible.outputs.eligible == 'true'
+        uses: actions/github-script@v9
+        with:
+          script: |
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+            const issueNumber = Number("${{ steps.ctx.outputs.issue_number }}");
+            const title = "${{ steps.ctx.outputs.title }}";
+            const trigger = "${{ steps.ctx.outputs.trigger }}";
+            const hasRegression = "${{ steps.ctx.outputs.has_regression }}" === "true";
+
+            const issue = await github.rest.issues.get({ owner, repo, issue_number: issueNumber });
+            const labels = (issue.data.labels || []).map((l) =>
+              (typeof l === "string" ? l : l.name).toLowerCase()
+            );
+
+            if (!labels.includes("agent")) {
+              await github.rest.issues.addLabels({
                 owner,
                 repo,
                 issue_number: issueNumber,
-                body: [
-                  "## Agent intake skipped",
-                  "",
-                  "This issue needs a clearer scope before a Cloud Agent can run with high confidence.",
-                  "",
-                  "Add at least one of:",
-                  "- A **Problem** / **Description** paragraph",
-                  "- A **Done when** or **Acceptance criteria** section",
-                  "",
-                  "Then comment `/agent` or re-add the `agent` label. Maintainers can force dispatch via **Actions → Issue Agent Intake → Run workflow**.",
-                  "",
-                  "---",
-                  "_Posted by Issue Agent Intake._",
-                ].join("\n"),
+                labels: ["agent"],
               });
-              core.info("Issue body too vague for automated dispatch; commented and skipped.");
-              return;
             }
 
             const slugify = (value) =>
@@ -169,6 +207,7 @@ jobs:
             const branchPrefix = `agent/issue-${issueNumber}-`;
             if (openPRs.some((pr) => (pr.head?.ref || "").startsWith(branchPrefix))) {
               core.info(`Open PR already exists for issue #${issueNumber}; skipping.`);
+              core.setOutput("skip", "true");
               return;
             }
 
@@ -182,6 +221,7 @@ jobs:
 
             if (branchExists && !hasRegression && trigger !== "manual") {
               core.info(`Branch ${branch} already exists; skipping duplicate dispatch.`);
+              core.setOutput("skip", "true");
               return;
             }
 
@@ -215,19 +255,11 @@ jobs:
               labels: ["agent-dispatched", "in-progress"],
             });
 
-            const fs = require("fs");
-            const bodyPath = `${process.env.RUNNER_TEMP}/issue-body.txt`;
-            fs.writeFileSync(bodyPath, body, "utf8");
-
             core.setOutput("skip", "false");
-            core.setOutput("issue_number", String(issueNumber));
-            core.setOutput("title", title);
-            core.setOutput("body_path", bodyPath);
             core.setOutput("branch", branch);
-            core.setOutput("trigger", trigger);
 
       - name: Dispatch Cursor Cloud Agent
-        if: steps.ctx.outputs.skip == 'false'
+        if: steps.dispatch.outputs.skip == 'false'
         env:
           CURSOR_API_KEY: ${{ secrets.CURSOR_API_KEY }}
         run: |
@@ -240,13 +272,13 @@ jobs:
             --issue-number "${{ steps.ctx.outputs.issue_number }}" \
             --title "${{ steps.ctx.outputs.title }}" \
             --body-file "${{ steps.ctx.outputs.body_path }}" \
-            --branch "${{ steps.ctx.outputs.branch }}"
+            --branch "${{ steps.dispatch.outputs.branch }}"
 
       - name: Comment on issue
-        if: steps.ctx.outputs.skip == 'false'
+        if: steps.dispatch.outputs.skip == 'false'
         uses: actions/github-script@v9
         env:
-          BRANCH: ${{ steps.ctx.outputs.branch }}
+          BRANCH: ${{ steps.dispatch.outputs.branch }}
           TRIGGER: ${{ steps.ctx.outputs.trigger }}
         with:
           script: |
@@ -263,8 +295,6 @@ jobs:
               "2. **Agent Open PR** opens/updates the pull request",
               "3. **Agent Approve CI** approves pending PR checks",
               "4. **Agent Auto Merge** when checks pass and PR sections are filled (`agent-auto-merge` label)",
-              "",
-              "Reply with `/agent` to re-dispatch (remove `agent-dispatched` first if needed).",
               "",
               "---",
               "_Posted by Issue Agent Intake._",
