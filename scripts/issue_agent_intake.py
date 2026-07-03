@@ -6,6 +6,7 @@ from __future__ import annotations
 import argparse
 import base64
 import json
+import os
 import re
 import sys
 import urllib.error
@@ -122,7 +123,7 @@ def main(argv: list[str] | None = None) -> int:
         print(json.dumps({"branch": branch, "prompt_chars": len(prompt)}, indent=2))
         return 0
 
-    api_key = (sys.environ.get("CURSOR_API_KEY") or "").strip()
+    api_key = (os.environ.get("CURSOR_API_KEY") or "").strip()
     if not api_key:
         print("CURSOR_API_KEY is not set", file=sys.stderr)
         return 2
