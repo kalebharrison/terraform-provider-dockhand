@@ -12,6 +12,7 @@
     "TestAccStackAdoptActionTerraform",
     "TestAccGitHelperSurfacesTerraform",
     "TestAccRegistryAndGitCredentialResourcesTerraform",
+    "TestAccImageResourceImportTerraform",
     "TestAccContainerRuntimeSurfacesTerraform",
     "TestAccGitStackResourceDestroyRemovesRuntimeTerraform"
   ]

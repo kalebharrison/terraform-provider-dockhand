@@ -59,10 +59,19 @@ resource "dockhand_image" "test" {
   name            = %q
   scan_after_pull = false
 }
-`, env, imageName),
-				ResourceName:      "dockhand_image.test",
-				ImportState:       true,
-				ImportStateVerify: true,
+
+resource "dockhand_container" "test" {
+  env     = %q
+  name    = %q
+  image   = dockhand_image.test.name
+  command = "sleep 3600"
+  enabled = true
+}
+`, env, imageName, env, containerName),
+				ResourceName:            "dockhand_container.test",
+				ImportState:             true,
+				ImportStateVerify:       true,
+				ImportStateVerifyIgnore: []string{"command", "labels", "env_vars", "update_payload_json", "state", "status", "health", "restart_count"},
 			},
 		},
 	})

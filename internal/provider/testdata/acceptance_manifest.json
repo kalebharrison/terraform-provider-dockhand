@@ -25,7 +25,7 @@
     { "name": "dockhand_network_connection_action", "mode": "action", "operations": ["create", "read", "delete"], "acceptance_test_regex": "TestAccNetworkConnectionActionTerraform" },
     { "name": "dockhand_volume", "mode": "stateful", "operations": ["create", "read", "update", "import", "delete"], "acceptance_test_regex": "TestAccNetworkAndVolumeResourcesTerraform" },
     { "name": "dockhand_volume_clone_action", "mode": "action", "operations": ["create", "read", "delete"], "acceptance_test_regex": "TestAccVolumeCloneActionTerraform" },
-    { "name": "dockhand_image", "mode": "stateful", "operations": ["create", "read", "update", "import", "delete"], "acceptance_test_regex": "TestAccContainerRuntimeSurfacesTerraform" },
+    { "name": "dockhand_image", "mode": "stateful", "operations": ["create", "read", "update", "import", "delete"], "acceptance_test_regex": "TestAccImageResourceImportTerraform" },
     { "name": "dockhand_image_push_action", "mode": "action", "operations": ["create", "read", "delete"], "acceptance_test_regex": "TestAccImagePushActionTerraform" },
     { "name": "dockhand_image_scan_action", "mode": "action", "operations": ["create", "read", "delete"], "acceptance_test_regex": "TestAccScannerAndImageScanActionsTerraform" },
     { "name": "dockhand_container", "mode": "stateful", "operations": ["create", "read", "update", "import", "delete"], "acceptance_test_regex": "TestAccContainerRuntimeSurfacesTerraform" },

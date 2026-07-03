@@ -203,10 +203,13 @@ func (r *imageResource) Read(ctx context.Context, req resource.ReadRequest, resp
 		}
 	}
 	if found == nil {
-		found, err = findImageMatch(images, state.Name.ValueString())
-		if err != nil {
-			resp.Diagnostics.AddError("Error reading Dockhand image", err.Error())
-			return
+		if name := strings.TrimSpace(state.Name.ValueString()); name != "" {
+			var matchErr error
+			found, matchErr = findImageMatch(images, name)
+			if matchErr != nil {
+				resp.Diagnostics.AddError("Error reading Dockhand image", matchErr.Error())
+				return
+			}
 		}
 	}
 	if found == nil {
