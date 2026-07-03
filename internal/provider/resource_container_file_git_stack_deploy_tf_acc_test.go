@@ -73,7 +73,7 @@ func TestAccGitStackDeployActionTerraform(t *testing.T) {
 				Config: testAccGitStackDeployActionConfig(stackID, "acc-run-1"),
 				Check: resource.ComposeTestCheckFunc(
 					resource.TestCheckResourceAttr("dockhand_git_stack_deploy_action.test", "stack_id", stackID),
-					resource.TestCheckResourceAttr("dockhand_git_stack_deploy_action.test", "result", "deploy_requested"),
+					resource.TestCheckResourceAttr("dockhand_git_stack_deploy_action.test", "result", "deploy_completed"),
 					resource.TestCheckResourceAttrSet("dockhand_git_stack_deploy_action.test", "id"),
 				),
 			},
