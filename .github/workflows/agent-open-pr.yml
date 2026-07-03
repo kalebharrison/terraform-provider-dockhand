@@ -215,83 +215,33 @@ jobs:
               return;
             }
 
-            const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
-
-            const skipRun = (run) => {
-              if (run.name === "Agent Validate" || run.name === "Agent Open PR") {
-                return true;
-              }
-              // Push-triggered runs share the same SHA as the PR head commit.
-              return run.event === "push" || run.event === "workflow_run";
-            };
-
-            const listRuns = async () =>
-              github.paginate(github.rest.actions.listWorkflowRunsForRepo, {
-                owner,
-                repo,
-                head_sha: sha,
-                per_page: 100,
-              });
+            const runs = await github.paginate(github.rest.actions.listWorkflowRunsForRepo, {
+              owner,
+              repo,
+              head_sha: sha,
+              per_page: 100,
+            });
 
             let approved = 0;
-            let rerun = 0;
-
-            for (let attempt = 0; attempt < 12; attempt += 1) {
-              const runs = await listRuns();
-              const pending = runs.filter(
-                (run) =>
-                  !skipRun(run) &&
-                  (run.status === "waiting" ||
-                    (run.status === "completed" && run.conclusion === "action_required"))
-              );
-
-              for (const run of pending) {
-                if (run.status === "waiting") {
-                  try {
-                    await github.rest.actions.approveWorkflowRun({
-                      owner,
-                      repo,
-                      run_id: run.id,
-                    });
-                    approved += 1;
-                    core.info(`Approved workflow run ${run.id} (${run.name})`);
-                  } catch (error) {
-                    core.warning(`Could not approve run ${run.id}: ${error.message}`);
-                  }
-                  continue;
-                }
-
-                if (run.conclusion === "action_required") {
-                  try {
-                    await github.rest.actions.reRunWorkflow({
-                      owner,
-                      repo,
-                      run_id: run.id,
-                    });
-                    rerun += 1;
-                    core.info(`Re-ran workflow run ${run.id} (${run.name}) after action_required`);
-                  } catch (error) {
-                    core.warning(`Could not rerun run ${run.id}: ${error.message}`);
-                  }
-                }
+            for (const run of runs) {
+              if (run.status !== "waiting") {
+                continue;
               }
-
-              if (approved > 0 || rerun > 0) {
-                break;
-              }
-
-              if (attempt < 11) {
-                core.info(
-                  `No pending PR workflow runs yet; waiting 5s (attempt ${attempt + 1}/12)`
-                );
-                await sleep(5000);
+              try {
+                await github.rest.actions.approveWorkflowRun({
+                  owner,
+                  repo,
+                  run_id: run.id,
+                });
+                approved += 1;
+                core.info(`Approved workflow run ${run.id} (${run.name})`);
+              } catch (error) {
+                core.warning(`Could not approve run ${run.id}: ${error.message}`);
               }
             }
 
-            if (approved === 0 && rerun === 0) {
-              core.info("No workflow runs required approval or rerun.");
+            if (approved === 0) {
+              core.info("No workflow runs waiting for approval.");
             } else {
-              core.info(
-                `Approved ${approved} and re-ran ${rerun} workflow run(s) for ${sha}.`
-              );
+              core.info(`Approved ${approved} workflow run(s) for ${sha}.`);
             }
