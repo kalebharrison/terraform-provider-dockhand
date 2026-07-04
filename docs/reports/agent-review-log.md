@@ -2,7 +2,7 @@
 
 Append-only record of lens sweeps. See `docs/AGENT_REVIEW_LENSES.md`.
 
-**Next lens:** none — last release pass 2026-07-04 (v0.1.85). Re-run before next `v*` release.
+**Next lens:** none — last release pass 2026-07-04 (v0.1.86). Re-run before next `v*` release.
 
 ---
 
@@ -572,4 +572,53 @@ Append-only record of lens sweeps. See `docs/AGENT_REVIEW_LENSES.md`.
 - **Clear to tag:** yes
 - **Blocking findings:** none
 - **Deferred medium/low:** probe fixture 404 tuning and report refresh (**Compat Reports Sync** post-tag); shrink `manifestOperationExemptions`; registry-and-image `timestamp()` example; README version pin bump; optional artifact scrubbing — track on future `agent/**` branches (no new high-severity regressions)
+
+---
+
+## Release v0.1.86 — lens review
+
+- **Tier:** patch
+- **Started:** 2026-07-04
+- **Base commit:** `cd3f854`
+- **CI gates:** pass (`scripts/release_gate_check.py`)
+- **Awaiting-release issues:** #121, #99, #92, #66, #60, #50, #36, #22
+- **Status:** clear to tag
+
+---
+
+### 2026-07-04 — Acceptance & regression
+
+**Scope:** Release Watch cache/skip (`scripts/release_watch_state.py`, `.github/workflows/dockhand-release-watch.yml`), acceptance harness bootstrap, `dockhand_git_repository` import hydration, optional `dockhand_job` coverage, API drift gate.
+
+**Summary:** Acceptance Full and Dockhand Release Watch are green on `main`. Release Watch persists digest/tag/provider-SHA in the `dockhand-release-watch-state` Actions cache and skips revalidation when the same Dockhand image and provider SHA were recently tested. Harness fixes stabilize git-stack/env-file and git-repository import paths on latest Dockhand.
+
+| Severity | Location | Finding | Suggested action |
+|----------|----------|---------|------------------|
+| low | `resource_new_surfaces_tf_acc_test.go` | `dockhand_job` skipped when batch completes inline (no async `job_id`) | Optional coverage only; revisit if Dockhand exposes stable async job ids for small batches |
+| — | `release_watch_state.py`, Release Watch workflow | Cache seed/migrate, stale-only schedule, provider SHA tracking, skip path verified | Fixed |
+| — | `run-acceptance-harness.sh` | DinD bootstrap + git deploy-stream/env-files polling | Fixed |
+| — | `resource_git_repository.go` | `environment_id` import/read hydration | Fixed (#136 area) |
+| — | `endpoint-probe.py` | Track `/api/settings/scanner/cache` for WebUI drift | Fixed |
+
+---
+
+### 2026-07-04 — Release & upgrade
+
+**Scope:** `CHANGELOG.md` Unreleased, release automation, awaiting-release queue, Compat Reports Sync workflow.
+
+**Summary:** Unreleased changelog captures harness, import, cache, and drift fixes shipping in v0.1.86. Release gate reports green Acceptance Full / Release Watch with patch tier and eight awaiting-release issues. Compat Reports Sync checkout order fixed so probe baselines can commit post-run.
+
+| Severity | Location | Finding | Suggested action |
+|----------|----------|---------|------------------|
+| med | `CHANGELOG.md` | Unreleased section not yet cut to `[0.1.86]` heading | Post-tag housekeeping via release automation |
+| — | `compat-reports-sync.yml` | Artifact download after checkout | Fixed |
+| — | Release Watch `persist_state` | Checkout before writing cache | Fixed |
+
+---
+
+### Release v0.1.86 — verdict
+
+- **Clear to tag:** yes
+- **Blocking findings:** none
+- **Deferred medium/low:** optional async `dockhand_job` acceptance when API stable; CHANGELOG cut heading post-tag; Compat Reports Sync PR merge after next green run
 
