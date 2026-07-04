@@ -93,7 +93,36 @@ func (c *Client) DeleteImage(ctx context.Context, env string, id string) (int, e
 	if resolvedEnv := c.resolveEnv(env); resolvedEnv != "" {
 		query["env"] = resolvedEnv
 	}
-	return c.doJSONWithStatus(ctx, http.MethodDelete, "/api/images/"+url.PathEscape(id), query, nil, nil)
+
+	var (
+		status int
+		err    error
+	)
+	maxAttempts := c.requestRetryAttempts
+	if maxAttempts < 1 {
+		maxAttempts = defaultRequestRetryAttempts
+	}
+	for attempt := 0; attempt < maxAttempts; attempt++ {
+		status, err = c.doJSONWithStatus(ctx, http.MethodDelete, "/api/images/"+url.PathEscape(id), query, nil, nil)
+		if !isImageInUseConflict(status, err) {
+			return status, err
+		}
+		if attempt == maxAttempts-1 {
+			break
+		}
+		if sleepErr := c.requestRetrySleep(ctx, attempt); sleepErr != nil {
+			return status, sleepErr
+		}
+	}
+	return status, err
+}
+
+func isImageInUseConflict(status int, err error) bool {
+	if status != http.StatusConflict || err == nil {
+		return false
+	}
+	msg := strings.ToLower(err.Error())
+	return strings.Contains(msg, "cannot delete image") && strings.Contains(msg, "used by a running container")
 }
 
 func (c *Client) PushImage(ctx context.Context, env string, imageID string, registryID int64) (int, error) {
