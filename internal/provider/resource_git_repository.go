@@ -457,6 +457,10 @@ func (r *gitRepositoryResource) hydrateGitRepositoryState(ctx context.Context, p
 	if !state.EnvironmentID.IsNull() && !state.EnvironmentID.IsUnknown() {
 		return state, nil
 	}
+	if !preferred.EnvironmentID.IsNull() && !preferred.EnvironmentID.IsUnknown() {
+		state.EnvironmentID = preferred.EnvironmentID
+		return state, nil
+	}
 	if r.client == nil {
 		return state, nil
 	}
@@ -467,6 +471,11 @@ func (r *gitRepositoryResource) hydrateGitRepositoryState(ctx context.Context, p
 	}
 	if envID := gitRepositoryEnvironmentIDFromList(repos, state.ID.ValueString(), state.Name.ValueString()); envID != nil {
 		state.EnvironmentID = types.StringValue(fmt.Sprintf("%d", *envID))
+		return state, nil
+	}
+
+	if defaultEnv := strings.TrimSpace(r.client.resolveEnv("")); defaultEnv != "" {
+		state.EnvironmentID = types.StringValue(defaultEnv)
 		return state, nil
 	}
 
