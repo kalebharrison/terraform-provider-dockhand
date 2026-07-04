@@ -2,7 +2,7 @@
 
 Append-only record of lens sweeps. See `docs/AGENT_REVIEW_LENSES.md`.
 
-**Next lens:** none — last full pass 2026-07-03 (post-deferred). Re-run before next `v*` release.
+**Next lens:** none — last release pass 2026-07-04 (v0.1.85). Re-run before next `v*` release.
 
 ---
 
@@ -471,4 +471,105 @@ Append-only record of lens sweeps. See `docs/AGENT_REVIEW_LENSES.md`.
 - **Clear to tag a release:** **yes** after agent CI merge to `main` and green Acceptance Full / Release Watch (compat baselines via **Compat Reports Sync**)
 - **Clear to proceed with agent autonomy deployment:** **yes** — land CI bundle, sync branch protection, add `agent-auto-merge` label in GitHub, smoke test
 - **`./scripts/verify.sh --quality`:** passing
+
+---
+
+## Release v0.1.85 — lens review
+
+- **Tier:** patch
+- **Started:** 2026-07-04
+- **Base commit:** `7ff227f7bced3ef4470aedde7a300f0b045deb3b`
+- **CI gates:** pass (`scripts/release_gate_check.py`)
+- **Awaiting-release issues:** #135, #132, #121, #99, #92, #66, #60, #50, #36, #22
+- **Status:** clear to tag
+
+---
+
+### 2026-07-04 — API compatibility
+
+**Scope:** `scripts/endpoint-probe.py`, `scripts/api-drift-gate.py`, `internal/provider/client_*.go`, `docs/api-matrix.md`, `docs/non-present-endpoints.md`, `docs/reports/endpoint-probe.md`.
+
+**Summary:** Probe list (131 routes) aligns with the split client modules. Only documented backlog routes (`GET /api/configs`, `GET /api/backups`) are absent on the tested Dockhand instance. Six “unexpected 404” probe rows are fixture/safe-mode artifacts (e.g. deploy-stream, env-files) — acceptance and Release Watch exercise these paths successfully on current Dockhand.
+
+| Severity | Location | Finding | Suggested action |
+|----------|----------|---------|------------------|
+| med | `docs/reports/endpoint-probe.md:30-36` | Parameterized routes (deploy-stream, env-files, env/user DELETE) show unexpected 404 in static report | Refresh via **Compat Reports Sync** after tag; tune probe fixtures if 404 persists on live Dockhand |
+| med | `docs/non-present-endpoints.md:7-9` | Last-verified date still March 2026 | **Compat Reports Sync** updates after green Release Watch |
+| low | `docs/api-matrix.md` | Residual WebUI gap notes may lag newest resources | Periodic doc sweep on minor releases |
+| — | `scripts/endpoint-probe.py` | POST env/scanner mutations, DELETE scanner, `force=true` on destructive deletes | Fixed since v0.1.84 backlog |
+| — | `scripts/api-drift-gate.py` | Prefixes cover settings, license, activity | Fixed since baseline |
+
+---
+
+### 2026-07-04 — Terraform schema & state
+
+**Scope:** `resource_git_stack.go`, `resource_stack.go`, `resource_container.go`, `resource_batch_action.go`, `resource_git_repository.go`, `runtime_helpers.go` (env resolution/persistence).
+
+**Summary:** Prior release-blocking schema issues are resolved on `main`. One-shot deploy flags reset after apply; runtime `enabled` reconciles from stack/container status; inline batch failures surface via `jobPayloadIndicatesFailure`; action resources persist resolved `default_env`.
+
+| Severity | Location | Finding | Suggested action |
+|----------|----------|---------|------------------|
+| med | `internal/provider/resource_git_stack.go:192-197` | `env_vars_json` can hold secrets; marked Sensitive but write-only on read | Document write-only semantics in resource doc (already partially noted) |
+| med | `internal/provider/resource_stack.go`, `resource_container.go` | `enabled` reconciliation skips transitional statuses | Extend status map or emit diagnostic on unknown status |
+| low | `internal/provider/resource_stack.go:52-55` | Stack `id` Computed without `UseStateForUnknown` | Add plan modifier when touching stack resource |
+| — | `resource_git_stack.go:592,646,706-711` | `deploy_now` / `force_redeploy` reset to `false` on read; HCL wins in merge | Fixed (#121 area) |
+| — | `resource_batch_action.go:199-237` | Inline + polled batch inspect result payload and fail on terminal failure | Fixed |
+| — | `resource_stack.go:197-198`, `resource_container.go` | `enabled` reconciles from runtime status on read | Fixed |
+
+---
+
+### 2026-07-04 — Acceptance & regression
+
+**Scope:** `scripts/run-acceptance-harness.sh`, `scripts/check-acceptance-skips.py`, `acceptance_manifest.json`, `acceptance_pr_ci.json`, `acceptance_manifest_test.go`, sample `*_tf_acc_test.go` (git stack, container runtime, registry, image import).
+
+**Summary:** Harness bootstraps file-container, git-stack, and git-repo fixtures; CI fails manifest-mapped skips via `check-acceptance-skips.py`. PR CI runs 13 targeted suites including registry/git credentials, container runtime, git stack destroy, and image import. Latest Dockhand compatibility stabilized in #136.
+
+| Severity | Location | Finding | Suggested action |
+|----------|----------|---------|------------------|
+| med | `acceptance_manifest_test.go:34-60` | 22 `manifestOperationExemptions` remain (mostly action delete checks) | Shrink incrementally on future agent branches |
+| med | `acceptance_pr_ci.json` | 13 suites vs ~85 manifest entries — nightly-only coverage by design | Document in CONTRIBUTING; rotate PR suites on minor releases |
+| low | `examples/scenarios/registry-and-image/main.tf:34` | `timestamp()` trigger causes perpetual diff | Replace with static trigger string in follow-up |
+| — | `run-acceptance-harness.sh:231-309` | Exports `DOCKHAND_TEST_FILE_CONTAINER_ID`, git-stack/repo fixtures | Fixed |
+| — | `check-acceptance-skips.py` | Fails CI when manifest-mapped tests skip | Fixed |
+| — | `resource_git_stack_tf_acc_test.go`, `resource_git_repository_tf_acc_test.go` | Latest Dockhand drift/import coverage (#136) | Fixed |
+
+---
+
+### 2026-07-04 — Security engineer
+
+**Scope:** `provider.go`, `auth.go`, `client.go`, secret-bearing resources (`stack_env`, `notification`, `container_file`, `batch_action`, `git_*`), data sources (`notifications`, `system_file_content`), `.github/workflows/*`, `.gitignore`.
+
+**Summary:** Provider auth defaults are safe (TLS 1.2+, sensitive provider config, `allow_unauthenticated` warning). Secret-bearing schema attributes are marked `Sensitive` across resources and relevant data sources. No `pull_request_target` workflows; agent branches cannot modify workflow files vs `main`.
+
+| Severity | Location | Finding | Suggested action |
+|----------|----------|---------|------------------|
+| med | `.github/workflows/acceptance-ci.yml` | Throwaway CI password in workflow env (public repo) | Acceptable ephemeral creds; optional generated secret |
+| med | `internal/provider/auth.go:132` | Error bodies may echo server JSON | Truncate/sanitize diagnostics in future hardening |
+| low | CI failure artifacts | Session cookies possible in `dh-*.json` uploads | Scrub artifacts in follow-up |
+| — | `data_source_notifications.go:65`, `resource_batch_action.go:116-117`, `resource_stack_env.go:83,93` | Sensitive marking on config/job/env secrets | Fixed since baseline |
+| — | `.github/workflows/*.yml` | No `pull_request_target`; agent workflow integrity checks | Maintain |
+
+---
+
+### 2026-07-04 — Release & upgrade
+
+**Scope:** `CHANGELOG.md`, `README.md`, `docs/testing/release-gate.md`, `scripts/release_gate_check.py`, awaiting-release queue (#135, #132, #121, #99, #92, #66, #60, #50, #36, #22), `.github/workflows/agent-release-tag.yml`.
+
+**Summary:** `CHANGELOG.md` Unreleased section documents all fixes shipping in v0.1.85. Release gate script reports `ci_gates_pass: true` with patch tier and ten awaiting-release issues. Examples scenarios (`gitops-stack`, `registry-and-image`) align with current schema. `./scripts/verify.sh --quality` passes locally.
+
+| Severity | Location | Finding | Suggested action |
+|----------|----------|---------|------------------|
+| med | `CHANGELOG.md:8-51` | Unreleased section not yet cut to `[0.1.85]` heading | **Release Artifacts** / post-tag housekeeping via Compat Reports Sync |
+| low | `README.md:23` | `version = ">= 0.1.63"` constraint | Bump to `>= 0.1.85` after tag (optional doc follow-up) |
+| low | `examples/scenarios/registry-and-image/main.tf:34` | `timestamp()` trigger | Static trigger in follow-up example PR |
+| — | `scripts/release_gate_check.py` | Gates green; `tier: patch`; `lens_verdict_clear: false` until this log | Satisfied by this review |
+| — | Agent automation (#132, release orchestrate/tag) | Hands-off release loop wired on `main` | Ship with v0.1.85 |
+
+---
+
+### Release v0.1.85 — verdict
+
+- **Clear to tag:** yes
+- **Blocking findings:** none
+- **Deferred medium/low:** probe fixture 404 tuning and report refresh (**Compat Reports Sync** post-tag); shrink `manifestOperationExemptions`; registry-and-image `timestamp()` example; README version pin bump; optional artifact scrubbing — track on future `agent/**` branches (no new high-severity regressions)
 
