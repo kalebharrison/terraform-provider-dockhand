@@ -56,27 +56,35 @@ jobs:
 
       - name: Import GPG key (passphrase)
         if: steps.gate.outputs.ready == 'true' && env.HAS_GPG_PASSPHRASE == 'true'
+        id: import_gpg
         uses: crazy-max/ghaction-import-gpg@v7
         with:
           gpg_private_key: ${{ secrets.GPG_PRIVATE_KEY }}
           passphrase: ${{ env.GPG_PASSPHRASE }}
+          git_user_signingkey: true
 
       - name: Import GPG key (no passphrase)
         if: steps.gate.outputs.ready == 'true' && env.HAS_GPG_PASSPHRASE != 'true'
+        id: import_gpg
         uses: crazy-max/ghaction-import-gpg@v7
         with:
           gpg_private_key: ${{ secrets.GPG_PRIVATE_KEY }}
+          git_user_signingkey: true
 
       - name: Create and push signed tag
         if: steps.gate.outputs.ready == 'true'
         env:
           TAG: ${{ steps.gate.outputs.tag }}
           VERSION: ${{ steps.gate.outputs.version }}
+          GPG_NAME: ${{ steps.import_gpg.outputs.name }}
+          GPG_EMAIL: ${{ steps.import_gpg.outputs.email }}
+          GPG_FINGERPRINT: ${{ steps.import_gpg.outputs.fingerprint }}
         shell: bash
         run: |
           set -euo pipefail
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git config user.name "${GPG_NAME}"
+          git config user.email "${GPG_EMAIL}"
+          git config user.signingkey "${GPG_FINGERPRINT}"
           if git rev-parse "${TAG}" >/dev/null 2>&1; then
             echo "Tag ${TAG} already exists locally."
             exit 0
