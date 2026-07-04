@@ -262,19 +262,36 @@ docker cp /tmp/dh-stack-adopt-compose.yaml "${DOCKHAND_CONTAINER}:${stack_adopt_
 echo "Bootstrapping acceptance fixtures"
 
 bootstrap_ctr="tf-acc-bootstrap-file-${SUFFIX}"
-create_ctr_payload="$(jq -nc --arg n "${bootstrap_ctr}" '{name:$n,image:"busybox:1.36.1",command:["sleep","3600"],enabled:true}')"
-curl -sS -b /tmp/dh-cookies.txt -H "Content-Type: application/json" \
-  -d "${create_ctr_payload}" \
-  "${DOCKHAND_TEST_ENDPOINT}/api/containers?env=${existing_id}" >/tmp/dh-bootstrap-container.json
-file_container_id="$(jq -r '.id // empty' /tmp/dh-bootstrap-container.json)"
-if [[ -z "${file_container_id}" ]]; then
-  echo "Failed to bootstrap file container fixture" >&2
-  cat /tmp/dh-bootstrap-container.json >&2 || true
+docker --host "tcp://127.0.0.1:23750" rm -f "${bootstrap_ctr}" >/dev/null 2>&1 || true
+if ! docker --host "tcp://127.0.0.1:23750" run -d --name "${bootstrap_ctr}" busybox:1.36.1 sleep 3600 >/tmp/dh-bootstrap-docker-run.id 2>/tmp/dh-bootstrap-docker-run.err; then
+  echo "Failed to start bootstrap file container on DinD" >&2
+  cat /tmp/dh-bootstrap-docker-run.err >&2 || true
   exit 1
 fi
-curl -sS -b /tmp/dh-cookies.txt -X POST \
-  "${DOCKHAND_TEST_ENDPOINT}/api/containers/${file_container_id}/start?env=${existing_id}" >/tmp/dh-bootstrap-container-start.json || true
-ensure_file_container_running "${file_container_id}" "${existing_id}" "${bootstrap_ctr}"
+
+file_container_id=""
+for _ in $(seq 1 60); do
+  dind_id="$(docker --host "tcp://127.0.0.1:23750" inspect -f '{{.Id}}' "${bootstrap_ctr}" 2>/dev/null || true)"
+  if [[ -n "${dind_id}" ]] && container_dind_running "${dind_id}"; then
+    file_container_id="${dind_id}"
+    break
+  fi
+  sleep 2
+done
+if [[ -z "${file_container_id}" ]]; then
+  echo "Bootstrap file container ${bootstrap_ctr} did not reach running state on DinD" >&2
+  docker --host "tcp://127.0.0.1:23750" inspect "${bootstrap_ctr}" >&2 || true
+  exit 1
+fi
+
+api_container_id="$(
+  curl -sS -b /tmp/dh-cookies.txt "${DOCKHAND_TEST_ENDPOINT}/api/containers?env=${existing_id}" \
+    | jq -r --arg n "${bootstrap_ctr}" '.[] | select(.name == $n) | .id' \
+    | head -n 1
+)"
+if [[ -n "${api_container_id}" ]]; then
+  file_container_id="${api_container_id}"
+fi
 export DOCKHAND_TEST_FILE_CONTAINER_ID="${file_container_id}"
 export DOCKHAND_TEST_FILE_CONTAINER_ENV_ID="${existing_id}"
 

@@ -42,11 +42,10 @@ jobs:
               "Workflow Lint",
               "Shell Lint",
               "Gitleaks",
-              "Acceptance Full",
-              "Dockhand Release Watch",
               "Agent Validate",
             ]);
-            const dispatchAgent = agentFixable.has(workflowName);
+            const infraWorkflows = new Set(["Acceptance Full", "Dockhand Release Watch"]);
+            const dispatchAgent = agentFixable.has(workflowName) && !infraWorkflows.has(workflowName);
             const issueTitle = dispatchAgent
               ? `CI failure: ${workflowName}`
               : `[Automation] Workflow failing: ${workflowName}`;

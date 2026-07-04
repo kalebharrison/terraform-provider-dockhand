@@ -93,7 +93,7 @@ class IssueAgentIntakeEligibilityTest(unittest.TestCase):
         self.assertTrue(has_acceptance_section("### Problem statement\nSomething broke"))
         self.assertTrue(has_acceptance_section("## Done when\n- fixed"))
 
-    def test_ci_failure_bot_issue_eligible(self) -> None:
+    def test_ci_failure_bot_issue_ineligible(self) -> None:
         body = "\n".join(
             [
                 "## Problem",
@@ -113,8 +113,8 @@ class IssueAgentIntakeEligibilityTest(unittest.TestCase):
             has_dispatched=False,
             has_regression=False,
         )
-        self.assertTrue(ok)
-        self.assertIsNone(reason)
+        self.assertFalse(ok)
+        self.assertEqual(reason, "automation tracker (not agent work)")
 
     def test_edited_issue_eligible(self) -> None:
         ok, reason = intake_eligible(

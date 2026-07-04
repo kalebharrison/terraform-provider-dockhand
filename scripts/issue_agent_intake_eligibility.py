@@ -15,6 +15,8 @@ AUTOMATION_TRACKER_PREFIXES = (
     "[Automation] Workflow failing:",
     "[Automation] Release gate blocked",
     "[Automation] Secret configuration required",
+    "[Automation] GitHub Actions settings misconfigured",
+    "CI failure:",
 )
 
 ACCEPTANCE_SECTION_RE = re.compile(
