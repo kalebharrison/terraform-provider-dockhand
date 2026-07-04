@@ -367,20 +367,36 @@ RELEASE_WATCH_ENSURE_TIMEOUT_SEC = 2700
 RELEASE_WATCH_ENSURE_POLL_SEC = 30
 
 
-def dispatch_release_watch() -> int:
+def release_watch_needs_force_validate() -> bool:
+    """True when discover would skip validation (unchanged Dockhand) but the chain is red."""
+    if release_watch_chain_green():
+        return False
+    runs = workflow_runs(RELEASE_WATCH_WORKFLOW, limit=5)
+    if not runs:
+        return True
+    latest = runs[0]
+    if latest.get("status") != "completed":
+        return False
+    return latest.get("conclusion") == "failure"
+
+
+def dispatch_release_watch(*, force: bool | None = None) -> int:
+    if force is None:
+        force = release_watch_needs_force_validate()
+    cmd = [
+        "gh",
+        "workflow",
+        "run",
+        "dockhand-release-watch.yml",
+        "--repo",
+        _repo(),
+        "--ref",
+        "main",
+    ]
+    if force:
+        cmd.extend(["-f", "force_validate=true"])
     proc = subprocess.run(
-        [
-            "gh",
-            "workflow",
-            "run",
-            "dockhand-release-watch.yml",
-            "--repo",
-            _repo(),
-            "--ref",
-            "main",
-            "-f",
-            "force_validate=true",
-        ],
+        cmd,
         cwd=ROOT,
         capture_output=True,
         text=True,
@@ -446,7 +462,8 @@ def ensure_release_watch_green(*, retries: int = 1, timeout_sec: int = RELEASE_W
     last_conclusion = ""
     last_run_id: int | None = None
     for attempt in range(retries + 1):
-        last_run_id = dispatch_release_watch()
+        force = attempt > 0 or release_watch_needs_force_validate()
+        last_run_id = dispatch_release_watch(force=force)
         last_conclusion = wait_for_release_watch_run(last_run_id, timeout_sec=timeout_sec)
         if last_conclusion == "success" and release_watch_main_sha_green(main_sha):
             return {
@@ -455,6 +472,7 @@ def ensure_release_watch_green(*, retries: int = 1, timeout_sec: int = RELEASE_W
                 "run_id": last_run_id,
                 "conclusion": last_conclusion,
                 "attempt": attempt + 1,
+                "force_validate": force,
             }
 
     raise RuntimeError(

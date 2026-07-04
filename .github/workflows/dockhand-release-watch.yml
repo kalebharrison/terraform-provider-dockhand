@@ -67,73 +67,83 @@ jobs:
             echo "image=fnsys/dockhand:${tag}"
           } >> "${GITHUB_OUTPUT}"
 
-      - name: Resolve watch state
-        id: state
+      - name: Migrate legacy watch state
+        if: steps.watch-state.outputs.cache-hit != 'true'
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-
           state_file=".ci-state/dockhand-release-watch/state.env"
-          tag="${{ steps.pick.outputs.tag }}"
-          digest="${{ steps.pick.outputs.digest }}"
-          last_tag=""
-          last_digest=""
           if [[ -f "${state_file}" ]]; then
-            # shellcheck disable=SC1090
-            source "${state_file}"
-          elif [[ -z "${{ inputs.image_tag }}" ]]; then
-            state_title="release-watch: dockhand-last-tested-tag"
-            state_issue="$(gh issue list --repo "${GITHUB_REPOSITORY}" --state all --search "${state_title} in:title" --limit 1 --json number,body --jq '.[0].number // empty' 2>/dev/null || true)"
-            if [[ -n "${state_issue}" ]]; then
-              state_body="$(gh issue view "${state_issue}" --repo "${GITHUB_REPOSITORY}" --json body --jq '.body // ""')"
-              last_tag="$(printf '%s\n' "${state_body}" | sed -n 's/^last_tag=//p' | head -n 1 | tr -d '\r')"
-              last_digest="$(printf '%s\n' "${state_body}" | sed -n 's/^last_digest=//p' | head -n 1 | tr -d '\r')"
-              echo "Migrated release-watch state from legacy issue #${state_issue}" >&2
-            fi
+            exit 0
           fi
-
-          should_run="true"
-          reason="new_tag_or_digest"
-
-          if [[ "${{ inputs.force_validate }}" == "true" ]]; then
-            should_run="true"
-            reason="gate_required"
-          elif [[ -n "${{ inputs.image_tag }}" ]]; then
-            should_run="true"
-            reason="manual_override"
-          elif [[ -z "${last_tag}" ]]; then
-            should_run="true"
-            reason="state_unset"
-          elif [[ "${tag}" != "${last_tag}" ]]; then
-            should_run="true"
-            reason="new_tag"
-          elif [[ -n "${digest}" && -n "${last_digest}" && "${digest}" != "${last_digest}" ]]; then
-            should_run="true"
-            reason="changed_digest"
-          elif [[ -n "${digest}" && -z "${last_digest}" ]]; then
-            should_run="true"
-            reason="state_missing_digest"
-          elif [[ -n "${digest}" && -n "${last_digest}" && "${digest}" == "${last_digest}" ]]; then
-            should_run="false"
-            reason="unchanged_tag_digest"
-          else
-            should_run="false"
-            reason="unchanged_tag"
+          if [[ -n "${{ inputs.image_tag }}" ]]; then
+            exit 0
           fi
-
-          if [[ "${{ github.event_name }}" == "schedule" && "${should_run}" == "false" ]]; then
-            should_run="true"
-            reason="scheduled_revalidate"
+          state_title="release-watch: dockhand-last-tested-tag"
+          state_issue="$(gh issue list --repo "${GITHUB_REPOSITORY}" --state all --search "${state_title} in:title" --limit 1 --json number --jq '.[0].number // empty' 2>/dev/null || true)"
+          if [[ -z "${state_issue}" ]]; then
+            exit 0
           fi
+          state_body="$(gh issue view "${state_issue}" --repo "${GITHUB_REPOSITORY}" --json body --jq '.body // ""')"
+          last_tag="$(printf '%s\n' "${state_body}" | sed -n 's/^last_tag=//p' | head -n 1 | tr -d '\r')"
+          last_digest="$(printf '%s\n' "${state_body}" | sed -n 's/^last_digest=//p' | head -n 1 | tr -d '\r')"
+          updated_at="$(printf '%s\n' "${state_body}" | sed -n 's/^updated_at=//p' | head -n 1 | tr -d '\r')"
+          source_run="$(printf '%s\n' "${state_body}" | sed -n 's/^source_run=//p' | head -n 1 | tr -d '\r')"
+          if [[ -z "${last_tag}" ]]; then
+            exit 0
+          fi
+          /usr/bin/python3 scripts/release_watch_state.py write \
+            --tag "${last_tag}" \
+            --digest "${last_digest}" \
+            --updated-at "${updated_at:-$(date -u +%Y-%m-%dT%H:%M:%SZ)}" \
+            --source-run "${source_run:-legacy-issue-${state_issue}}"
+          echo "Migrated release-watch state from legacy issue #${state_issue}" >&2
 
+      - name: Resolve watch state
+        id: state
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REVALIDATE_HOURS: "168"
+        run: |
+          set -euo pipefail
+          main_sha="$(gh api "repos/${GITHUB_REPOSITORY}/commits/main" --jq '.sha')"
+          decision="$(/usr/bin/python3 scripts/release_watch_state.py decide \
+            --tag "${{ steps.pick.outputs.tag }}" \
+            --digest "${{ steps.pick.outputs.digest }}" \
+            --event-name "${{ github.event_name }}" \
+            --main-sha "${main_sha}" \
+            --revalidate-hours "${REVALIDATE_HOURS}" \
+            $([[ "${{ inputs.force_validate }}" == "true" ]] && echo --force-validate) \
+            $([[ -n "${{ inputs.image_tag }}" ]] && echo --manual-image-tag) \
+            --json)"
           {
-            echo "last_tag=${last_tag}"
-            echo "last_digest=${last_digest}"
-            echo "should_run=${should_run}"
-            echo "reason=${reason}"
+            echo "last_tag=$(jq -r '.last_tag' <<< "${decision}")"
+            echo "last_digest=$(jq -r '.last_digest' <<< "${decision}")"
+            echo "should_run=$(jq -r '.should_run' <<< "${decision}")"
+            echo "reason=$(jq -r '.reason' <<< "${decision}")"
           } >> "${GITHUB_OUTPUT}"
+
+      - name: Seed watch state cache
+        if: steps.watch-state.outputs.cache-hit != 'true' && steps.state.outputs.last_tag != ''
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p .ci-state/dockhand-release-watch
+          if [[ ! -f .ci-state/dockhand-release-watch/state.env ]]; then
+            /usr/bin/python3 scripts/release_watch_state.py write \
+              --tag "${{ steps.state.outputs.last_tag }}" \
+              --digest "${{ steps.state.outputs.last_digest }}"
+          fi
+
+      - name: Save seeded watch state cache
+        if: steps.watch-state.outputs.cache-hit != 'true' && steps.state.outputs.last_tag != ''
+        uses: actions/cache/save@v5
+        with:
+          path: .ci-state/dockhand-release-watch
+          key: dockhand-release-watch-state
 
       - name: Summary
         run: |
@@ -434,17 +444,17 @@ jobs:
       - name: Write watch state
         shell: bash
         env:
+          GH_TOKEN: ${{ github.token }}
           TAG: ${{ needs.discover.outputs.tag }}
           DIGEST: ${{ needs.discover.outputs.digest }}
         run: |
           set -euo pipefail
-          mkdir -p .ci-state/dockhand-release-watch
-          cat > .ci-state/dockhand-release-watch/state.env <<EOF
-          last_tag=${TAG}
-          last_digest=${DIGEST}
-          updated_at=$(date -u +%Y-%m-%dT%H:%M:%SZ)
-          source_run=https://github.com/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}
-          EOF
+          main_sha="$(gh api "repos/${GITHUB_REPOSITORY}/commits/main" --jq '.sha')"
+          /usr/bin/python3 scripts/release_watch_state.py write \
+            --tag "${TAG}" \
+            --digest "${DIGEST}" \
+            --source-run "https://github.com/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}" \
+            --last-provider-sha "${main_sha}"
 
       - name: Save watch state cache
         uses: actions/cache/save@v5

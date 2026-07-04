@@ -8,7 +8,7 @@ Provider releases should only be cut when all of the following pass on `main`:
 4. `Gitleaks`
 5. `dependency-review` (runs on PRs and on each `main` push with explicit base/head refs)
 6. `Acceptance Full` (most recent scheduled/dispatch run)
-7. `Dockhand Release Watch` — **validated** run in the current skip-only chain (unchanged Dockhand tag) without intervening failures; scheduled runs re-validate every 6h; gate-driven dispatches use `force_validate`
+7. `Dockhand Release Watch` — **validated** run in the current skip-only chain (unchanged Dockhand tag) without intervening failures; scheduled runs re-validate only when state is stale (default 168h) or Dockhand/provider changed; gate-driven dispatches use `force_validate` only when the latest run failed
 
 ## Release lens review (automated)
 
@@ -47,8 +47,9 @@ Tagging and artifact publish are performed by `.github/workflows/agent-release-t
 ## Release Watch Behavior
 
 - Workflow: `.github/workflows/dockhand-release-watch.yml`
-- Poll cadence: every 6 hours at `:10` UTC (always runs full validation on schedule).
+- Poll cadence: every 6 hours at `:10` UTC (skips validation when Dockhand tag/digest and provider `main` SHA are unchanged and state is fresh; re-validates after 168h).
 - Triggers: `schedule`, `workflow_dispatch` (`force_validate`, optional `image_tag`). Does **not** run on every `main` push (provider-only pushes would otherwise produce skip-only runs).
+- On discover cache miss, migrates legacy issue #38 state and **seeds** the Actions cache immediately so skip logic does not re-query issues every run.
 - On success, saves state to the Actions cache (no tracking issue). **Compat Reports Sync** commits `docs/reports/dockhand-last-tested.json` for a human-readable last-validated record.
 - Includes docs-reference drift audit from `https://dockhand.pro/manual/#api-reference`.
 - Includes a targeted authenticated private endpoint probe (`GET /api/environments` by default).
