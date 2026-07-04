@@ -19,7 +19,7 @@ Example: `agent/issue-42-fix-environment-agent-token`
 
 3. Push to `origin`. CI runs **Agent Validate** on every `agent/**` push.
 4. When validation succeeds, **Agent Open PR** creates or updates a pull request with `Fixes #<number>`.
-5. **Agent Auto Merge** enables squash auto-merge when checks go green, the PR has the `agent-auto-merge` label, and the PR body includes filled **What was fixed** / **User impact** sections.
+5. **Agent PR Approve CI** approves blocked checks and squash-merges when the PR has the `agent-auto-merge` label and required checks pass.
 
 Human PR policy checks (`Fixes #`, conventional title) are skipped for `agent/**` branches.
 
@@ -28,7 +28,7 @@ Human PR policy checks (`Fixes #`, conventional title) are skipped for `agent/**
 Follow `docs/AGENT_ISSUE_RESPONSE.md`:
 
 - Fill **What was fixed** and **User impact** in the PR before merge (required for auto-merge).
-- Do not post bare “fixed” comments; **Issue Resolution Notify** and **Release Issue Notify** handle issue threads.
+- Do not post bare “fixed” comments; **Agent Merge Cleanup** (agent PRs) and **Issue Resolution Notify** (human PRs) handle merge comments; **Agent Release Tag** handles release comments.
 - Pick up `regression`-labeled reopened issues like new work.
 
 ## Commit transparency
@@ -90,17 +90,18 @@ If the new acceptance suite should run on PRs, add the exact `TestAcc...` functi
 | `go-ci.yml` | PR + push to `main` | fmt, tidy, docs/examples, vet, golangci-lint, staticcheck, shellcheck, unit tests, build |
 | `acceptance-ci.yml` | PR | Dockhand + DinD + Hawser targeted acceptance |
 | `agent-validate.yml` | push to `agent/**` | Agent pre-PR validation |
-| `agent-open-pr.yml` | after successful Agent Validate | Opens PR; approves CI; enables auto-merge; closes linked issues; skips duplicate PRs when issue is complete; deletes agent branch after merge |
-| `agent-auto-merge.yml` | manual `workflow_dispatch` | Recovery-only auto-merge enable |
+| `agent-open-pr.yml` | after successful Agent Validate | Opens or updates agent PR; skips duplicates when issue is complete |
+| `agent-pr-approve-ci.yml` | agent PR events + after Agent Validate / Agent Open PR | Approves blocked checks; squash-merges when `agent-auto-merge` and checks pass |
+| `agent-merge-cleanup.yml` | agent PR merged / push to `main` | Closes linked issues, labels `awaiting-release`, posts merge comment, deletes agent branch |
 | `issue-agent-intake.yml` | issue opened/labeled | Dispatches Cursor Cloud Agent + lens set |
 | `acceptance-full.yml` | nightly | Full `TestAcc` + drift audits |
 | `dockhand-release-watch.yml` | every 6h | New Dockhand image compatibility |
-| `agent-release-orchestrate.yml` | after Release Drafter / main CI | Opens release lens issue when gate passes |
-| `agent-release-tag.yml` | review log on `main` / schedule | Publishes GitHub release when verdict clears |
+| `agent-release-orchestrate.yml` | after Release Watch success on `main` | Opens release lens issue when gate passes |
+| `agent-release-tag.yml` | review log on `main` / schedule (`:37`) | Publishes GitHub release when verdict clears |
 | `compat-reports-sync.yml` | after full/release-watch success | PR to refresh `docs/reports/` baselines |
-| `issue-resolution-notify.yml` | fix PR merged | Substantive comment on linked issues |
+| `issue-resolution-notify.yml` | human fix PR merged | Substantive comment on linked issues (skips `agent` PRs) |
 | `issue-regression-intake.yml` | comment on closed issue | Reopen + `regression` when fix failed |
-| `release-issue-notify.yml` | release published | Version + upgrade comment on issues |
+| `release-issue-notify.yml` | manual `workflow_dispatch` | Recovery-only release comments on linked issues |
 
 ## Failure handling
 

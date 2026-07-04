@@ -22,7 +22,6 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       pull_number: ${{ steps.open.outputs.pull_number }}
-      auto_merge_enabled: ${{ steps.open.outputs.auto_merge_enabled }}
     steps:
       - name: Open or update agent pull request
         id: open
@@ -36,7 +35,6 @@ jobs:
             const headSha = run.head_sha || "";
 
             core.setOutput("pull_number", "");
-            core.setOutput("auto_merge_enabled", "false");
 
             const match = branch.match(/^agent\/issue-(\d+)-(.+)$/i);
             if (!match) {
@@ -207,10 +205,6 @@ jobs:
                 });
               }
               core.setOutput("pull_number", String(pr.number));
-              core.setOutput(
-                "auto_merge_enabled",
-                !placeholder(whatFixed) && !placeholder(userImpact) ? "true" : "false"
-              );
               core.info(`Updated existing PR #${pr.number}`);
               return;
             }
@@ -243,78 +237,4 @@ jobs:
             }
 
             core.setOutput("pull_number", String(created.data.number));
-            core.setOutput(
-              "auto_merge_enabled",
-              !placeholder(whatFixed) && !placeholder(userImpact) ? "true" : "false"
-            );
             core.info(`Created PR #${created.data.number}`);
-
-  approve-ci:
-    name: Agent Approve CI
-    needs: open-pr
-    if: >-
-      ${{ github.event.workflow_run.conclusion == 'success' &&
-          startsWith(github.event.workflow_run.head_branch, 'agent/') }}
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v7
-
-      - name: Approve pending workflow runs for agent PR
-        env:
-          GH_TOKEN: ${{ github.token }}
-        shell: bash
-        run: |
-          set -euo pipefail
-          sha="${{ github.event.workflow_run.head_sha || '' }}"
-          if [[ -z "${sha}" ]]; then
-            echo "Missing head SHA from Agent Validate workflow_run." >&2
-            exit 1
-          fi
-          /usr/bin/python3 scripts/agent_approve_pr_ci.py --head-sha "${sha}" --json || true
-
-  enable-auto-merge:
-    name: Agent Enable Auto Merge
-    needs: [open-pr, approve-ci]
-    if: >-
-      ${{ github.event.workflow_run.conclusion == 'success' &&
-          startsWith(github.event.workflow_run.head_branch, 'agent/') &&
-          needs.open-pr.outputs.auto_merge_enabled == 'true' }}
-    runs-on: ubuntu-latest
-    outputs:
-      enabled: ${{ steps.merge.outputs.enabled }}
-    steps:
-      - name: Enable squash auto-merge
-        id: merge
-        uses: actions/github-script@v9
-        with:
-          script: |
-            core.setOutput("enabled", "false");
-            const owner = context.repo.owner;
-            const repo = context.repo.repo;
-            const pullNumber = Number("${{ needs.open-pr.outputs.pull_number }}");
-            if (!pullNumber) {
-              core.setFailed("Missing pull request number from open-pr job.");
-              return;
-            }
-
-            const { data: pr } = await github.rest.pulls.get({
-              owner,
-              repo,
-              pull_number: pullNumber,
-            });
-
-            try {
-              await github.graphql(
-                `mutation($pullId: ID!) {
-                  enablePullRequestAutoMerge(input: { pullRequestId: $pullId, mergeMethod: SQUASH }) {
-                    pullRequest { autoMergeRequest { enabledAt } }
-                  }
-                }`,
-                { pullId: pr.node_id }
-              );
-              core.info(`Enabled auto-merge for PR #${pullNumber}`);
-              core.setOutput("enabled", "true");
-            } catch (error) {
-              core.warning(`Could not enable auto-merge for PR #${pullNumber}: ${error.message}`);
-            }

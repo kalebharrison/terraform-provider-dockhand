@@ -14,8 +14,8 @@
 |-------|-----|----------------|
 | Work starts | Agent | Branch `agent/issue-<n>-<slug>`; PR links `Fixes #n` |
 | PR open | Agent | PR body includes **What was fixed** and **User impact** (see below) |
-| PR merged | **Issue Resolution Notify** workflow | Substantive comment on the issue; label `awaiting-release` |
-| Tag published | **Release Issue Notify** workflow | Comment with version, upgrade hint, reopen instructions |
+| PR merged | **Agent Merge Cleanup** (agent PRs) or **Issue Resolution Notify** (human PRs) | Substantive comment; label `awaiting-release` |
+| Tag published | **Agent Release Tag** housekeeping | Comment with version, upgrade hint, reopen instructions |
 | User comments on closed issue | **Issue Regression Intake** workflow | Reopens + `regression` label when feedback indicates continued problem |
 
 ## PR body (required sections)
@@ -47,7 +47,7 @@ Do not merge agent work with empty `What was fixed` / `User impact` placeholders
 
 ## Issue comment on merge (automation)
 
-**Issue Resolution Notify** posts on linked issues when a fix PR merges. It includes:
+**Issue Resolution Notify** posts on linked issues when a **human** fix PR merges (agent PRs are handled by **Agent Merge Cleanup**). It includes:
 
 - PR link and summary (from PR body sections)
 - **Release status:** merged to `main`, not yet tagged
@@ -57,7 +57,7 @@ Agents do not need to post this comment manually.
 
 ## Issue comment on release (automation)
 
-**Release Issue Notify** posts when **Release Artifacts** succeeds. It includes:
+**Agent Release Tag** posts release comments when a version is published. It includes:
 
 - Tag (e.g. `v0.1.48`) and release URL
 - What was fixed (from merged PR)
@@ -100,7 +100,7 @@ Users can also write **reopen** explicitly.
 
 - Close issues with no resolution comment (automation handles merge/release comments).
 - Say only “fixed in main” without describing the change.
-- Omit release version once a tag exists (Release Issue Notify handles this).
+- Omit release version once a tag exists (**Agent Release Tag** handles this; recovery: `release-issue-notify.yml`).
 - Ignore reopened/regression issues.
 
 ## Related docs

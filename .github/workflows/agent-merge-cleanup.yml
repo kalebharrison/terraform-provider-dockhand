@@ -183,7 +183,7 @@ jobs:
                   "### Release status",
                   "",
                   "The change is on `main` but **not yet in a tagged release**.",
-                  "When a version is published, **Release Issue Notify** will comment here with the tag and upgrade instructions.",
+                  "When a version is published, **Agent Release Tag** will comment here with the tag and upgrade instructions.",
                   "",
                   "### If the problem continues",
                   "",

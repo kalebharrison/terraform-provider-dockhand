@@ -7,9 +7,6 @@ on:
         description: "Release version (e.g. 0.1.85)"
         required: true
         type: string
-  push:
-    tags:
-      - "v*"
   workflow_dispatch:
     inputs:
       version:

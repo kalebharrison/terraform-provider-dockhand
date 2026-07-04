@@ -62,15 +62,14 @@ PRs are labeled `agent` + `agent-auto-merge` so they merge without a human.
 
 ## Automated release path
 
-1. Fixes merge to `main`; **Issue Resolution Notify** labels linked issues `awaiting-release`.
+1. Fixes merge to `main`; **Agent Merge Cleanup** (agent PRs) or **Issue Resolution Notify** (human PRs) labels linked issues `awaiting-release`.
 2. **Release Drafter** maintains the next draft version on each `main` push.
-3. **Agent Release Orchestrate** opens `release: prepare vX.Y.Z` when `scripts/release_gate_check.py --mode lens` passes (after a successful **Dockhand Release Watch** on `main`, on schedule, or via manual dispatch).
+3. **Agent Release Orchestrate** opens `release: prepare vX.Y.Z` when `scripts/release_gate_check.py --mode lens` passes (after a successful **validated** **Dockhand Release Watch** on `main`, or via manual dispatch).
 4. **Issue Agent Intake** dispatches a Cloud Agent with the release-tier lens set.
 5. Agent appends lens sweeps + `### Release vX.Y.Z — verdict` with **Clear to tag: yes** to `docs/reports/agent-review-log.md` and merges via the normal agent PR loop.
-6. **Agent Release Tag** runs the full release pipeline when `scripts/release_gate_check.py --mode tag` passes: ensure Release Watch green, **Release Artifacts** (GPG-signed checksums + attestations), label `awaiting-release` issues, cut `CHANGELOG.md`.
-7. Tag push still triggers **Release Artifacts** and **Release Issue Notify** for manual or out-of-band releases.
+6. **Agent Release Tag** runs the full release pipeline when `scripts/release_gate_check.py --mode tag` passes: ensure Release Watch validated, **Release Artifacts** (GPG-signed checksums + attestations), label `awaiting-release` issues, cut `CHANGELOG.md`, and post release comments on linked issues.
 
-No maintainer prompt, manual tag, or laptop required.
+No maintainer prompt, manual tag, or laptop required. Use `release-issue-notify.yml` (`workflow_dispatch`) only to recover missed release comments.
 
 ## Failure triage (CI-first)
 

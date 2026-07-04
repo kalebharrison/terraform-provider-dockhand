@@ -1,9 +1,6 @@
 name: Release Issue Notify
 
 on:
-  workflow_run:
-    workflows: ["Release Artifacts"]
-    types: [completed]
   workflow_dispatch:
     inputs:
       tag:
@@ -18,59 +15,43 @@ permissions:
 
 jobs:
   notify:
-    name: Comment released issues
-    if: |
-      github.event_name == 'workflow_dispatch' ||
-      (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success')
+    name: Comment released issues (recovery)
     runs-on: ubuntu-latest
     steps:
       - name: Comment linked issues with release version
         uses: actions/github-script@v9
+        env:
+          TAG: ${{ inputs.tag }}
         with:
           script: |
             const owner = context.repo.owner;
             const repo = context.repo.repo;
-            let tag = "";
-            let releaseUrl = "";
-            let body = "";
-
-            if (context.eventName === "workflow_dispatch") {
-              tag = (core.getInput("tag") || "").trim();
-            } else if (context.eventName === "workflow_run") {
-              const wr = context.payload.workflow_run;
-              tag = (wr?.head_branch || "").trim();
-            }
+            const tag = (process.env.TAG || "").trim();
 
             if (!tag) {
-              core.setFailed("Could not determine release tag.");
+              core.setFailed("Missing release tag.");
               return;
             }
 
             if (!tag.startsWith("v")) {
-              core.info(`Skipping non-tag workflow head branch: ${tag}`);
+              core.setFailed(`Expected tag like v0.1.48, got: ${tag}`);
               return;
             }
 
             let release;
             try {
-              const relResp = await github.rest.repos.getReleaseByTag({
-                owner,
-                repo,
-                tag,
-              });
+              const relResp = await github.rest.repos.getReleaseByTag({ owner, repo, tag });
               release = relResp.data;
             } catch (error) {
               if (error.status === 404) {
-                core.info(`No GitHub release found for tag ${tag}; skipping.`);
+                core.setFailed(`No GitHub release found for tag ${tag}.`);
                 return;
               }
               throw error;
             }
 
-            body = release.body || "";
-            releaseUrl = release.html_url || "";
-
-            // GitHub generated notes include PR references like #123.
+            const body = release.body || "";
+            const releaseUrl = release.html_url || "";
             const prRefRegex = /#(\d+)/g;
             const prNumbers = new Set();
             let prMatch;
@@ -83,21 +64,14 @@ jobs:
 
             for (const prNumber of prNumbers) {
               try {
-                const prResp = await github.rest.pulls.get({
-                  owner,
-                  repo,
-                  pull_number: prNumber,
-                });
+                const prResp = await github.rest.pulls.get({ owner, repo, pull_number: prNumber });
                 const prBody = prResp.data.body || "";
                 let match;
                 while ((match = closeRegex.exec(prBody)) !== null) {
                   issueNumbers.add(Number(match[1]));
                 }
               } catch (error) {
-                // Ignore non-PR references.
-                if (error.status !== 404) {
-                  throw error;
-                }
+                if (error.status !== 404) throw error;
               }
             }
 
@@ -106,46 +80,38 @@ jobs:
               return;
             }
 
-            // Ensure labels exist.
             const ensureLabel = async (name, color, description) => {
               try {
                 await github.rest.issues.getLabel({ owner, repo, name });
               } catch (error) {
-                if (error.status === 404) {
-                  await github.rest.issues.createLabel({
-                    owner,
-                    repo,
-                    name,
-                    color,
-                    description,
-                  });
-                } else {
-                  throw error;
-                }
+                if (error.status !== 404) throw error;
+                await github.rest.issues.createLabel({ owner, repo, name, color, description });
               }
             };
 
             await ensureLabel("released", "0E8A16", "Issue is included in a published release");
-            await ensureLabel("in-progress", "1D76DB", "Issue is linked to an open pull request");
-            await ensureLabel("awaiting-release", "FBCA04", "Issue fixed on main and waiting for a tagged release");
 
             for (const issueNumber of issueNumbers) {
+              const comments = await github.paginate(github.rest.issues.listComments, {
+                owner,
+                repo,
+                issue_number: issueNumber,
+                per_page: 100,
+              });
+              if (comments.some((c) => (c.body || "").includes("Posted by Release Issue Notify"))) {
+                core.info(`Issue #${issueNumber} already notified; skipping.`);
+                continue;
+              }
+
               let whatFixed = "";
               let userImpact = "";
               for (const prNumber of prNumbers) {
                 try {
-                  const prResp = await github.rest.pulls.get({
-                    owner,
-                    repo,
-                    pull_number: prNumber,
-                  });
+                  const prResp = await github.rest.pulls.get({ owner, repo, pull_number: prNumber });
                   const prBody = prResp.data.body || "";
-                  const section = (heading, body) => {
-                    const re = new RegExp(
-                      `## ${heading}\\s*\\n+([\\s\\S]*?)(?=\\n## |$)`,
-                      "i"
-                    );
-                    const m = body.match(re);
+                  const section = (heading, text) => {
+                    const re = new RegExp(`## ${heading}\\s*\\n+([\\s\\S]*?)(?=\\n## |$)`, "i");
+                    const m = text.match(re);
                     return m ? m[1].trim() : "";
                   };
                   const wf = section("What was fixed", prBody);
@@ -161,8 +127,6 @@ jobs:
               const upgradeBlock = [
                 "### Upgrade",
                 "",
-                "In your Terraform configuration:",
-                "",
                 "```hcl",
                 "terraform {",
                 "  required_providers {",
@@ -177,30 +141,15 @@ jobs:
                 "Then run `terraform init -upgrade`.",
               ].join("\n");
 
-              const reopenBlock = [
-                "### If the problem continues",
-                "",
-                "Please **reopen this issue** or **comment here** if you still see the problem **after upgrading to `" + tag + "`**.",
-                "",
-                "Include provider version, Dockhand version, and a minimal repro or error message.",
-                "Comments on closed issues are monitored; we will reopen for investigation when the fix did not work.",
-              ].join("\n");
-
               const bodyParts = [
                 `## Released in \`${tag}\``,
                 "",
                 releaseUrl ? `Release notes: ${releaseUrl}` : "",
                 "",
               ];
-
-              if (whatFixed) {
-                bodyParts.push("### What was fixed", "", whatFixed, "");
-              }
-              if (userImpact) {
-                bodyParts.push("### User impact", "", userImpact, "");
-              }
-
-              bodyParts.push(upgradeBlock, "", reopenBlock, "", "---", "_Posted by Release Issue Notify._");
+              if (whatFixed) bodyParts.push("### What was fixed", "", whatFixed, "");
+              if (userImpact) bodyParts.push("### User impact", "", userImpact, "");
+              bodyParts.push(upgradeBlock, "", "---", "_Posted by Release Issue Notify._");
 
               await github.rest.issues.createComment({
                 owner,
@@ -215,31 +164,4 @@ jobs:
                 issue_number: issueNumber,
                 labels: ["released"],
               });
-
-              // Best-effort cleanup; ignore if label isn't currently present.
-              try {
-                await github.rest.issues.removeLabel({
-                  owner,
-                  repo,
-                  issue_number: issueNumber,
-                  name: "in-progress",
-                });
-              } catch (error) {
-                if (error.status !== 404) {
-                  throw error;
-                }
-              }
-
-              try {
-                await github.rest.issues.removeLabel({
-                  owner,
-                  repo,
-                  issue_number: issueNumber,
-                  name: "awaiting-release",
-                });
-              } catch (error) {
-                if (error.status !== 404) {
-                  throw error;
-                }
-              }
             }

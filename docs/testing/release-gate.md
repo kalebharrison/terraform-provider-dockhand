@@ -8,11 +8,11 @@ Provider releases should only be cut when all of the following pass on `main`:
 4. `Gitleaks`
 5. `dependency-review`
 6. `Acceptance Full` (most recent scheduled/dispatch run)
-7. `Dockhand Release Watch` — **strict** for lens dispatch (latest run on `main` must succeed); **main SHA** for tag publish (any successful run on current `main` HEAD counts, even if a later run failed)
+7. `Dockhand Release Watch` — **strict** for lens dispatch (latest **validated** run on `main` must succeed); **main SHA** for tag publish (a successful **Validate Provider Against Dockhand Release** job on current `main` HEAD counts; skip-only runs do not satisfy the gate)
 
 ## Release lens review (automated)
 
-**Agent Release Orchestrate** opens a `release: prepare vX.Y.Z` issue when CI gates pass and fixes are `awaiting-release`. It runs after a successful **Dockhand Release Watch** on `main`, on schedule, or via manual dispatch (not on every `main` push or Release Drafter alone). **Issue Agent Intake** dispatches a Cloud Agent with the release-tier lens set per `docs/testing/release-lens-review.md`. **Agent Release Tag** is the single release completion workflow: ensure Release Watch green → **Release Artifacts** (GPG-signed checksums for Terraform Registry + GitHub artifact attestations) → label `awaiting-release` issues and cut `CHANGELOG.md`.
+**Agent Release Orchestrate** opens a `release: prepare vX.Y.Z` issue when CI gates pass and fixes are `awaiting-release`. It runs after a successful **Dockhand Release Watch** on `main` or via manual dispatch (no standalone cron). **Issue Agent Intake** dispatches a Cloud Agent with the release-tier lens set per `docs/testing/release-lens-review.md`. **Agent Release Tag** is the single release completion workflow: ensure Release Watch validated → **Release Artifacts** (GPG-signed checksums for Terraform Registry + GitHub artifact attestations) → label `awaiting-release` issues, cut `CHANGELOG.md`, and post release comments on linked issues.
 
 Do not tag while **high** severity findings are open in the release verdict.
 
@@ -20,8 +20,8 @@ Do not tag while **high** severity findings are open in the release verdict.
 
 Programmatic gate: `scripts/release_gate_check.py`
 
-- `--mode lens` — ready to open `release: prepare vX.Y.Z` for automated lens review (Release Watch: latest run strict)
-- `--mode tag` — ready for **Agent Release Tag** to publish the GitHub release (Release Watch: success on current `main` SHA)
+- `--mode lens` — ready to open `release: prepare vX.Y.Z` for automated lens review (Release Watch: latest **validated** run strict)
+- `--mode tag` — ready for **Agent Release Tag** to publish the GitHub release (Release Watch: **validated** success on current `main` SHA)
 
 Before **Agent Release Tag** publishes `vX.Y.Z`:
 
@@ -33,9 +33,10 @@ Before **Agent Release Tag** publishes `vX.Y.Z`:
 
 Tagging and artifact publish are performed by `.github/workflows/agent-release-tag.yml`:
 
-1. `scripts/ensure_release_watch_green.py` dispatches Release Watch when needed (with one retry in CI).
+1. `scripts/ensure_release_watch_green.py` dispatches Release Watch when needed and waits for a **validated** run (with one retry in CI).
 2. **Release Artifacts** builds zips, signs `SHA256SUMS` with GPG (Terraform Registry), attaches GitHub artifact attestations, and creates the GitHub release with `gh release create --target main`.
 3. `scripts/release_housekeeping.py` labels all open `awaiting-release` issues `released` and cuts `CHANGELOG.md`.
+4. **Agent Release Tag** posts upgrade/release comments on issues linked from the release notes (recovery-only: `release-issue-notify.yml` via `workflow_dispatch`).
 
 ## Why This Gate Exists
 

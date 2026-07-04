@@ -43,32 +43,7 @@ def awaiting_release_without_released() -> list[int]:
     return numbers
 
 
-def label_issue_released(issue_number: int, version: str, release_url: str) -> None:
-    tag = f"v{version.lstrip('v')}"
-    body = "\n".join(
-        [
-            f"Included in release **{tag}**.",
-            "",
-            f"Release: {release_url}" if release_url else "",
-            "",
-            "---",
-            "_Posted by Agent Release Tag housekeeping._",
-        ]
-    ).strip()
-    subprocess.run(
-        [
-            "gh",
-            "issue",
-            "comment",
-            str(issue_number),
-            "--repo",
-            _repo(),
-            "--body",
-            body,
-        ],
-        cwd=ROOT,
-        check=True,
-    )
+def label_issue_released(issue_number: int) -> None:
     subprocess.run(
         [
             "gh",
@@ -83,6 +58,23 @@ def label_issue_released(issue_number: int, version: str, release_url: str) -> N
         cwd=ROOT,
         check=True,
     )
+    try:
+        subprocess.run(
+            [
+                "gh",
+                "issue",
+                "edit",
+                str(issue_number),
+                "--repo",
+                _repo(),
+                "--remove-label",
+                "awaiting-release",
+            ],
+            cwd=ROOT,
+            check=True,
+        )
+    except subprocess.CalledProcessError:
+        pass
 
 
 def cut_changelog(version: str) -> bool:
@@ -128,7 +120,7 @@ def commit_changelog(version: str) -> None:
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--version", required=True)
-    parser.add_argument("--release-url", default="")
+    parser.add_argument("--release-url", default="", help="Unused; kept for workflow compatibility")
     parser.add_argument("--cut-changelog", action="store_true")
     parser.add_argument("--commit-changelog", action="store_true")
     parser.add_argument("--json", action="store_true")
@@ -138,7 +130,7 @@ def main(argv: list[str] | None = None) -> int:
     errors: list[str] = []
     for issue_number in awaiting_release_without_released():
         try:
-            label_issue_released(issue_number, args.version, args.release_url)
+            label_issue_released(issue_number)
             labeled.append(issue_number)
         except subprocess.CalledProcessError as err:
             errors.append(f"#{issue_number}: {err}")

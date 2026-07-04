@@ -7,6 +7,7 @@ import argparse
 import json
 import subprocess
 import sys
+import time
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -26,6 +27,7 @@ REQUIRED_WORKFLOWS = (
 )
 
 RELEASE_WATCH_WORKFLOW = "Dockhand Release Watch"
+RELEASE_WATCH_VALIDATE_JOB = "Validate Provider Against Dockhand Release"
 
 
 @dataclass
@@ -194,12 +196,68 @@ def workflow_runs(name: str, *, limit: int = 15) -> list[dict]:
             "--limit",
             str(limit),
             "--json",
-            "conclusion,status,headSha,createdAt",
+            "conclusion,status,headSha,createdAt,databaseId",
         ]
     )
     if not isinstance(data, list):
         return []
     return [item for item in data if isinstance(item, dict)]
+
+
+def release_watch_run_validated(run: dict) -> bool:
+    run_id = run.get("databaseId")
+    if not run_id:
+        return False
+    proc = subprocess.run(
+        [
+            "gh",
+            "run",
+            "view",
+            str(run_id),
+            "--repo",
+            _repo(),
+            "--json",
+            "jobs",
+        ],
+        cwd=ROOT,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if proc.returncode != 0:
+        return False
+    payload = json.loads(proc.stdout)
+    jobs = payload.get("jobs") if isinstance(payload, dict) else None
+    if not isinstance(jobs, list):
+        return False
+    for job in jobs:
+        if not isinstance(job, dict):
+            continue
+        if job.get("name") != RELEASE_WATCH_VALIDATE_JOB:
+            continue
+        return job.get("status") == "completed" and job.get("conclusion") == "success"
+    return False
+
+
+def release_watch_strict_green() -> bool:
+    for run in workflow_runs(RELEASE_WATCH_WORKFLOW, limit=10):
+        if run.get("status") != "completed" or run.get("conclusion") != "success":
+            continue
+        if release_watch_run_validated(run):
+            return True
+    return False
+
+
+def release_watch_main_sha_green(main_sha: str | None = None) -> bool:
+    sha = main_sha or current_main_sha()
+    for run in workflow_runs(RELEASE_WATCH_WORKFLOW, limit=20):
+        if run.get("status") != "completed" or run.get("conclusion") != "success":
+            continue
+        if run.get("headSha") != sha:
+            continue
+        if release_watch_run_validated(run):
+            return True
+    return False
 
 
 def current_main_sha() -> str:
@@ -219,6 +277,8 @@ def current_main_sha() -> str:
 
 
 def workflow_green(name: str) -> bool:
+    if name == RELEASE_WATCH_WORKFLOW:
+        return release_watch_strict_green()
     data = workflow_runs(name, limit=1)
     if not data:
         return False
@@ -227,6 +287,11 @@ def workflow_green(name: str) -> bool:
 
 
 def workflow_green_on_main_sha(name: str, main_sha: str | None = None) -> bool:
+    if name == RELEASE_WATCH_WORKFLOW:
+        try:
+            return release_watch_main_sha_green(main_sha)
+        except RuntimeError:
+            return False
     sha = main_sha or current_main_sha()
     for run in workflow_runs(name, limit=20):
         if run.get("status") != "completed":
@@ -294,6 +359,104 @@ def evaluate_gate(*, release_watch_mode: str = "strict") -> GateResult:
 
     result.ci_gates_pass = not result.blockers
     return result
+
+
+RELEASE_WATCH_ENSURE_TIMEOUT_SEC = 2700
+RELEASE_WATCH_ENSURE_POLL_SEC = 30
+
+
+def dispatch_release_watch() -> int:
+    proc = subprocess.run(
+        [
+            "gh",
+            "workflow",
+            "run",
+            "dockhand-release-watch.yml",
+            "--repo",
+            _repo(),
+            "--ref",
+            "main",
+        ],
+        cwd=ROOT,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if proc.returncode != 0:
+        raise RuntimeError(proc.stderr.strip() or proc.stdout.strip() or "workflow dispatch failed")
+    time.sleep(10)
+    data = _gh_json(
+        [
+            "run",
+            "list",
+            "--workflow",
+            RELEASE_WATCH_WORKFLOW,
+            "--branch",
+            "main",
+            "--limit",
+            "1",
+            "--json",
+            "databaseId",
+        ]
+    )
+    if not isinstance(data, list) or not data:
+        raise RuntimeError("could not resolve Release Watch run id after dispatch")
+    return int(data[0]["databaseId"])
+
+
+def wait_for_release_watch_run(run_id: int, *, timeout_sec: int) -> str:
+    deadline = time.time() + timeout_sec
+    while time.time() < deadline:
+        proc = subprocess.run(
+            [
+                "gh",
+                "run",
+                "view",
+                str(run_id),
+                "--repo",
+                _repo(),
+                "--json",
+                "status,conclusion",
+            ],
+            cwd=ROOT,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        if proc.returncode != 0:
+            raise RuntimeError(proc.stderr.strip() or proc.stdout.strip() or "gh run view failed")
+        payload = json.loads(proc.stdout)
+        status = str(payload.get("status") or "")
+        conclusion = str(payload.get("conclusion") or "")
+        if status == "completed":
+            return conclusion or "unknown"
+        time.sleep(RELEASE_WATCH_ENSURE_POLL_SEC)
+    raise TimeoutError(f"timed out waiting for Release Watch run {run_id}")
+
+
+def ensure_release_watch_green(*, retries: int = 1, timeout_sec: int = RELEASE_WATCH_ENSURE_TIMEOUT_SEC) -> dict:
+    main_sha = current_main_sha()
+    if release_watch_main_sha_green(main_sha):
+        return {"main_sha": main_sha, "action": "already_green", "run_id": None, "conclusion": "success"}
+
+    last_conclusion = ""
+    last_run_id: int | None = None
+    for attempt in range(retries + 1):
+        last_run_id = dispatch_release_watch()
+        last_conclusion = wait_for_release_watch_run(last_run_id, timeout_sec=timeout_sec)
+        if last_conclusion == "success" and release_watch_main_sha_green(main_sha):
+            return {
+                "main_sha": main_sha,
+                "action": "dispatched",
+                "run_id": last_run_id,
+                "conclusion": last_conclusion,
+                "attempt": attempt + 1,
+            }
+
+    raise RuntimeError(
+        f"Release Watch did not validate on main {main_sha} "
+        f"(last run {last_run_id}, conclusion={last_conclusion})"
+    )
 
 
 def main(argv: list[str] | None = None) -> int:
