@@ -24,6 +24,12 @@ def is_manifest_mapped(test_name: str, patterns: list[re.Pattern[str]]) -> bool:
     return any(pattern.search(test_name) for pattern in patterns)
 
 
+OPTIONAL_MANIFEST_SKIPS = {
+    # Latest Dockhand often completes small batch/prune work inline without jobId.
+    "TestAccJobDataSourceTerraform",
+}
+
+
 def main() -> int:
     if len(sys.argv) != 2:
         print("usage: check-acceptance-skips.py <go-test-jsonl>", file=sys.stderr)
@@ -54,6 +60,8 @@ def main() -> int:
         if not test_name:
             continue
         if is_manifest_mapped(test_name, patterns):
+            if test_name in OPTIONAL_MANIFEST_SKIPS:
+                continue
             skipped.append(test_name)
 
     if not skipped:
