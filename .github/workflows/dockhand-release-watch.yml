@@ -480,11 +480,19 @@ jobs:
               `- Workflow run: ${context.serverUrl}/${owner}/${repo}/actions/runs/${context.runId}`,
             ].join("\n");
 
-            const existing = await github.rest.search.issuesAndPullRequests({
+            const existingOpen = await github.rest.search.issuesAndPullRequests({
               q: `repo:${owner}/${repo} is:issue is:open in:title "${title}"`,
             });
-            if (existing.data.total_count > 0) {
+            if (existingOpen.data.total_count > 0) {
               core.info("Open compatibility issue already exists.");
+              return;
+            }
+
+            const awaitingRelease = await github.rest.search.issuesAndPullRequests({
+              q: `repo:${owner}/${repo} is:issue in:title "${title}" label:awaiting-release`,
+            });
+            if (awaitingRelease.data.total_count > 0) {
+              core.info("Compatibility failure already fixed and awaiting release; skipping duplicate issue.");
               return;
             }
 
