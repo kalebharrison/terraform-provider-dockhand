@@ -9,6 +9,7 @@ DOCKHAND_IMAGE="${DOCKHAND_IMAGE:-fnsys/dockhand:latest}"
 DIND_IMAGE="${DIND_IMAGE:-docker:27-dind}"
 HAWSER_IMAGE="${HAWSER_IMAGE:-ghcr.io/finsys/hawser:latest}"
 REGISTRY_IMAGE="${REGISTRY_IMAGE:-registry:2}"
+BOOTSTRAP_FILE_IMAGE="${BOOTSTRAP_FILE_IMAGE:-alpine:3.19}"
 TEST_REGEX="${TEST_REGEX:-TestAcc}"
 export TF_ACC="${TF_ACC:-1}"
 RUN_ENDPOINT_PROBE="${RUN_ENDPOINT_PROBE:-true}"
@@ -174,6 +175,7 @@ done
 docker --host "tcp://127.0.0.1:23750" version >/dev/null
 
 echo "Pre-pulling harness images on DinD"
+docker --host "tcp://127.0.0.1:23750" pull "${BOOTSTRAP_FILE_IMAGE}" >/dev/null
 docker --host "tcp://127.0.0.1:23750" pull busybox:1.36.1 >/dev/null
 
 echo "Starting Dockhand ${DOCKHAND_CONTAINER} with image ${DOCKHAND_IMAGE}"
@@ -263,7 +265,7 @@ echo "Bootstrapping acceptance fixtures"
 
 bootstrap_ctr="tf-acc-bootstrap-file-${SUFFIX}"
 docker --host "tcp://127.0.0.1:23750" rm -f "${bootstrap_ctr}" >/dev/null 2>&1 || true
-if ! docker --host "tcp://127.0.0.1:23750" run -d --name "${bootstrap_ctr}" busybox:1.36.1 sleep 3600 >/tmp/dh-bootstrap-docker-run.id 2>/tmp/dh-bootstrap-docker-run.err; then
+if ! docker --host "tcp://127.0.0.1:23750" run -d --name "${bootstrap_ctr}" "${BOOTSTRAP_FILE_IMAGE}" sleep 3600 >/tmp/dh-bootstrap-docker-run.id 2>/tmp/dh-bootstrap-docker-run.err; then
   echo "Failed to start bootstrap file container on DinD" >&2
   cat /tmp/dh-bootstrap-docker-run.err >&2 || true
   exit 1
