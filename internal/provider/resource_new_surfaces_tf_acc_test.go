@@ -331,41 +331,38 @@ func TestAccJobDataSourceTerraform(t *testing.T) {
 	endpoint, username, password := testAccEnv(t)
 	defaultEnv := testAccDefaultEnv()
 
-	suffix := strings.ToLower(time.Now().UTC().Format("20060102150405"))
-	targetName := strings.TrimSpace(os.Getenv("DOCKHAND_TEST_BOOTSTRAP_CONTAINER_NAME"))
-	if targetName == "" {
-		targetName = "tf-acc-job-fixture-" + suffix
-	}
-
-	sessionCookie, err := testAccLoginSessionCookieForDestroy(endpoint, username, password)
-	if err != nil {
-		t.Fatalf("login for job data source fixture: %v", err)
-	}
-	client, err := NewClient(endpoint, sessionCookie, "", defaultEnv, false)
-	if err != nil {
-		t.Fatalf("new client for job data source fixture: %v", err)
-	}
-
-	submitted, _, err := client.SubmitBatch(context.Background(), defaultEnv, "containers", "restart", []string{targetName})
-	if err != nil {
-		t.Fatalf("submit batch fixture: %v", err)
-	}
-	if strings.TrimSpace(submitted.JobID) == "" {
-		t.Skip("Dockhand returned inline batch completion without async job id; skipping dockhand_job data source acceptance")
-	}
-
 	t.Setenv("DOCKHAND_ENDPOINT", endpoint)
 	t.Setenv("DOCKHAND_USERNAME", username)
 	t.Setenv("DOCKHAND_PASSWORD", password)
 	t.Setenv("DOCKHAND_DEFAULT_ENV", defaultEnv)
 
+	suffix := strings.ToLower(time.Now().UTC().Format("20060102150405"))
+	containerName := "tf-acc-job-ds-" + suffix
+
 	resource.Test(t, resource.TestCase{
 		ProtoV6ProviderFactories: testAccProviderFactories(),
 		Steps: []resource.TestStep{
 			{
-				Config: testAccJobDataSourceConfig(submitted.JobID),
+				Config: testAccBatchActionNoWaitConfig(defaultEnv, containerName, "job-ds-setup"),
 				Check: resource.ComposeTestCheckFunc(
-					resource.TestCheckResourceAttr("data.dockhand_job.test", "job_id", submitted.JobID),
+					func(s *terraform.State) error {
+						rs, ok := s.RootModule().Resources["dockhand_batch_action.test"]
+						if !ok {
+							return fmt.Errorf("missing dockhand_batch_action.test resource")
+						}
+						jobID := strings.TrimSpace(rs.Primary.Attributes["job_id"])
+						if jobID == "" {
+							return fmt.Errorf("batch action completed inline without job_id; cannot exercise dockhand_job data source")
+						}
+						t.Setenv("TF_ACC_JOB_ID", jobID)
+						return nil
+					},
+				),
+			},
+			{
+				Config: testAccBatchActionNoWaitConfig(defaultEnv, containerName, "job-ds-setup") + "\n" + testAccJobDataSourceConfigFromEnv(),
+				Check: resource.ComposeTestCheckFunc(
+					resource.TestCheckResourceAttr("data.dockhand_job.test", "job_id", os.Getenv("TF_ACC_JOB_ID")),
 					resource.TestCheckResourceAttrSet("data.dockhand_job.test", "id"),
 					resource.TestCheckResourceAttrSet("data.dockhand_job.test", "status"),
 					resource.TestCheckResourceAttrSet("data.dockhand_job.test", "result_json"),
@@ -1064,4 +1061,8 @@ data "dockhand_job" "test" {
   job_id = %q
 }
 `, jobID)
+}
+
+func testAccJobDataSourceConfigFromEnv() string {
+	return testAccJobDataSourceConfig(strings.TrimSpace(os.Getenv("TF_ACC_JOB_ID")))
 }
