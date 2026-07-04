@@ -439,6 +439,9 @@ jobs:
     needs: [discover, validate]
     runs-on: ubuntu-latest
     steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
       - name: Restore watch state cache
         uses: actions/cache/restore@v5
         with:
