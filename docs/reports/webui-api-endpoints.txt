@@ -15,6 +15,8 @@
 /api/auth/providers
 /api/auth/session
 /api/auth/settings
+/api/auth/tokens
+/api/auth/tokens/
 /api/auto-update
 /api/auto-update/
 /api/batch
@@ -54,6 +56,7 @@
 /api/images/push
 /api/images/scan
 /api/jobs/
+/api/labels
 /api/legal/license
 /api/legal/privacy
 /api/license
@@ -76,6 +79,7 @@
 /api/prune/volumes
 /api/registries
 /api/registries/
+/api/registries/test
 /api/registry/catalog
 /api/registry/image
 /api/registry/search
@@ -94,6 +98,7 @@
 /api/self-update/progress
 /api/settings/general
 /api/settings/scanner
+/api/settings/scanner/cache
 /api/settings/theme
 /api/stacks
 /api/stacks/
@@ -106,6 +111,9 @@
 /api/system/disk
 /api/system/files
 /api/system/files/content
+/api/templates
+/api/templates/compose
+/api/templates/sources
 /api/users
 /api/users/
 /api/volumes
