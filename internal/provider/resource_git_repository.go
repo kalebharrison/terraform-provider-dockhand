@@ -433,14 +433,21 @@ func mergeGitRepositoryState(preferred gitRepositoryModel, remote gitRepositoryM
 	return out
 }
 
-func gitRepositoryEnvironmentIDFromList(repos []gitRepositoryResponse, id string) *int64 {
+func gitRepositoryEnvironmentIDFromList(repos []gitRepositoryResponse, id string, name string) *int64 {
 	target := strings.TrimSpace(id)
-	if target == "" {
-		return nil
+	if target != "" {
+		for _, item := range repos {
+			if fmt.Sprintf("%d", item.ID) == target && item.EnvironmentID != nil {
+				return item.EnvironmentID
+			}
+		}
 	}
-	for _, item := range repos {
-		if fmt.Sprintf("%d", item.ID) == target && item.EnvironmentID != nil {
-			return item.EnvironmentID
+	trimmedName := strings.TrimSpace(name)
+	if trimmedName != "" {
+		for _, item := range repos {
+			if item.Name == trimmedName && item.EnvironmentID != nil {
+				return item.EnvironmentID
+			}
 		}
 	}
 	return nil
@@ -458,7 +465,7 @@ func (r *gitRepositoryResource) hydrateGitRepositoryState(ctx context.Context, p
 	if err != nil {
 		return state, err
 	}
-	if envID := gitRepositoryEnvironmentIDFromList(repos, state.ID.ValueString()); envID != nil {
+	if envID := gitRepositoryEnvironmentIDFromList(repos, state.ID.ValueString(), state.Name.ValueString()); envID != nil {
 		state.EnvironmentID = types.StringValue(fmt.Sprintf("%d", *envID))
 		return state, nil
 	}

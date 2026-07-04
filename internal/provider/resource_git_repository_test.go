@@ -11,12 +11,16 @@ func TestGitRepositoryEnvironmentIDFromList(t *testing.T) {
 	repos := []gitRepositoryResponse{
 		{ID: 1, EnvironmentID: nil},
 		{ID: 42, EnvironmentID: &envID},
+		{Name: "by-name", EnvironmentID: &envID},
 	}
 
-	if got := gitRepositoryEnvironmentIDFromList(repos, "42"); got == nil || *got != envID {
+	if got := gitRepositoryEnvironmentIDFromList(repos, "42", ""); got == nil || *got != envID {
 		t.Fatalf("expected environment id 7 for repo 42, got %#v", got)
 	}
-	if got := gitRepositoryEnvironmentIDFromList(repos, "99"); got != nil {
+	if got := gitRepositoryEnvironmentIDFromList(repos, "", "by-name"); got == nil || *got != envID {
+		t.Fatalf("expected environment id 7 for repo by-name, got %#v", got)
+	}
+	if got := gitRepositoryEnvironmentIDFromList(repos, "99", ""); got != nil {
 		t.Fatalf("expected nil for missing repo, got %#v", got)
 	}
 }

@@ -1,6 +1,7 @@
 package provider
 
 import (
+	"encoding/json"
 	"net/http"
 	"net/url"
 	"time"
@@ -332,6 +333,22 @@ type gitRepositoryResponse struct {
 	SyncError          *string `json:"syncError"`
 	CreatedAt          *string `json:"createdAt"`
 	UpdatedAt          *string `json:"updatedAt"`
+}
+
+func (g *gitRepositoryResponse) UnmarshalJSON(data []byte) error {
+	type alias gitRepositoryResponse
+	aux := struct {
+		alias
+		EnvironmentIDSnake *int64 `json:"environment_id"`
+	}{}
+	if err := json.Unmarshal(data, &aux); err != nil {
+		return err
+	}
+	*g = gitRepositoryResponse(aux.alias)
+	if g.EnvironmentID == nil && aux.EnvironmentIDSnake != nil {
+		g.EnvironmentID = aux.EnvironmentIDSnake
+	}
+	return nil
 }
 
 type gitRepositoryTestPayload struct {
