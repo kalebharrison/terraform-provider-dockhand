@@ -74,6 +74,14 @@ jobs:
           GOBIN="${GITHUB_WORKSPACE}/.cache/bin" go install "honnef.co/go/tools/cmd/staticcheck@${STATICCHECK_VERSION}"
           "${GITHUB_WORKSPACE}/.cache/bin/staticcheck" ./...
 
+      - name: Shellcheck scripts
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y shellcheck
+          find scripts -type f -name '*.sh' -print0 | xargs -0 -r shellcheck -x -e SC1091
+
       - name: Go test
         run: go test ./...
 

@@ -22,6 +22,31 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
 
-      - name: Dependency review
+      - name: Resolve dependency review refs
+        if: github.event_name == 'push'
+        id: refs
+        shell: bash
+        run: |
+          set -euo pipefail
+          before="${{ github.event.before }}"
+          if [[ "${before}" == "0000000000000000000000000000000000000000" ]]; then
+            before="$(git rev-parse HEAD~1)"
+          fi
+          {
+            echo "base=${before}"
+            echo "head=${{ github.sha }}"
+          } >> "${GITHUB_OUTPUT}"
+
+      - name: Dependency review (pull request)
+        if: github.event_name == 'pull_request'
         uses: actions/dependency-review-action@v5
+
+      - name: Dependency review (main push)
+        if: github.event_name == 'push'
+        uses: actions/dependency-review-action@v5
+        with:
+          base-ref: ${{ steps.refs.outputs.base }}
+          head-ref: ${{ steps.refs.outputs.head }}

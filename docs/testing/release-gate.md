@@ -6,7 +6,7 @@ Provider releases should only be cut when all of the following pass on `main`:
 2. `Govulncheck`
 3. `Workflow Lint`
 4. `Gitleaks`
-5. `dependency-review`
+5. `dependency-review` (runs on PRs and on each `main` push with explicit base/head refs)
 6. `Acceptance Full` (most recent scheduled/dispatch run)
 7. `Dockhand Release Watch` — **strict** for lens dispatch (latest **validated** run on `main` must succeed); **main SHA** for tag publish (a successful **Validate Provider Against Dockhand Release** job on current `main` HEAD counts; skip-only runs do not satisfy the gate)
 
