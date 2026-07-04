@@ -76,16 +76,14 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          git fetch origin main
-          shas="$(git log origin/main..HEAD --no-merges --format=%H)"
-          if [[ -z "${shas}" ]]; then
-            echo "No agent-only commits to verify."
-            exit 0
-          fi
+          git fetch origin main --depth=50
           while IFS= read -r sha; do
             [[ -z "${sha}" ]] && continue
+            if git merge-base --is-ancestor "${sha}" origin/main 2>/dev/null; then
+              continue
+            fi
             git log -1 --format=%B "${sha}" | ./scripts/agent-commit-msg.sh --check
-          done <<< "${shas}"
+          done <<< "$(git log origin/main..HEAD --no-merges --format=%H)"
 
       - name: Require lens sweep log on agent branch
         if: github.event_name == 'push'

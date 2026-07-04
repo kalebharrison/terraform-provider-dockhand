@@ -7,9 +7,14 @@ on:
       - synchronize
       - reopened
       - ready_for_review
+  check_suite:
+    types:
+      - completed
   workflow_run:
     workflows:
       - Agent Validate
+      - Go CI
+      - Acceptance CI
     types:
       - completed
   workflow_dispatch:
@@ -19,13 +24,13 @@ on:
         required: true
         type: string
       pull_number:
-        description: "Optional PR number to enable auto-merge after approval"
+        description: "Optional PR number to merge when checks pass"
         required: false
         type: string
 
 permissions:
   actions: write
-  contents: read
+  contents: write
   pull-requests: write
 
 jobs:
@@ -41,29 +46,70 @@ jobs:
       (
         github.event_name == 'pull_request' &&
         startsWith(github.event.pull_request.head.ref, 'agent/')
+      ) ||
+      (
+        github.event_name == 'check_suite' &&
+        github.event.check_suite.head_branch != null &&
+        startsWith(github.event.check_suite.head_branch, 'agent/')
       )
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v7
 
+      - name: Resolve agent pull request
+        id: pr
+        uses: actions/github-script@v9
+        env:
+          INPUT_PULL: ${{ inputs.pull_number }}
+          INPUT_SHA: ${{ inputs.head_sha }}
+        with:
+          script: |
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+            let pullNumber = Number(process.env.INPUT_PULL || "");
+            let headSha = process.env.INPUT_SHA || "";
+
+            if (!pullNumber) {
+              if (context.eventName === "pull_request") {
+                pullNumber = context.payload.pull_request.number;
+                headSha = context.payload.pull_request.head.sha;
+              } else if (context.eventName === "workflow_run") {
+                headSha = context.payload.workflow_run.head_sha || "";
+              } else if (context.eventName === "check_suite") {
+                headSha = context.payload.check_suite.head_sha || "";
+              }
+            }
+
+            if (!pullNumber && headSha) {
+              const { data } = await github.rest.search.issuesAndPullRequests({
+                q: `repo:${owner}/${repo} is:pr head:${headSha}`,
+              });
+              if (data.items.length > 0) {
+                pullNumber = data.items[0].number;
+              }
+            }
+
+            if (!headSha && pullNumber) {
+              const { data: pr } = await github.rest.pulls.get({
+                owner,
+                repo,
+                pull_number: pullNumber,
+              });
+              headSha = pr.head.sha;
+            }
+
+            core.setOutput("pull_number", pullNumber ? String(pullNumber) : "");
+            core.setOutput("head_sha", headSha || "");
+
       - name: Approve or re-run blocked workflow runs
-        id: approve
+        if: steps.pr.outputs.head_sha != ''
         env:
           GH_TOKEN: ${{ github.token }}
-          HEAD_SHA: >-
-            ${{
-              inputs.head_sha ||
-              github.event.workflow_run.head_sha ||
-              github.event.pull_request.head.sha
-            }}
+          HEAD_SHA: ${{ steps.pr.outputs.head_sha }}
         shell: bash
         run: |
           set -euo pipefail
-          if [[ -z "${HEAD_SHA}" ]]; then
-            echo "Missing head SHA." >&2
-            exit 1
-          fi
           /usr/bin/python3 scripts/agent_approve_pr_ci.py --head-sha "${HEAD_SHA}" --json | tee /tmp/approve-pr-ci.json
           remaining="$(jq -r '.remaining' /tmp/approve-pr-ci.json)"
           if [[ "${remaining}" != "0" ]]; then
@@ -71,34 +117,36 @@ jobs:
             exit 1
           fi
 
-      - name: Enable squash auto-merge for agent PR
-        if: >-
-          github.event_name == 'pull_request' ||
-          inputs.pull_number != ''
+      - name: Merge agent pull request when checks pass
+        if: steps.pr.outputs.pull_number != ''
         uses: actions/github-script@v9
         env:
-          PULL_NUMBER: >-
-            ${{
-              inputs.pull_number ||
-              github.event.pull_request.number
-            }}
+          PULL_NUMBER: ${{ steps.pr.outputs.pull_number }}
         with:
           script: |
             const owner = context.repo.owner;
             const repo = context.repo.repo;
             const pullNumber = Number(process.env.PULL_NUMBER);
-            if (!pullNumber) {
-              core.info("No pull number; skipping auto-merge enable.");
-              return;
-            }
+            const requiredChecks = [
+              "Lint, Test, Build",
+              "Dockhand + DinD Acceptance Tests",
+              "Require linked issue and mark in-progress",
+              "Conventional PR title",
+              "Secret Scan",
+              "actionlint",
+              "Analyze (Go) (go)",
+              "Go Vulnerability Check",
+              "dependency-review",
+            ];
 
             const { data: pr } = await github.rest.pulls.get({
               owner,
               repo,
               pull_number: pullNumber,
             });
+
             if (!pr.head?.ref?.startsWith("agent/")) {
-              core.info("Not an agent branch PR; skipping auto-merge enable.");
+              core.info("Not an agent branch PR; skipping merge.");
               return;
             }
 
@@ -106,12 +154,53 @@ jobs:
               typeof label === "string" ? label : label.name
             );
             if (!labels.includes("agent-auto-merge")) {
-              core.info("PR missing agent-auto-merge label; skipping auto-merge enable.");
+              core.info("PR missing agent-auto-merge label; skipping merge.");
               return;
             }
 
             if (pr.merged_at || pr.state !== "open") {
-              core.info("PR is not open; skipping auto-merge enable.");
+              core.info(`PR #${pullNumber} is already ${pr.state}; skipping merge.`);
+              return;
+            }
+
+            const { data: checks } = await github.rest.checks.listForRef({
+              owner,
+              repo,
+              ref: pr.head.sha,
+              per_page: 100,
+            });
+
+            const byName = new Map();
+            for (const run of checks.check_runs) {
+              const existing = byName.get(run.name);
+              if (!existing || new Date(run.started_at) > new Date(existing.started_at)) {
+                byName.set(run.name, run);
+              }
+            }
+
+            const missing = [];
+            const failed = [];
+            for (const name of requiredChecks) {
+              const run = byName.get(name);
+              if (!run) {
+                missing.push(name);
+                continue;
+              }
+              if (run.status !== "completed") {
+                missing.push(`${name} (${run.status})`);
+                continue;
+              }
+              if (run.conclusion !== "success" && run.conclusion !== "skipped") {
+                failed.push(`${name} (${run.conclusion})`);
+              }
+            }
+
+            if (missing.length > 0) {
+              core.info(`Required checks not complete: ${missing.join(", ")}`);
+              return;
+            }
+            if (failed.length > 0) {
+              core.info(`Required checks failed: ${failed.join(", ")}`);
               return;
             }
 
@@ -125,6 +214,15 @@ jobs:
                 { pullId: pr.node_id }
               );
               core.info(`Enabled auto-merge for PR #${pullNumber}`);
+              return;
             } catch (error) {
-              core.warning(`Could not enable auto-merge for PR #${pullNumber}: ${error.message}`);
+              core.warning(`Auto-merge enable failed for PR #${pullNumber}: ${error.message}`);
             }
+
+            await github.rest.pulls.merge({
+              owner,
+              repo,
+              pull_number: pullNumber,
+              merge_method: "squash",
+            });
+            core.info(`Squash-merged PR #${pullNumber}`);
