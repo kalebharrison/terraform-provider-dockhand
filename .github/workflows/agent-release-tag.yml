@@ -54,21 +54,13 @@ jobs:
             exit 2
           fi
 
-      - name: Import GPG key (passphrase)
-        if: steps.gate.outputs.ready == 'true' && env.HAS_GPG_PASSPHRASE == 'true'
+      - name: Import GPG key
+        if: steps.gate.outputs.ready == 'true'
         id: import_gpg
         uses: crazy-max/ghaction-import-gpg@v7
         with:
           gpg_private_key: ${{ secrets.GPG_PRIVATE_KEY }}
-          passphrase: ${{ env.GPG_PASSPHRASE }}
-          git_user_signingkey: true
-
-      - name: Import GPG key (no passphrase)
-        if: steps.gate.outputs.ready == 'true' && env.HAS_GPG_PASSPHRASE != 'true'
-        id: import_gpg
-        uses: crazy-max/ghaction-import-gpg@v7
-        with:
-          gpg_private_key: ${{ secrets.GPG_PRIVATE_KEY }}
+          passphrase: ${{ secrets.GPG_PASSPHRASE }}
           git_user_signingkey: true
 
       - name: Create and push signed tag
