@@ -110,7 +110,7 @@ func TestAccEnvironmentResourceAgentTokenTerraform(t *testing.T) {
 
 	resource.Test(t, resource.TestCase{
 		ProtoV6ProviderFactories: testAccProviderFactories(),
-		CheckDestroy:             testAccCheckEnvironmentDestroyed(endpoint, username, password),
+		CheckDestroy:             testAccCheckAgentEnvironmentDestroyed(endpoint, username, password),
 		Steps: []resource.TestStep{
 			{
 				Config: testAccEnvironmentAgentConfig(envName, agentToken, "globe"),
@@ -310,6 +310,31 @@ func testAccTailHawserLogs() string {
 		return ""
 	}
 	return strings.TrimSpace(string(out))
+}
+
+func testAccStopHawser() error {
+	dockerHost := strings.TrimSpace(os.Getenv("DOCKHAND_TEST_HAWSER_DOCKER_HOST"))
+	if dockerHost == "" {
+		dockerHost = "tcp://127.0.0.1:23750"
+	}
+
+	containerName := strings.TrimSpace(os.Getenv("DOCKHAND_TEST_HAWSER_CONTAINER"))
+	if containerName == "" {
+		return nil
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+	defer cancel()
+	//nolint:gosec // Acceptance test intentionally launches the docker CLI with harness-provided values.
+	return exec.CommandContext(ctx, "docker", "--host", dockerHost, "rm", "-f", containerName).Run()
+}
+
+func testAccCheckAgentEnvironmentDestroyed(endpoint string, username string, password string) func(state *terraform.State) error {
+	destroyed := testAccCheckEnvironmentDestroyed(endpoint, username, password)
+	return func(state *terraform.State) error {
+		_ = testAccStopHawser()
+		return destroyed(state)
+	}
 }
 
 func testAccCheckEnvironmentDestroyed(endpoint string, username string, password string) func(state *terraform.State) error {

@@ -118,11 +118,6 @@ jobs:
             reason="unchanged_tag"
           fi
 
-          if [[ "${{ github.event_name }}" == "push" ]]; then
-            should_run="true"
-            reason="main_push"
-          fi
-
           {
             echo "last_tag=${last_tag}"
             echo "last_digest=${last_digest}"
@@ -234,6 +229,8 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          echo "Waiting 45s before harness retry to let DinD/Dockhand settle..."
+          sleep 45
           ./scripts/run-acceptance-harness.sh
 
       - name: Enforce API drift gate

@@ -93,6 +93,32 @@ login() {
   [[ "${code}" =~ ^2[0-9][0-9]$ ]]
 }
 
+container_runtime_state() {
+  local container_id="$1"
+  local env_id="$2"
+  curl -sS -b /tmp/dh-cookies.txt \
+    "${DOCKHAND_TEST_ENDPOINT}/api/containers/${container_id}?env=${env_id}" \
+    | jq -r '.state // .status // empty' 2>/dev/null || true
+}
+
+ensure_file_container_running() {
+  local container_id="$1"
+  local env_id="$2"
+  local label="$3"
+  for _ in $(seq 1 90); do
+    local ctr_state
+    ctr_state="$(container_runtime_state "${container_id}" "${env_id}")"
+    if [[ "${ctr_state}" == "running" ]]; then
+      return 0
+    fi
+    curl -sS -b /tmp/dh-cookies.txt -X POST \
+      "${DOCKHAND_TEST_ENDPOINT}/api/containers/${container_id}/start?env=${env_id}" >/dev/null 2>&1 || true
+    sleep 2
+  done
+  echo "Bootstrap file container ${label} (${container_id}) did not reach running state" >&2
+  return 1
+}
+
 echo "Creating Docker network ${NETWORK_NAME}"
 docker network create "${NETWORK_NAME}" >/dev/null
 
@@ -219,16 +245,9 @@ if [[ -z "${file_container_id}" ]]; then
 fi
 curl -sS -b /tmp/dh-cookies.txt -X POST \
   "${DOCKHAND_TEST_ENDPOINT}/api/containers/${file_container_id}/start?env=${existing_id}" >/tmp/dh-bootstrap-container-start.json || true
-for _ in $(seq 1 30); do
-  ctr_state="$(curl -sS -b /tmp/dh-cookies.txt \
-    "${DOCKHAND_TEST_ENDPOINT}/api/containers/${file_container_id}?env=${existing_id}" \
-    | jq -r '.state // .status // empty' 2>/dev/null || true)"
-  if [[ "${ctr_state}" == "running" ]]; then
-    break
-  fi
-  sleep 1
-done
+ensure_file_container_running "${file_container_id}" "${existing_id}" "${bootstrap_ctr}"
 export DOCKHAND_TEST_FILE_CONTAINER_ID="${file_container_id}"
+export DOCKHAND_TEST_FILE_CONTAINER_ENV_ID="${existing_id}"
 
 registry_payload="$(jq -nc --arg url "http://registry:5000" --arg name "ci-catalog-${SUFFIX}" \
   '{name:$name,url:$url,isDefault:false}')"
@@ -324,18 +343,22 @@ export DOCKHAND_AUTH_PROVIDER="${DOCKHAND_TEST_AUTH_PROVIDER}"
 export DOCKHAND_DEFAULT_ENV="${existing_id}"
 export DOCKHAND_INSECURE="${DOCKHAND_INSECURE:-false}"
 
+ensure_file_container_running "${file_container_id}" "${existing_id}" "${bootstrap_ctr}"
+
 echo "Running acceptance tests with regex: ${TEST_REGEX}"
 TEST_JSON="/tmp/acceptance-test-${SUFFIX}.jsonl"
 set +e
 GOCACHE="${GOCACHE:-$PWD/.cache/go-build}" \
 GOMODCACHE="${GOMODCACHE:-$PWD/.cache/gomod}" \
-go test -json ./internal/provider -run "${TEST_REGEX}" | tee "${TEST_JSON}"
+go test -json ./internal/provider -run "${TEST_REGEX}" -timeout 45m | tee "${TEST_JSON}"
 test_exit="${PIPESTATUS[0]}"
 set -e
 /usr/bin/python3 scripts/check-acceptance-skips.py "${TEST_JSON}"
 if [[ "${test_exit}" -ne 0 ]]; then
   exit "${test_exit}"
 fi
+
+ensure_file_container_running "${file_container_id}" "${existing_id}" "${bootstrap_ctr}"
 
 if [[ "${RUN_ENDPOINT_PROBE}" == "true" ]]; then
   echo "Running endpoint compatibility probe"

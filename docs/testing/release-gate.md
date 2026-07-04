@@ -49,7 +49,7 @@ Tagging and artifact publish are performed by `.github/workflows/agent-release-t
 - Poll cadence: every 6 hours.
 - Harness retry: failed acceptance harness runs once automatically before marking the workflow failed.
 - Change detection: compares latest discovered Dockhand `tag` and image `digest` to cached release-watch state (`last_tag`, `last_digest` in Actions cache key `dockhand-release-watch-state`).
-- Only runs full validation when a new tag is discovered (or manual override via `workflow_dispatch` input).
+- Only runs full validation when a new tag is discovered, on schedule, or via manual `workflow_dispatch` (not on every `main` push).
 - On success, saves state to the Actions cache (no tracking issue). **Compat Reports Sync** commits `docs/reports/dockhand-last-tested.json` for a human-readable last-validated record.
 - Includes docs-reference drift audit from `https://dockhand.pro/manual/#api-reference`.
 - Includes a targeted authenticated private endpoint probe (`GET /api/environments` by default).
