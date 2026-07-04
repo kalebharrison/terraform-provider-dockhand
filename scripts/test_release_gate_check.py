@@ -76,5 +76,21 @@ class CutChangelogTest(unittest.TestCase):
             changelog.write_text(original, encoding="utf-8")
 
 
+class ReleaseIssueNotifyTest(unittest.TestCase):
+    def test_build_comment_body_includes_marker(self) -> None:
+        from release_issue_notify import NOTIFY_MARKER, build_comment_body
+
+        body = build_comment_body(tag="v1.2.3", release_url="https://example/release")
+        self.assertIn("v1.2.3", body)
+        self.assertIn(NOTIFY_MARKER, body)
+
+    def test_section_from_body(self) -> None:
+        from release_issue_notify import section_from_body
+
+        text = "## What was fixed\n\nhello\n\n## User impact\n\nworld"
+        self.assertEqual(section_from_body("What was fixed", text), "hello")
+        self.assertEqual(section_from_body("User impact", text), "world")
+
+
 if __name__ == "__main__":
     unittest.main()

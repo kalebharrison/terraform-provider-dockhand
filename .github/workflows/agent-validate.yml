@@ -42,7 +42,7 @@ jobs:
         if: github.event_name == 'push'
         run: |
           set -euo pipefail
-          for file in .github/workflows/agent-validate.yml .github/workflows/agent-open-pr.yml .github/workflows/agent-auto-merge.yml; do
+          for file in .github/workflows/agent-validate.yml .github/workflows/agent-open-pr.yml .github/workflows/agent-pr-approve-ci.yml; do
             git fetch origin main --depth=1
             if git cat-file -e "origin/main:${file}" 2>/dev/null; then
               git show "origin/main:${file}" > /tmp/main-workflow.yml

@@ -289,7 +289,18 @@ func testAccEnsureHawserRunning(agentToken string) error {
 	if err != nil {
 		return fmt.Errorf("start hawser agent container %q: %w (output=%s)", containerName, err, strings.TrimSpace(string(out)))
 	}
-	return nil
+
+	for attempt := 0; attempt < 30; attempt++ {
+		inspectCtx, inspectCancel := context.WithTimeout(context.Background(), 10*time.Second)
+		runningOut, runningErr := exec.CommandContext(inspectCtx, "docker", "--host", dockerHost, "inspect", "-f", "{{.State.Running}}", containerName).CombinedOutput()
+		inspectCancel()
+		if runningErr == nil && strings.TrimSpace(string(runningOut)) == "true" {
+			time.Sleep(3 * time.Second)
+			return nil
+		}
+		time.Sleep(2 * time.Second)
+	}
+	return fmt.Errorf("hawser agent container %q did not reach running state", containerName)
 }
 
 func testAccTailHawserLogs() string {

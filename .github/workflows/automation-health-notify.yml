@@ -2,7 +2,7 @@ name: Automation Health Notify
 
 on:
   schedule:
-    - cron: "45 */6 * * *"
+    - cron: "50 */6 * * *"
   workflow_run:
     workflows:
       - Agent Release Orchestrate

@@ -2,7 +2,7 @@ name: Agent Stall Watchdog
 
 on:
   schedule:
-    - cron: "15 */6 * * *"
+    - cron: "25 */6 * * *"
   workflow_dispatch:
 
 permissions:

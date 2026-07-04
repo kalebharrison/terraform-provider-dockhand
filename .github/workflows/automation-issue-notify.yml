@@ -8,6 +8,7 @@ on:
       - Shell Lint
       - Gitleaks
       - Acceptance Full
+      - Dockhand Release Watch
       - Release Artifacts
       - Agent Validate
     types:
@@ -42,6 +43,7 @@ jobs:
               "Shell Lint",
               "Gitleaks",
               "Acceptance Full",
+              "Dockhand Release Watch",
               "Agent Validate",
             ]);
             const dispatchAgent = agentFixable.has(workflowName);

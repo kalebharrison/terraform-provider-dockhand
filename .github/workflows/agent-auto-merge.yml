@@ -1,8 +1,6 @@
 name: Agent Auto Merge
 
-# Auto-merge enable + linked-issue close run in Agent Open PR (workflow_run
-# context) so they are not blocked by pull_request approval gates. This
-# workflow remains for manual recovery only.
+# Recovery-only: normal agent merges run in Agent PR Approve CI.
 
 on:
   workflow_dispatch:

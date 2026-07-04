@@ -25,8 +25,9 @@ Optional local commands exist only for **debugging** when CI fails.
 3. Implement fix (code, tests, docs, examples, manifest)
 4. Run `./scripts/verify.sh --quality` when convenient (same checks as CI unit gate)
 5. Push — **Agent Validate** + PR **acceptance-ci** run on GitHub runners
-6. **Agent Open PR** → add `agent-auto-merge` when appropriate
-7. Fix failures from **CI logs and artifacts** — not by reproducing on a laptop
+6. **Agent Open PR** → add `agent-auto-merge` when PR sections are filled
+7. **Agent PR Approve CI** → approve blocked checks and squash-merge when ready
+8. Fix failures from **CI logs and artifacts** — not by reproducing on a laptop
 
 See `docs/AGENT_RUNBOOK.md` and `docs/AGENT_CODING_STANDARDS.md`.
 
@@ -39,7 +40,7 @@ See `docs/AGENT_RUNBOOK.md` and `docs/AGENT_CODING_STANDARDS.md`.
 | Agent pre-PR gate | `agent-validate.yml` | `agent/**` pushes + lens log gate |
 | Issue → Cloud Agent dispatch | `issue-agent-intake.yml` | User issues, CI failures, release candidates |
 | Full acceptance + probes | `acceptance-full.yml` | Nightly + `workflow_dispatch` |
-| New Dockhand image detection | `dockhand-release-watch.yml` | Every 6h + **push to `main`** |
+| New Dockhand image detection | `dockhand-release-watch.yml` | Every 6h at `:10` + **push to `main`** |
 | **Committed compatibility baselines** | `compat-reports-sync.yml` | After green full/release-watch runs |
 | **Release lens dispatch** | `agent-release-orchestrate.yml` | After green Release Watch on `main` (not on every `main` push) |
 | **Signed tag + artifacts + housekeeping** | `agent-release-tag.yml` | When lens verdict clears on `main` |

@@ -22,6 +22,7 @@ REQUIRED_WORKFLOWS = (
     "Govulncheck",
     "Workflow Lint",
     "Gitleaks",
+    "Dependency Review",
     "Acceptance Full",
     "Dockhand Release Watch",
 )

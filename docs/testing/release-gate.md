@@ -26,7 +26,7 @@ Programmatic gate: `scripts/release_gate_check.py`
 Before **Agent Release Tag** publishes `vX.Y.Z`:
 
 1. No open `compatibility` issues for the current Dockhand release.
-2. Required workflows green on `main` (Go CI, Govulncheck, Workflow Lint, Gitleaks, Acceptance Full, Dockhand Release Watch).
+2. Required workflows green on `main` (Go CI, Govulncheck, Workflow Lint, Gitleaks, Dependency Review, Acceptance Full, Dockhand Release Watch).
 3. Release Drafter draft exists for `vX.Y.Z` and the tag is not published yet.
 4. At least one `awaiting-release` issue exists (for lens dispatch) **or** the review log already contains **Clear to tag: yes** for `vX.Y.Z`.
 5. `docs/reports/agent-review-log.md` on `main` contains `### Release vX.Y.Z — verdict` with **Clear to tag: yes**.
@@ -47,7 +47,7 @@ Tagging and artifact publish are performed by `.github/workflows/agent-release-t
 ## Release Watch Behavior
 
 - Workflow: `.github/workflows/dockhand-release-watch.yml`
-- Poll cadence: every 6 hours.
+- Poll cadence: every 6 hours at `:10` UTC (staggered from other automation crons).
 - Harness retry: failed acceptance harness runs once automatically before marking the workflow failed.
 - Change detection: compares latest discovered Dockhand `tag` and image `digest` to cached release-watch state (`last_tag`, `last_digest` in Actions cache key `dockhand-release-watch-state`).
 - Only runs full validation when a new tag is discovered, on schedule, or via manual `workflow_dispatch` (not on every `main` push).

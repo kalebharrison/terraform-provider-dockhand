@@ -345,6 +345,11 @@ export DOCKHAND_INSECURE="${DOCKHAND_INSECURE:-false}"
 
 ensure_file_container_running "${file_container_id}" "${existing_id}" "${bootstrap_ctr}"
 
+if [[ -n "${DOCKHAND_TEST_HAWSER_CONTAINER:-}" ]]; then
+  hawser_host="${DOCKHAND_TEST_HAWSER_DOCKER_HOST:-tcp://127.0.0.1:23750}"
+  docker --host "${hawser_host}" rm -f "${DOCKHAND_TEST_HAWSER_CONTAINER}" >/dev/null 2>&1 || true
+fi
+
 echo "Running acceptance tests with regex: ${TEST_REGEX}"
 TEST_JSON="/tmp/acceptance-test-${SUFFIX}.jsonl"
 set +e

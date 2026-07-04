@@ -38,8 +38,8 @@ The workflow:
 After the agent pushes:
 
 1. **Agent Validate** → **Agent Open PR** (prefills **What was fixed** / **User impact** from issue body)
-2. **Agent Approve CI** — approves pending PR workflow runs (no more yellow “Action required” gate)
-3. **Agent Auto Merge** — when checks pass, PR has `agent-auto-merge`, and resolution sections are filled
+2. **Agent PR Approve CI** — approves pending PR checks and squash-merges when `agent-auto-merge` and required checks pass
+3. **Agent Merge Cleanup** — closes linked issues, labels `awaiting-release`, deletes agent branch
 
 ## CI failure → agent bridge
 
@@ -91,7 +91,7 @@ These are intentionally not auto-dispatched (security / blast radius):
 1. **Close linked issues after merge** (`agent-open-pr.yml`) closes issues, labels `awaiting-release`
 2. **Issue Resolution Notify** posts resolution comments on linked issues
 3. **Agent Release Orchestrate** → release lens issue → **Agent Release Tag** when gates pass
-4. **Release Issue Notify** comments with version and upgrade steps
+4. **Agent Release Tag** comments with version and upgrade steps (recovery: **Release Issue Notify** `workflow_dispatch` with `backfill=true`)
 
 See `docs/AGENT_ISSUE_RESPONSE.md` for the full issue communication standard.
 
@@ -105,5 +105,5 @@ Four checks after enabling agent CI on `main`:
 
 1. **CI loop** — branch `agent/issue-0-smoke-test` per `docs/AGENT_DEPLOYMENT.md` (Validate → Open PR; close without merge).
 2. **Issue intake** — open a user-style smoke issue (e.g. `#126`) with done-when criteria; confirm dispatch without `/agent`.
-3. **Fully automated loop** — smoke issue through **Agent Auto Merge** (e.g. `#129`).
+3. **Fully automated loop** — smoke issue through **Agent PR Approve CI** (e.g. `#129`).
 4. **Issue auto-close** — smoke issue through merge plus **Close linked issues after merge** (e.g. `#132`).

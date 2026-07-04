@@ -197,7 +197,7 @@ Full checklists below.
 
 - `.github/workflows/*`
 - `scripts/run-acceptance-harness.sh`, `scripts/verify.sh`
-- Agent workflows: `agent-validate.yml`, `agent-open-pr.yml`, `agent-auto-merge.yml`
+- Agent workflows: `agent-validate.yml`, `agent-open-pr.yml`, `agent-pr-approve-ci.yml`
 
 **Checklist:**
 

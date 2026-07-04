@@ -4,7 +4,7 @@ Living checklist for the agent-management rollout. Update as items complete.
 
 ## Done
 
-- [x] Agent CI: `agent-validate`, `agent-open-pr`, `agent-auto-merge`
+- [x] Agent CI: `agent-validate`, `agent-open-pr`, `agent-pr-approve-ci`
 - [x] Merge `quality-ci` into `go-ci` (shellcheck included)
 - [x] Manifest-driven PR acceptance (`acceptance_pr_ci.json` + script + tests)
 - [x] Manifest operations enforcement in acceptance tests
@@ -48,7 +48,7 @@ Living checklist for the agent-management rollout. Update as items complete.
 | Clear bug + `agent` label + acceptance criteria | **High** | Smoke test proved Validate → Open PR; intake + approve CI wired |
 | Dockhand API / acceptance iteration | **High** | Agent Validate + PR acceptance CI; agent can push fixes until green |
 | Ambiguous / thin issue body | **High (gated)** | Intake skips and comments; editing the issue re-runs intake |
-| Bot-opened PR checks | **High** | `agent-approve-ci.yml` approves `waiting` runs on `agent/**` PRs |
+| Bot-opened PR checks | **High** | `agent-pr-approve-ci.yml` approves `waiting` runs on `agent/**` PRs |
 | Auto merge | **High (gated)** | Requires filled sections + `agent-auto-merge`; proven pattern from smoke |
 
 ## Next
