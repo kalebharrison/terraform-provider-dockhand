@@ -101,21 +101,45 @@ container_runtime_state() {
     | jq -r '.state // .status // empty' 2>/dev/null || true
 }
 
+container_dind_running() {
+  local container_id="$1"
+  local running
+  running="$(docker --host "tcp://127.0.0.1:23750" inspect -f '{{.State.Running}}' "${container_id}" 2>/dev/null || true)"
+  [[ "${running}" == "true" ]]
+}
+
+wait_for_environment_ready() {
+  local env_id="$1"
+  for _ in $(seq 1 90); do
+    local code
+    code="$(curl -sS -b /tmp/dh-cookies.txt -o /tmp/dh-env-test.json -w "%{http_code}" \
+      -X POST "${DOCKHAND_TEST_ENDPOINT}/api/environments/${env_id}/test" || true)"
+    if [[ "${code}" =~ ^2[0-9][0-9]$ ]] && jq -e '.success == true' /tmp/dh-env-test.json >/dev/null 2>&1; then
+      return 0
+    fi
+    sleep 2
+  done
+  echo "Environment ${env_id} did not pass /test before bootstrap" >&2
+  cat /tmp/dh-env-test.json >&2 || true
+  return 1
+}
+
 ensure_file_container_running() {
   local container_id="$1"
   local env_id="$2"
   local label="$3"
-  for _ in $(seq 1 90); do
+  for _ in $(seq 1 120); do
     local ctr_state
     ctr_state="$(container_runtime_state "${container_id}" "${env_id}")"
-    if [[ "${ctr_state}" == "running" ]]; then
+    if [[ "${ctr_state}" == "running" || "${ctr_state}" == "Running" ]] || container_dind_running "${container_id}"; then
       return 0
     fi
     curl -sS -b /tmp/dh-cookies.txt -X POST \
       "${DOCKHAND_TEST_ENDPOINT}/api/containers/${container_id}/start?env=${env_id}" >/dev/null 2>&1 || true
     sleep 2
   done
-  echo "Bootstrap file container ${label} (${container_id}) did not reach running state" >&2
+  echo "Bootstrap file container ${label} (${container_id}) did not reach running state (api_state=$(container_runtime_state "${container_id}" "${env_id}"))" >&2
+  docker --host "tcp://127.0.0.1:23750" inspect "${container_id}" >&2 || true
   return 1
 }
 
@@ -148,6 +172,9 @@ for _ in $(seq 1 90); do
   sleep 2
 done
 docker --host "tcp://127.0.0.1:23750" version >/dev/null
+
+echo "Pre-pulling harness images on DinD"
+docker --host "tcp://127.0.0.1:23750" pull busybox:1.36.1 >/dev/null
 
 echo "Starting Dockhand ${DOCKHAND_CONTAINER} with image ${DOCKHAND_IMAGE}"
 docker run -d --name "${DOCKHAND_CONTAINER}" --network "${NETWORK_NAME}" \
@@ -207,6 +234,8 @@ if [[ -z "${existing_id}" ]]; then
   echo "Failed to resolve ci-dind environment id" >&2
   exit 1
 fi
+
+wait_for_environment_ready "${existing_id}"
 
 stack_adopt_name="tf-acc-adopt-${SUFFIX}"
 curl -sS -b /tmp/dh-cookies.txt \
