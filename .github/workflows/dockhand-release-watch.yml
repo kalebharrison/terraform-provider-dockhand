@@ -113,15 +113,21 @@ jobs:
         run: |
           set -euo pipefail
           main_sha="$(gh api "repos/${GITHUB_REPOSITORY}/commits/main" --jq '.sha')"
-          decision="$(/usr/bin/python3 scripts/release_watch_state.py decide \
-            --tag "${{ steps.pick.outputs.tag }}" \
-            --digest "${{ steps.pick.outputs.digest }}" \
-            --event-name "${{ github.event_name }}" \
-            --main-sha "${main_sha}" \
-            --revalidate-hours "${REVALIDATE_HOURS}" \
-            $([[ "${{ inputs.force_validate }}" == "true" ]] && echo --force-validate) \
-            $([[ -n "${{ inputs.image_tag }}" ]] && echo --manual-image-tag) \
-            --json)"
+          decide_args=(
+            --tag "${{ steps.pick.outputs.tag }}"
+            --digest "${{ steps.pick.outputs.digest }}"
+            --event-name "${{ github.event_name }}"
+            --main-sha "${main_sha}"
+            --revalidate-hours "${REVALIDATE_HOURS}"
+          )
+          if [[ "${{ inputs.force_validate }}" == "true" ]]; then
+            decide_args+=(--force-validate)
+          fi
+          if [[ -n "${{ inputs.image_tag }}" ]]; then
+            decide_args+=(--manual-image-tag)
+          fi
+          decide_args+=(--json)
+          decision="$(/usr/bin/python3 scripts/release_watch_state.py decide "${decide_args[@]}")"
           {
             echo "last_tag=$(jq -r '.last_tag' <<< "${decision}")"
             echo "last_digest=$(jq -r '.last_digest' <<< "${decision}")"
