@@ -84,6 +84,7 @@ No maintainer prompt, manual tag, or laptop required.
 - Agents do not need VPN/home network access to your Dockhand.
 - Cloud Agents do not run DinD locally (`docs/AGENT_DEPLOYMENT.md`).
 - Maintainers are not a release gate — automation is.
+- **Cursor Bugbot** PR comments are disabled for this repo — turn off Bugbot for `terraform-provider-dockhand` at [cursor.com/dashboard/bugbot](https://cursor.com/dashboard/bugbot) so the GitHub app does not post review notifications on agent PRs.
 
 ## Related docs
 
