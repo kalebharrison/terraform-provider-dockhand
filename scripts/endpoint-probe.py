@@ -65,6 +65,8 @@ ENDPOINTS: List[Dict[str, Any]] = [
     {"method": "GET", "path": "/api/settings/scanner", "with_env": True},
     {"method": "POST", "path": "/api/settings/scanner", "with_env": True},
     {"method": "DELETE", "path": "/api/settings/scanner", "with_env": True, "query": {"removeImages": "false"}},
+    {"method": "GET", "path": "/api/settings/scanner/cache", "with_env": True},
+    {"method": "DELETE", "path": "/api/settings/scanner/cache", "with_env": True},
     {"method": "GET", "path": "/api/registries"},
     {"method": "POST", "path": "/api/registries"},
     {"method": "GET", "path": "/api/registries/{id}"},
