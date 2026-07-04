@@ -7,32 +7,56 @@ on:
       - synchronize
       - reopened
       - ready_for_review
+  workflow_run:
+    workflows:
+      - Agent Validate
+    types:
+      - completed
   workflow_dispatch:
     inputs:
       head_sha:
         description: "Commit SHA to approve CI runs for"
         required: true
         type: string
+      pull_number:
+        description: "Optional PR number to enable auto-merge after approval"
+        required: false
+        type: string
 
 permissions:
   actions: write
   contents: read
-  pull-requests: read
+  pull-requests: write
 
 jobs:
   approve:
     name: Approve blocked PR checks
     if: >-
       github.event_name == 'workflow_dispatch' ||
-      startsWith(github.event.pull_request.head.ref, 'agent/')
+      (
+        github.event_name == 'workflow_run' &&
+        github.event.workflow_run.conclusion == 'success' &&
+        startsWith(github.event.workflow_run.head_branch, 'agent/')
+      ) ||
+      (
+        github.event_name == 'pull_request' &&
+        startsWith(github.event.pull_request.head.ref, 'agent/')
+      )
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v7
 
       - name: Approve or re-run blocked workflow runs
+        id: approve
         env:
-          HEAD_SHA: ${{ inputs.head_sha || github.event.pull_request.head.sha }}
+          GH_TOKEN: ${{ github.token }}
+          HEAD_SHA: >-
+            ${{
+              inputs.head_sha ||
+              github.event.workflow_run.head_sha ||
+              github.event.pull_request.head.sha
+            }}
         shell: bash
         run: |
           set -euo pipefail
@@ -46,3 +70,61 @@ jobs:
             echo "Some workflow runs still require approval (${remaining} remaining)." >&2
             exit 1
           fi
+
+      - name: Enable squash auto-merge for agent PR
+        if: >-
+          github.event_name == 'pull_request' ||
+          inputs.pull_number != ''
+        uses: actions/github-script@v9
+        env:
+          PULL_NUMBER: >-
+            ${{
+              inputs.pull_number ||
+              github.event.pull_request.number
+            }}
+        with:
+          script: |
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+            const pullNumber = Number(process.env.PULL_NUMBER);
+            if (!pullNumber) {
+              core.info("No pull number; skipping auto-merge enable.");
+              return;
+            }
+
+            const { data: pr } = await github.rest.pulls.get({
+              owner,
+              repo,
+              pull_number: pullNumber,
+            });
+            if (!pr.head?.ref?.startsWith("agent/")) {
+              core.info("Not an agent branch PR; skipping auto-merge enable.");
+              return;
+            }
+
+            const labels = (pr.labels || []).map((label) =>
+              typeof label === "string" ? label : label.name
+            );
+            if (!labels.includes("agent-auto-merge")) {
+              core.info("PR missing agent-auto-merge label; skipping auto-merge enable.");
+              return;
+            }
+
+            if (pr.merged_at || pr.state !== "open") {
+              core.info("PR is not open; skipping auto-merge enable.");
+              return;
+            }
+
+            try {
+              await github.graphql(
+                `mutation($pullId: ID!) {
+                  enablePullRequestAutoMerge(input: { pullRequestId: $pullId, mergeMethod: SQUASH }) {
+                    pullRequest { autoMergeRequest { enabledAt } }
+                  }
+                }`,
+                { pullId: pr.node_id }
+              );
+              core.info(`Enabled auto-merge for PR #${pullNumber}`);
+            } catch (error) {
+              core.warning(`Could not enable auto-merge for PR #${pullNumber}: ${error.message}`);
+            }
