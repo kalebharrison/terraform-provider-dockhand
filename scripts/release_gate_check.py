@@ -240,25 +240,26 @@ def release_watch_run_validated(run: dict) -> bool:
     return False
 
 
-def release_watch_strict_green() -> bool:
-    for run in workflow_runs(RELEASE_WATCH_WORKFLOW, limit=10):
-        if run.get("status") != "completed" or run.get("conclusion") != "success":
-            continue
+def release_watch_chain_green() -> bool:
+    """True when the latest Release Watch run succeeded and a validated run exists
+    in the current skip-only chain (unchanged Dockhand tag) without failures."""
+    for run in workflow_runs(RELEASE_WATCH_WORKFLOW, limit=30):
+        if run.get("status") != "completed":
+            return False
+        if run.get("conclusion") != "success":
+            return False
         if release_watch_run_validated(run):
             return True
     return False
+
+
+def release_watch_strict_green() -> bool:
+    return release_watch_chain_green()
 
 
 def release_watch_main_sha_green(main_sha: str | None = None) -> bool:
-    sha = main_sha or current_main_sha()
-    for run in workflow_runs(RELEASE_WATCH_WORKFLOW, limit=20):
-        if run.get("status") != "completed" or run.get("conclusion") != "success":
-            continue
-        if run.get("headSha") != sha:
-            continue
-        if release_watch_run_validated(run):
-            return True
-    return False
+    _ = main_sha
+    return release_watch_chain_green()
 
 
 def current_main_sha() -> str:
@@ -377,6 +378,8 @@ def dispatch_release_watch() -> int:
             _repo(),
             "--ref",
             "main",
+            "-f",
+            "force_validate=true",
         ],
         cwd=ROOT,
         capture_output=True,

@@ -8,7 +8,7 @@ Provider releases should only be cut when all of the following pass on `main`:
 4. `Gitleaks`
 5. `dependency-review` (runs on PRs and on each `main` push with explicit base/head refs)
 6. `Acceptance Full` (most recent scheduled/dispatch run)
-7. `Dockhand Release Watch` — **strict** for lens dispatch (latest **validated** run on `main` must succeed); **main SHA** for tag publish (a successful **Validate Provider Against Dockhand Release** job on current `main` HEAD counts; skip-only runs do not satisfy the gate)
+7. `Dockhand Release Watch` — **validated** run in the current skip-only chain (unchanged Dockhand tag) without intervening failures; scheduled runs re-validate every 6h; gate-driven dispatches use `force_validate`
 
 ## Release lens review (automated)
 
@@ -47,10 +47,8 @@ Tagging and artifact publish are performed by `.github/workflows/agent-release-t
 ## Release Watch Behavior
 
 - Workflow: `.github/workflows/dockhand-release-watch.yml`
-- Poll cadence: every 6 hours at `:10` UTC (staggered from other automation crons).
-- Harness retry: failed acceptance harness runs once automatically before marking the workflow failed.
-- Change detection: compares latest discovered Dockhand `tag` and image `digest` to cached release-watch state (`last_tag`, `last_digest` in Actions cache key `dockhand-release-watch-state`).
-- Only runs full validation when a new tag is discovered, on schedule, or via manual `workflow_dispatch` (not on every `main` push).
+- Poll cadence: every 6 hours at `:10` UTC (always runs full validation on schedule).
+- Triggers: `schedule`, `workflow_dispatch` (`force_validate`, optional `image_tag`). Does **not** run on every `main` push (provider-only pushes would otherwise produce skip-only runs).
 - On success, saves state to the Actions cache (no tracking issue). **Compat Reports Sync** commits `docs/reports/dockhand-last-tested.json` for a human-readable last-validated record.
 - Includes docs-reference drift audit from `https://dockhand.pro/manual/#api-reference`.
 - Includes a targeted authenticated private endpoint probe (`GET /api/environments` by default).

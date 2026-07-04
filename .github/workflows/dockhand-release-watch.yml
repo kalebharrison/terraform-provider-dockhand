@@ -1,9 +1,6 @@
 name: Dockhand Release Watch
 
 on:
-  push:
-    branches:
-      - main
   schedule:
     - cron: "10 */6 * * *"
   workflow_dispatch:
@@ -11,6 +8,11 @@ on:
       image_tag:
         description: "Optional Dockhand image tag to test (for example: 0.28.0)."
         required: false
+      force_validate:
+        description: "Run full validation even when Dockhand tag/digest is unchanged."
+        required: false
+        type: boolean
+        default: false
 
 permissions:
   actions: write
@@ -95,7 +97,10 @@ jobs:
           should_run="true"
           reason="new_tag_or_digest"
 
-          if [[ -n "${{ inputs.image_tag }}" ]]; then
+          if [[ "${{ inputs.force_validate }}" == "true" ]]; then
+            should_run="true"
+            reason="gate_required"
+          elif [[ -n "${{ inputs.image_tag }}" ]]; then
             should_run="true"
             reason="manual_override"
           elif [[ -z "${last_tag}" ]]; then
@@ -116,6 +121,11 @@ jobs:
           else
             should_run="false"
             reason="unchanged_tag"
+          fi
+
+          if [[ "${{ github.event_name }}" == "schedule" && "${should_run}" == "false" ]]; then
+            should_run="true"
+            reason="scheduled_revalidate"
           fi
 
           {

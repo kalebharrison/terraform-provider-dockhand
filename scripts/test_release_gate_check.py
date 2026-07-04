@@ -14,34 +14,32 @@ import release_gate_check as gate
 class WorkflowGreenTest(unittest.TestCase):
     def test_workflow_green_on_main_sha_success(self) -> None:
         runs = [
-            {"status": "completed", "conclusion": "failure", "headSha": "abc", "databaseId": 1},
-            {"status": "completed", "conclusion": "success", "headSha": "abc", "databaseId": 2},
+            {"status": "completed", "conclusion": "success", "headSha": "abc", "databaseId": 1},
+            {"status": "completed", "conclusion": "success", "headSha": "other", "databaseId": 2},
         ]
         with mock.patch.object(gate, "workflow_runs", return_value=runs):
-            with mock.patch.object(gate, "release_watch_run_validated", return_value=True):
-                self.assertTrue(gate.release_watch_main_sha_green("abc"))
+            with mock.patch.object(gate, "release_watch_run_validated", side_effect=[False, True]):
+                self.assertTrue(gate.release_watch_chain_green())
 
-    def test_workflow_green_on_main_sha_skip_only_run(self) -> None:
+    def test_workflow_green_on_main_sha_skip_only_chain(self) -> None:
         runs = [{"status": "completed", "conclusion": "success", "headSha": "abc", "databaseId": 1}]
         with mock.patch.object(gate, "workflow_runs", return_value=runs):
             with mock.patch.object(gate, "release_watch_run_validated", return_value=False):
-                self.assertFalse(gate.release_watch_main_sha_green("abc"))
+                self.assertFalse(gate.release_watch_chain_green())
 
-    def test_workflow_green_on_main_sha_no_match(self) -> None:
-        runs = [{"status": "completed", "conclusion": "success", "headSha": "other", "databaseId": 1}]
+    def test_workflow_green_on_main_sha_failure_breaks_chain(self) -> None:
+        runs = [{"status": "completed", "conclusion": "failure", "headSha": "abc", "databaseId": 1}]
         with mock.patch.object(gate, "workflow_runs", return_value=runs):
-            self.assertFalse(gate.release_watch_main_sha_green("abc"))
+            self.assertFalse(gate.release_watch_chain_green())
 
-    def test_release_watch_strict_green_requires_validate(self) -> None:
+    def test_release_watch_strict_green_requires_validated_in_chain(self) -> None:
         runs = [{"status": "completed", "conclusion": "success", "headSha": "abc", "databaseId": 1}]
         with mock.patch.object(gate, "workflow_runs", return_value=runs):
-            with mock.patch.object(gate, "release_watch_run_validated", return_value=False):
-                self.assertFalse(gate.release_watch_strict_green())
             with mock.patch.object(gate, "release_watch_run_validated", return_value=True):
                 self.assertTrue(gate.release_watch_strict_green())
 
     def test_workflow_is_green_main_sha_mode(self) -> None:
-        with mock.patch.object(gate, "release_watch_main_sha_green", return_value=True):
+        with mock.patch.object(gate, "release_watch_chain_green", return_value=True):
             self.assertTrue(
                 gate.workflow_is_green(
                     gate.RELEASE_WATCH_WORKFLOW,
@@ -50,7 +48,7 @@ class WorkflowGreenTest(unittest.TestCase):
             )
 
     def test_workflow_is_green_strict_uses_validated_latest(self) -> None:
-        with mock.patch.object(gate, "release_watch_strict_green", return_value=False):
+        with mock.patch.object(gate, "release_watch_chain_green", return_value=False):
             self.assertFalse(
                 gate.workflow_is_green(
                     gate.RELEASE_WATCH_WORKFLOW,

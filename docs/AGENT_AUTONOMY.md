@@ -40,7 +40,7 @@ See `docs/AGENT_RUNBOOK.md` and `docs/AGENT_CODING_STANDARDS.md`.
 | Agent pre-PR gate | `agent-validate.yml` | `agent/**` pushes + lens log gate |
 | Issue → Cloud Agent dispatch | `issue-agent-intake.yml` | User issues, CI failures, release candidates |
 | Full acceptance + probes | `acceptance-full.yml` | Nightly + `workflow_dispatch` |
-| New Dockhand image detection | `dockhand-release-watch.yml` | Every 6h at `:10` + **push to `main`** |
+| New Dockhand image detection | `dockhand-release-watch.yml` | Every 6h scheduled validate + `force_validate` dispatch |
 | **Committed compatibility baselines** | `compat-reports-sync.yml` | After green full/release-watch runs |
 | **Release lens dispatch** | `agent-release-orchestrate.yml` | After green Release Watch on `main` (not on every `main` push) |
 | **Signed tag + artifacts + housekeeping** | `agent-release-tag.yml` | When lens verdict clears on `main` |
