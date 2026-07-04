@@ -331,6 +331,12 @@ func TestAccJobDataSourceTerraform(t *testing.T) {
 	endpoint, username, password := testAccEnv(t)
 	defaultEnv := testAccDefaultEnv()
 
+	suffix := strings.ToLower(time.Now().UTC().Format("20060102150405"))
+	targetName := strings.TrimSpace(os.Getenv("DOCKHAND_TEST_BOOTSTRAP_CONTAINER_NAME"))
+	if targetName == "" {
+		targetName = "tf-acc-job-fixture-" + suffix
+	}
+
 	sessionCookie, err := testAccLoginSessionCookieForDestroy(endpoint, username, password)
 	if err != nil {
 		t.Fatalf("login for job data source fixture: %v", err)
@@ -340,8 +346,7 @@ func TestAccJobDataSourceTerraform(t *testing.T) {
 		t.Fatalf("new client for job data source fixture: %v", err)
 	}
 
-	suffix := strings.ToLower(time.Now().UTC().Format("20060102150405"))
-	submitted, _, err := client.SubmitBatch(context.Background(), defaultEnv, "containers", "restart", []string{"tf-acc-job-fixture-" + suffix})
+	submitted, _, err := client.SubmitBatch(context.Background(), defaultEnv, "containers", "restart", []string{targetName})
 	if err != nil {
 		t.Fatalf("submit batch fixture: %v", err)
 	}

@@ -296,6 +296,7 @@ if [[ -n "${api_container_id}" ]]; then
 fi
 export DOCKHAND_TEST_FILE_CONTAINER_ID="${file_container_id}"
 export DOCKHAND_TEST_FILE_CONTAINER_ENV_ID="${existing_id}"
+export DOCKHAND_TEST_BOOTSTRAP_CONTAINER_NAME="${bootstrap_ctr}"
 
 registry_payload="$(jq -nc --arg url "http://registry:5000" --arg name "ci-catalog-${SUFFIX}" \
   '{name:$name,url:$url,isDefault:false}')"
@@ -332,8 +333,11 @@ if [[ -n "${git_repo_id}" ]]; then
   git_stack_id="$(jq -r '.id // empty' /tmp/dh-bootstrap-git-stack.json)"
   if [[ -n "${git_stack_id}" ]]; then
     export DOCKHAND_TEST_GIT_STACK_ID="${git_stack_id}"
+    curl -sS -b /tmp/dh-cookies.txt -X POST \
+      "${DOCKHAND_TEST_ENDPOINT}/api/git/stacks/${git_stack_id}/deploy-stream?env=${existing_id}" \
+      -o /tmp/dh-bootstrap-git-stack-deploy.txt >/dev/null 2>&1 || true
     env_path=""
-    for _ in $(seq 1 45); do
+    for _ in $(seq 1 90); do
       curl -sS -b /tmp/dh-cookies.txt \
         "${DOCKHAND_TEST_ENDPOINT}/api/git/stacks/${git_stack_id}/env-files" >/tmp/dh-env-files.json || true
       env_path="$(jq -r '.files[]? | select(. == ".env") // empty' /tmp/dh-env-files.json | head -n 1)"
