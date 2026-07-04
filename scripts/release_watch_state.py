@@ -133,10 +133,10 @@ def decide_should_run(
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--json", action="store_true")
     sub = parser.add_subparsers(dest="cmd", required=True)
 
     decide = sub.add_parser("decide", help="Return should_run decision as JSON")
+    decide.add_argument("--json", action="store_true")
     decide.add_argument("--tag", required=True)
     decide.add_argument("--digest", default="")
     decide.add_argument("--event-name", default="workflow_dispatch")
