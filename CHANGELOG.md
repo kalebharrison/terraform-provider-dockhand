@@ -9,6 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- _Nothing yet._
+
+## [0.1.86] - 2026-07-04
+
+### Added
+
 - `docs/AGENT_CODING_STANDARDS.md` — canonical engineering practices for agent and human contributors.
 - `docs/AGENT_INTAKE.md` — how issues enter the autonomous agent loop.
 - Split `internal/provider/client.go` into domain-focused `client_*.go` files for maintainability.

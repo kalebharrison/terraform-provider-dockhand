@@ -42,7 +42,9 @@ def get_release_by_tag(tag: str) -> dict:
 
 
 def latest_published_release() -> dict | None:
-    data = _gh_json(["release", "list", "--repo", _repo(), "--limit", "10", "--json", "tagName,isDraft,isPrerelease,body,url"])
+    data = _gh_json(
+        ["release", "list", "--repo", _repo(), "--limit", "10", "--json", "tagName,isDraft,isPrerelease"]
+    )
     if not isinstance(data, list):
         return None
     for item in data:
@@ -52,7 +54,7 @@ def latest_published_release() -> dict | None:
             continue
         tag = str(item.get("tagName") or "").strip()
         if tag.startswith("v"):
-            return item
+            return get_release_by_tag(tag)
     return None
 
 
