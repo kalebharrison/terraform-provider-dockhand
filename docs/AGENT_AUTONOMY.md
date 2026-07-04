@@ -41,14 +41,14 @@ See `docs/AGENT_RUNBOOK.md` and `docs/AGENT_CODING_STANDARDS.md`.
 | Full acceptance + probes | `acceptance-full.yml` | Nightly + `workflow_dispatch` |
 | New Dockhand image detection | `dockhand-release-watch.yml` | Every 6h + **push to `main`** |
 | **Committed compatibility baselines** | `compat-reports-sync.yml` | After green full/release-watch runs |
-| **Release lens dispatch** | `agent-release-orchestrate.yml` | When release gate + awaiting-release issues |
-| **Signed tag publish** | `agent-release-tag.yml` | When lens verdict clears on `main` |
+| **Release lens dispatch** | `agent-release-orchestrate.yml` | After green Release Watch on `main` (not on every `main` push) |
+| **Signed tag + artifacts + housekeeping** | `agent-release-tag.yml` | When lens verdict clears on `main` |
 | **Automation health alert** | `automation-health-notify.yml` | Opens tracker issue when release gate blockers persist ≥24h |
 | **Agent stall watchdog** | `agent-stall-watchdog.yml` | Re-dispatches when Cloud Agent progress stalls ≥24h |
 | **Dependabot auto-merge** | `dependabot-auto-merge.yml` | Enables squash auto-merge for Dependabot PRs |
-| **Secret smoke** | `secret-smoke.yml` | Weekly check for `CURSOR_API_KEY` and `GPG_PRIVATE_KEY` |
+| **Secret smoke** | `secret-smoke.yml` | Weekly: secrets, Actions settings, disable Bugbot via API |
 | Dependency vulnerabilities | `govulncheck.yml` | Weekly + PR |
-| Release zips | `release-artifacts.yml` | On `v*` tag (GPG in repo secrets) |
+| Release zips | `release-artifacts.yml` | GPG-signed checksums + GitHub artifact attestations |
 
 ### Compatibility reports (no local refresh)
 
@@ -64,11 +64,11 @@ PRs are labeled `agent` + `agent-auto-merge` so they merge without a human.
 
 1. Fixes merge to `main`; **Issue Resolution Notify** labels linked issues `awaiting-release`.
 2. **Release Drafter** maintains the next draft version on each `main` push.
-3. **Agent Release Orchestrate** opens `release: prepare vX.Y.Z` when `scripts/release_gate_check.py --mode lens` passes.
+3. **Agent Release Orchestrate** opens `release: prepare vX.Y.Z` when `scripts/release_gate_check.py --mode lens` passes (after a successful **Dockhand Release Watch** on `main`, on schedule, or via manual dispatch).
 4. **Issue Agent Intake** dispatches a Cloud Agent with the release-tier lens set.
 5. Agent appends lens sweeps + `### Release vX.Y.Z — verdict` with **Clear to tag: yes** to `docs/reports/agent-review-log.md` and merges via the normal agent PR loop.
-6. **Agent Release Tag** publishes the signed `vX.Y.Z` tag when `scripts/release_gate_check.py --mode tag` passes.
-7. **Release Artifacts** + **Release Issue Notify** run on the new tag.
+6. **Agent Release Tag** runs the full release pipeline when `scripts/release_gate_check.py --mode tag` passes: ensure Release Watch green, **Release Artifacts** (GPG-signed checksums + attestations), label `awaiting-release` issues, cut `CHANGELOG.md`.
+7. Tag push still triggers **Release Artifacts** and **Release Issue Notify** for manual or out-of-band releases.
 
 No maintainer prompt, manual tag, or laptop required.
 
@@ -84,7 +84,7 @@ No maintainer prompt, manual tag, or laptop required.
 - Agents do not need VPN/home network access to your Dockhand.
 - Cloud Agents do not run DinD locally (`docs/AGENT_DEPLOYMENT.md`).
 - Maintainers are not a release gate — automation is.
-- **Cursor Bugbot** PR comments are disabled for this repo — turn off Bugbot for `terraform-provider-dockhand` at [cursor.com/dashboard/bugbot](https://cursor.com/dashboard/bugbot) so the GitHub app does not post review notifications on agent PRs.
+- **Cursor Bugbot** PR comments are disabled automatically — **Secret Smoke** calls `scripts/cursor_bugbot_settings.py --disable` weekly when `CURSOR_API_KEY` is configured. You can also turn off Bugbot manually at [cursor.com/dashboard/bugbot](https://cursor.com/dashboard/bugbot).
 
 ## Related docs
 

@@ -23,9 +23,10 @@ This checklist is for preparing a public release path for Terraform Registry and
 3. GitHub Actions signing setup
 - Add repository secret `GPG_PRIVATE_KEY`:
   - ASCII-armored private key for the signing identity.
-- Add repository secret `GPG_PASSPHRASE`:
+- Add repository secret `GPG_PASSPHRASE` (optional if the key has no passphrase):
   - Passphrase for the private key.
 - Keep the matching public key available for Terraform Registry onboarding.
+- **Agent Release Tag** creates the GitHub release via `gh release create` (no GPG-signed git tag). GPG is used only in **Release Artifacts** to sign `SHA256SUMS` for Terraform Registry. Build provenance uses GitHub artifact attestations (Sigstore, no extra secrets).
 
 4. Provider documentation completeness
 - Keep `docs/index.md` resource/data source list current.

@@ -23,7 +23,7 @@ Each lens lists **Does not cover** to avoid overlap with other lenses.
 
 ### Before every `v*` release (automated)
 
-When **Agent Release Orchestrate** opens `release: prepare vX.Y.Z`, **Issue Agent Intake** assigns the release-tier lens set (core 5 or all 11). The Cloud Agent must log sweeps and a **Clear to tag** verdict; **Agent Release Tag** publishes the signed tag when the verdict clears.
+When **Agent Release Orchestrate** opens `release: prepare vX.Y.Z`, **Issue Agent Intake** assigns the release-tier lens set (core 5 or all 11). The Cloud Agent must log sweeps and a **Clear to tag** verdict; **Agent Release Tag** publishes the GitHub release when the verdict clears.
 
 **Do not** run lenses on a timer or `/loop`.
 

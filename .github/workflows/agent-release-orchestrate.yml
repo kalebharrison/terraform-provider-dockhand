@@ -1,19 +1,13 @@
 name: Agent Release Orchestrate
 
 on:
-  push:
-    branches:
-      - main
   workflow_run:
     workflows:
-      - Release Drafter
-      - Go CI
-      - Acceptance Full
       - Dockhand Release Watch
     types:
       - completed
   schedule:
-    - cron: "0 9 * * *"
+    - cron: "17 */6 * * *"
   workflow_dispatch:
 
 permissions:
@@ -25,7 +19,6 @@ jobs:
   dispatch-release-lens:
     name: Open release lens issue when gate is ready
     if: >-
-      github.event_name == 'push' ||
       github.event_name == 'schedule' ||
       github.event_name == 'workflow_dispatch' ||
       (
@@ -76,6 +69,14 @@ jobs:
             const awaiting = process.env.AWAITING || "";
             const title = `release: prepare v${version}`;
 
+            const existing = await github.rest.search.issuesAndPullRequests({
+              q: `repo:${owner}/${repo} is:issue is:open in:title "${title}"`,
+            });
+            if (existing.data.total_count > 0) {
+              core.info(`Release lens issue already open: #${existing.data.items[0].number}`);
+              return;
+            }
+
             const ensureLabel = async (name, color, description) => {
               try {
                 await github.rest.issues.getLabel({ owner, repo, name });
@@ -98,7 +99,7 @@ jobs:
               `- Complete release-tier lens review per \`docs/testing/release-lens-review.md\` (**${tier}** tier)`,
               `- Append \`### Release v${version} — verdict\` with **Clear to tag: yes** to \`docs/reports/agent-review-log.md\` when all required lenses pass`,
               "- No unresolved **high** severity findings remain",
-              "- Push the agent branch and let **Agent Release Tag** publish the signed tag after merge",
+              "- Push the agent branch and let **Agent Release Tag** publish the GitHub release after merge",
               "",
               "## Context",
               `- Tier: ${tier}`,

@@ -8,11 +8,11 @@ Provider releases should only be cut when all of the following pass on `main`:
 4. `Gitleaks`
 5. `dependency-review`
 6. `Acceptance Full` (most recent scheduled/dispatch run)
-7. `Dockhand Release Watch` (most recent run)
+7. `Dockhand Release Watch` — **strict** for lens dispatch (latest run on `main` must succeed); **main SHA** for tag publish (any successful run on current `main` HEAD counts, even if a later run failed)
 
 ## Release lens review (automated)
 
-**Agent Release Orchestrate** opens a `release: prepare vX.Y.Z` issue when CI gates pass and fixes are `awaiting-release`. **Issue Agent Intake** dispatches a Cloud Agent with the release-tier lens set per `docs/testing/release-lens-review.md`. **Agent Release Tag** publishes the signed tag when `docs/reports/agent-review-log.md` contains **Clear to tag: yes** for that version.
+**Agent Release Orchestrate** opens a `release: prepare vX.Y.Z` issue when CI gates pass and fixes are `awaiting-release`. It runs after a successful **Dockhand Release Watch** on `main`, on schedule, or via manual dispatch (not on every `main` push or Release Drafter alone). **Issue Agent Intake** dispatches a Cloud Agent with the release-tier lens set per `docs/testing/release-lens-review.md`. **Agent Release Tag** is the single release completion workflow: ensure Release Watch green → **Release Artifacts** (GPG-signed checksums for Terraform Registry + GitHub artifact attestations) → label `awaiting-release` issues and cut `CHANGELOG.md`.
 
 Do not tag while **high** severity findings are open in the release verdict.
 
@@ -20,8 +20,8 @@ Do not tag while **high** severity findings are open in the release verdict.
 
 Programmatic gate: `scripts/release_gate_check.py`
 
-- `--mode lens` — ready to open `release: prepare vX.Y.Z` for automated lens review
-- `--mode tag` — ready for **Agent Release Tag** to publish the signed tag
+- `--mode lens` — ready to open `release: prepare vX.Y.Z` for automated lens review (Release Watch: latest run strict)
+- `--mode tag` — ready for **Agent Release Tag** to publish the GitHub release (Release Watch: success on current `main` SHA)
 
 Before **Agent Release Tag** publishes `vX.Y.Z`:
 
@@ -31,18 +31,23 @@ Before **Agent Release Tag** publishes `vX.Y.Z`:
 4. At least one `awaiting-release` issue exists (for lens dispatch) **or** the review log already contains **Clear to tag: yes** for `vX.Y.Z`.
 5. `docs/reports/agent-review-log.md` on `main` contains `### Release vX.Y.Z — verdict` with **Clear to tag: yes**.
 
-Tagging is performed by `.github/workflows/agent-release-tag.yml` (signed GPG tag in Actions). **Release Artifacts** runs on tag push.
+Tagging and artifact publish are performed by `.github/workflows/agent-release-tag.yml`:
+
+1. `scripts/ensure_release_watch_green.py` dispatches Release Watch when needed (with one retry in CI).
+2. **Release Artifacts** builds zips, signs `SHA256SUMS` with GPG (Terraform Registry), attaches GitHub artifact attestations, and creates the GitHub release with `gh release create --target main`.
+3. `scripts/release_housekeeping.py` labels all open `awaiting-release` issues `released` and cuts `CHANGELOG.md`.
 
 ## Why This Gate Exists
 
 - Prevents publishing provider releases that regress on current Dockhand.
 - Enforces parity between provider surface area and acceptance coverage metadata.
-- Improves supply-chain confidence through signed tags and release provenance.
+- Improves supply-chain confidence through GPG-signed Terraform Registry checksums and GitHub artifact attestations.
 
 ## Release Watch Behavior
 
 - Workflow: `.github/workflows/dockhand-release-watch.yml`
 - Poll cadence: every 6 hours.
+- Harness retry: failed acceptance harness runs once automatically before marking the workflow failed.
 - Change detection: compares latest discovered Dockhand `tag` and image `digest` to cached release-watch state (`last_tag`, `last_digest` in Actions cache key `dockhand-release-watch-state`).
 - Only runs full validation when a new tag is discovered (or manual override via `workflow_dispatch` input).
 - On success, saves state to the Actions cache (no tracking issue). **Compat Reports Sync** commits `docs/reports/dockhand-last-tested.json` for a human-readable last-validated record.

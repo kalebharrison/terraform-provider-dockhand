@@ -165,7 +165,7 @@ Dockhand-dependent validation (acceptance, endpoint probe, drift audits) runs on
 
 Release validation uses CI artifacts, not a maintainer laptop:
 
-- Tag `vX.Y.Z` → **Release Artifacts** workflow publishes signed zips (repo `GPG_*` secrets).
+- **Agent Release Tag** → **Release Artifacts** publishes GPG-signed checksums and zips (`GPG_*` secrets) plus GitHub artifact attestations.
 - **Acceptance Full** and **Dockhand Release Watch** validate against ephemeral Dockhand on GitHub runners.
 - **Compat Reports Sync** keeps `docs/reports/` current.
 

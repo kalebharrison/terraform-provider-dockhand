@@ -96,7 +96,7 @@ If the new acceptance suite should run on PRs, add the exact `TestAcc...` functi
 | `acceptance-full.yml` | nightly | Full `TestAcc` + drift audits |
 | `dockhand-release-watch.yml` | every 6h | New Dockhand image compatibility |
 | `agent-release-orchestrate.yml` | after Release Drafter / main CI | Opens release lens issue when gate passes |
-| `agent-release-tag.yml` | review log on `main` / schedule | Publishes signed tag when verdict clears |
+| `agent-release-tag.yml` | review log on `main` / schedule | Publishes GitHub release when verdict clears |
 | `compat-reports-sync.yml` | after full/release-watch success | PR to refresh `docs/reports/` baselines |
 | `issue-resolution-notify.yml` | fix PR merged | Substantive comment on linked issues |
 | `issue-regression-intake.yml` | comment on closed issue | Reopen + `regression` when fix failed |
@@ -112,7 +112,7 @@ If the new acceptance suite should run on PRs, add the exact `TestAcc...` functi
 ## Never
 
 - Commit secrets, `.env`, Terraform state, or local override files
-- Do not merge or tag releases manually — **Agent Release Tag** publishes signed tags when the automated release lens verdict clears
+- Do not merge or tag releases manually — **Agent Release Tag** publishes GitHub releases when the automated release lens verdict clears
 - Use bare `TestAcc` manifest mappings
 - Bypass manifest/docs/examples parity
 

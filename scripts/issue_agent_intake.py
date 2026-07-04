@@ -69,7 +69,7 @@ def build_prompt(
 1. Complete the release-tier lens set in `docs/reports/agent-review-log.md`
 2. Append `### Release v{release_version or "X.Y.Z"} — verdict` with **Clear to tag: yes** when all required lenses pass with no unresolved **high** findings
 3. Push branch `{branch}` — **Agent Validate** and **Agent Open PR** run automatically
-4. **Agent Release Tag** publishes the signed tag after the verdict merges to `main` — do not tag manually"""
+4. **Agent Release Tag** publishes the GitHub release after the verdict merges to `main` — do not tag manually"""
     else:
         done_when = f"""## Done when
 1. Required lens sweep sections are appended to `docs/reports/agent-review-log.md`

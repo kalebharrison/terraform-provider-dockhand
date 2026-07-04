@@ -12,19 +12,36 @@ on:
 
 permissions:
   contents: write
+  issues: write
+  actions: write
 
 jobs:
-  publish-tag:
-    name: Publish signed release tag when lens verdict clears
+  prepare-release-watch:
+    name: Ensure Release Watch green on main
     runs-on: ubuntu-latest
-    env:
-      GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
-      HAS_GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE != '' }}
     steps:
       - name: Checkout
         uses: actions/checkout@v7
-        with:
-          fetch-depth: 0
+
+      - name: Ensure Dockhand Release Watch succeeded on main
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          /usr/bin/python3 scripts/ensure_release_watch_green.py --retries 1 --json
+
+  evaluate-release:
+    name: Evaluate release gate when lens verdict clears
+    needs: prepare-release-watch
+    runs-on: ubuntu-latest
+    outputs:
+      ready: ${{ steps.gate.outputs.ready }}
+      version: ${{ steps.gate.outputs.version }}
+      tag: ${{ steps.gate.outputs.tag }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
 
       - name: Evaluate release gate for tagging
         id: gate
@@ -44,58 +61,51 @@ jobs:
             echo "version=$(jq -r '.version' /tmp/release-gate.json)"
           } >> "${GITHUB_OUTPUT}"
 
-      - name: Verify signing secrets are present
-        if: steps.gate.outputs.ready == 'true'
-        shell: bash
-        run: |
-          set -euo pipefail
-          if [[ -z "${{ secrets.GPG_PRIVATE_KEY }}" ]]; then
-            echo "Missing secret: GPG_PRIVATE_KEY" >&2
-            exit 2
-          fi
+  publish-artifacts:
+    name: Build and publish release artifacts
+    needs: evaluate-release
+    if: needs.evaluate-release.outputs.ready == 'true'
+    uses: ./.github/workflows/release-artifacts.yml
+    with:
+      version: ${{ needs.evaluate-release.outputs.version }}
+    secrets: inherit
 
-      - name: Import GPG key
-        if: steps.gate.outputs.ready == 'true'
-        id: import_gpg
-        uses: crazy-max/ghaction-import-gpg@v7
+  housekeeping:
+    name: Close lens issue, label released issues, cut CHANGELOG
+    needs: [evaluate-release, publish-artifacts]
+    if: needs.evaluate-release.outputs.ready == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
         with:
-          gpg_private_key: ${{ secrets.GPG_PRIVATE_KEY }}
-          passphrase: ${{ secrets.GPG_PASSPHRASE }}
-          git_user_signingkey: true
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Create and push signed tag
-        if: steps.gate.outputs.ready == 'true'
+      - name: Resolve release URL
+        id: release
         env:
-          TAG: ${{ steps.gate.outputs.tag }}
-          VERSION: ${{ steps.gate.outputs.version }}
-          GPG_NAME: ${{ steps.import_gpg.outputs.name }}
-          GPG_EMAIL: ${{ steps.import_gpg.outputs.email }}
-          GPG_FINGERPRINT: ${{ steps.import_gpg.outputs.fingerprint }}
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ needs.evaluate-release.outputs.tag }}
         shell: bash
         run: |
           set -euo pipefail
-          git config user.name "${GPG_NAME}"
-          git config user.email "${GPG_EMAIL}"
-          git config user.signingkey "${GPG_FINGERPRINT}"
-          if git rev-parse "${TAG}" >/dev/null 2>&1; then
-            echo "Tag ${TAG} already exists locally."
-            exit 0
-          fi
-          git tag -s "${TAG}" -m "Release ${TAG}"
-          git push origin "${TAG}"
+          url="$(gh release view "${TAG}" --repo "${GITHUB_REPOSITORY}" --json url -q .url)"
+          echo "url=${url}" >> "${GITHUB_OUTPUT}"
 
       - name: Close release lens issue
-        if: steps.gate.outputs.ready == 'true'
         uses: actions/github-script@v9
         env:
-          VERSION: ${{ steps.gate.outputs.version }}
-          TAG: ${{ steps.gate.outputs.tag }}
+          VERSION: ${{ needs.evaluate-release.outputs.version }}
+          TAG: ${{ needs.evaluate-release.outputs.tag }}
+          RELEASE_URL: ${{ steps.release.outputs.url }}
         with:
           script: |
             const owner = context.repo.owner;
             const repo = context.repo.repo;
             const version = process.env.VERSION;
             const tag = process.env.TAG;
+            const releaseUrl = process.env.RELEASE_URL || "";
             const search = await github.rest.search.issuesAndPullRequests({
               q: `repo:${owner}/${repo} is:issue is:open in:title "release: prepare v${version}"`,
             });
@@ -109,15 +119,16 @@ jobs:
               repo,
               issue_number: issue.number,
               body: [
-                `## Released automatically`,
+                "## Released automatically",
                 "",
-                `Signed tag \`${tag}\` was published by **Agent Release Tag**.`,
+                `GitHub release \`${tag}\` was published by **Agent Release Tag**.`,
+                releaseUrl ? `Release: ${releaseUrl}` : "",
                 "",
-                "Release Artifacts and Release Issue Notify will run automatically.",
+                "Artifacts are GPG-signed for Terraform Registry; build provenance is attached via GitHub artifact attestations.",
                 "",
                 "---",
                 "_Posted by Agent Release Tag._",
-              ].join("\n"),
+              ].filter(Boolean).join("\n"),
             });
             await github.rest.issues.update({
               owner,
@@ -125,3 +136,18 @@ jobs:
               issue_number: issue.number,
               state: "closed",
             });
+
+      - name: Label awaiting-release issues and cut CHANGELOG
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ needs.evaluate-release.outputs.version }}
+          RELEASE_URL: ${{ steps.release.outputs.url }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          /usr/bin/python3 scripts/release_housekeeping.py \
+            --version "${VERSION}" \
+            --release-url "${RELEASE_URL}" \
+            --cut-changelog \
+            --commit-changelog \
+            --json

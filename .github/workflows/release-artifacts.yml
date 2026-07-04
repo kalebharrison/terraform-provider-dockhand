@@ -1,6 +1,12 @@
 name: Release Artifacts
 
 on:
+  workflow_call:
+    inputs:
+      version:
+        description: "Release version (e.g. 0.1.85)"
+        required: true
+        type: string
   push:
     tags:
       - "v*"
@@ -14,6 +20,10 @@ permissions:
   contents: write
   id-token: write
   attestations: write
+
+concurrency:
+  group: release-artifacts-${{ inputs.version || github.event.inputs.version || github.ref }}
+  cancel-in-progress: false
 
 env:
   SYFT_VERSION: v1.42.2
@@ -46,6 +56,9 @@ jobs:
           set -euo pipefail
           if [[ -n "${{ inputs.version }}" ]]; then
             v="${{ inputs.version }}"
+            v="${v#v}"
+          elif [[ -n "${{ github.event.inputs.version }}" ]]; then
+            v="${{ github.event.inputs.version }}"
             v="${v#v}"
           else
             # refs/tags/vX.Y.Z -> X.Y.Z
@@ -121,7 +134,7 @@ jobs:
           fi
 
       - name: Attest build provenance
-        uses: actions/attest-build-provenance@v4
+        uses: actions/attest-build-provenance@v4.1.0
         with:
           subject-path: |
             dist-local/terraform-provider-dockhand_${{ steps.ver.outputs.version }}_*.zip
@@ -152,6 +165,7 @@ jobs:
           else
             gh release create "${tag}" "${files[@]}" \
               --title "${tag}" \
+              --target main \
               --generate-notes
           fi
 

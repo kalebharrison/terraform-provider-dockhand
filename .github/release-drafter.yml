@@ -7,34 +7,35 @@ template: |
 
 categories:
   - title: "Features"
-    labels:
-      - "enhancement"
-      - "feature"
+    semver-increment: minor
+    when:
+      labels:
+        - "enhancement"
+        - "feature"
   - title: "Fixes"
-    labels:
-      - "bug"
-      - "fix"
+    when:
+      labels:
+        - "bug"
+        - "fix"
   - title: "Maintenance"
-    labels:
-      - "chore"
-      - "dependencies"
+    when:
+      labels:
+        - "chore"
+        - "dependencies"
+  - type: version-resolver
+    semver-increment: major
+    when:
+      label: "major"
+  - type: version-resolver
+    semver-increment: patch
+    when:
+      labels:
+        - "bug"
+        - "fix"
+        - "chore"
+        - "dependencies"
+  - type: version-resolver
+    semver-increment: patch
 
 change-template: "- $TITLE (#$NUMBER) @$AUTHOR"
 no-changes-template: "- No user-facing changes in this release."
-
-version-resolver:
-  major:
-    labels:
-      - "major"
-  minor:
-    labels:
-      - "enhancement"
-      - "feature"
-  patch:
-    labels:
-      - "bug"
-      - "fix"
-      - "chore"
-      - "dependencies"
-  default: patch
-

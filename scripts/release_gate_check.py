@@ -25,6 +25,8 @@ REQUIRED_WORKFLOWS = (
     "Dockhand Release Watch",
 )
 
+RELEASE_WATCH_WORKFLOW = "Dockhand Release Watch"
+
 
 @dataclass
 class GateResult:
@@ -180,7 +182,7 @@ def awaiting_release_issues() -> list[int]:
     return numbers
 
 
-def workflow_green(name: str) -> bool:
+def workflow_runs(name: str, *, limit: int = 15) -> list[dict]:
     data = _gh_json(
         [
             "run",
@@ -190,15 +192,59 @@ def workflow_green(name: str) -> bool:
             "--branch",
             "main",
             "--limit",
-            "1",
+            str(limit),
             "--json",
-            "conclusion,status",
+            "conclusion,status,headSha,createdAt",
         ]
     )
-    if not isinstance(data, list) or not data:
+    if not isinstance(data, list):
+        return []
+    return [item for item in data if isinstance(item, dict)]
+
+
+def current_main_sha() -> str:
+    proc = subprocess.run(
+        ["gh", "api", f"repos/{_repo()}/commits/main", "--jq", ".sha"],
+        cwd=ROOT,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if proc.returncode != 0:
+        raise RuntimeError(proc.stderr.strip() or proc.stdout.strip() or "failed to resolve main SHA")
+    sha = proc.stdout.strip()
+    if not sha:
+        raise RuntimeError("empty main SHA")
+    return sha
+
+
+def workflow_green(name: str) -> bool:
+    data = workflow_runs(name, limit=1)
+    if not data:
         return False
     run = data[0]
     return run.get("status") == "completed" and run.get("conclusion") == "success"
+
+
+def workflow_green_on_main_sha(name: str, main_sha: str | None = None) -> bool:
+    sha = main_sha or current_main_sha()
+    for run in workflow_runs(name, limit=20):
+        if run.get("status") != "completed":
+            continue
+        if run.get("headSha") != sha:
+            continue
+        if run.get("conclusion") == "success":
+            return True
+    return False
+
+
+def workflow_is_green(name: str, *, release_watch_mode: str = "strict") -> bool:
+    if name == RELEASE_WATCH_WORKFLOW and release_watch_mode == "main_sha":
+        try:
+            return workflow_green_on_main_sha(name)
+        except RuntimeError:
+            return False
+    return workflow_green(name)
 
 
 def find_open_release_issue(version: str) -> int | None:
@@ -209,13 +255,17 @@ def find_open_release_issue(version: str) -> int | None:
     return None
 
 
-def evaluate_gate() -> GateResult:
+def evaluate_gate(*, release_watch_mode: str = "strict") -> GateResult:
     result = GateResult()
 
     for issue_number in open_compatibility_issues():
         result.blockers.append(f"open compatibility issue #{issue_number}")
 
-    workflow_failures = [name for name in REQUIRED_WORKFLOWS if not workflow_green(name)]
+    workflow_failures = [
+        name
+        for name in REQUIRED_WORKFLOWS
+        if not workflow_is_green(name, release_watch_mode=release_watch_mode)
+    ]
     for name in workflow_failures:
         result.blockers.append(f"workflow not green on main: {name}")
 
@@ -258,7 +308,8 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
 
     try:
-        result = evaluate_gate()
+        release_watch_mode = "main_sha" if args.mode == "tag" else "strict"
+        result = evaluate_gate(release_watch_mode=release_watch_mode)
     except RuntimeError as err:
         print(str(err), file=sys.stderr)
         return 2

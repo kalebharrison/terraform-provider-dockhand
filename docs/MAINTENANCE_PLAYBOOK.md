@@ -90,16 +90,13 @@ For release candidate `X.Y.Z`:
 
 1. Merge to `main`; confirm CI release gates in `docs/testing/release-gate.md`.
 2. Agent runs full lens review (`docs/testing/release-lens-review.md`); log **clear to tag** in `docs/reports/agent-review-log.md`.
-3. Tag and push:
+3. **Agent Release Tag** publishes the GitHub release when the lens verdict is on `main` (or dispatch it manually). Do not tag manually unless debugging.
 
 ```bash
-git checkout main
-git pull origin main
-git tag -s vX.Y.Z -m "Release vX.Y.Z"
-git push origin vX.Y.Z
+gh workflow run agent-release-tag.yml --ref main
 ```
 
-4. Wait for `.github/workflows/release-artifacts.yml` completion.
+4. Wait for **Agent Release Tag** → **Release Artifacts** to complete (GPG-signed checksums + artifact attestations).
 5. Confirm latest **Acceptance Full** and **Dockhand Release Watch** runs are green; **Compat Reports Sync** baseline PR merged or unchanged.
 
 Optional staging check against a long-lived Dockhand (not a release gate):

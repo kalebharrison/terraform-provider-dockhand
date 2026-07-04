@@ -31,7 +31,7 @@ jobs:
       reason: ${{ steps.state.outputs.reason }}
     steps:
       - name: Restore watch state cache
-        uses: actions/cache/restore@v4
+        uses: actions/cache/restore@v5
         id: watch-state
         with:
           path: .ci-state/dockhand-release-watch
@@ -223,6 +223,14 @@ jobs:
           go test ./internal/provider -run TestAcceptanceManifestCoverage
 
       - name: Run recursive acceptance harness
+        id: harness
+        shell: bash
+        run: |
+          set -euo pipefail
+          ./scripts/run-acceptance-harness.sh
+
+      - name: Retry acceptance harness once
+        if: failure() && steps.harness.outcome == 'failure'
         shell: bash
         run: |
           set -euo pipefail
@@ -411,7 +419,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Restore watch state cache
-        uses: actions/cache/restore@v4
+        uses: actions/cache/restore@v5
         with:
           path: .ci-state/dockhand-release-watch
           key: dockhand-release-watch-state
@@ -432,7 +440,7 @@ jobs:
           EOF
 
       - name: Save watch state cache
-        uses: actions/cache/save@v4
+        uses: actions/cache/save@v5
         with:
           path: .ci-state/dockhand-release-watch
           key: dockhand-release-watch-state

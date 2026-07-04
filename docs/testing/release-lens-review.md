@@ -15,7 +15,7 @@ Depth is **proportional to what changed** — not a fixed time per lens. See **S
 3. **Agent Release Orchestrate** opens `release: prepare vX.Y.Z`.
 4. **Issue Agent Intake** dispatches a Cloud Agent with the tier lens set.
 5. Agent logs sweeps and a **Clear to tag** verdict.
-6. **Agent Release Tag** publishes the signed tag when the verdict is on `main`.
+6. **Agent Release Tag** publishes the GitHub release when the verdict is on `main`.
 
 ## Release tier
 
@@ -86,4 +86,4 @@ Close with:
 
 ## After lenses clear
 
-**Agent Release Tag** pushes the signed tag; then see `docs/testing/release-gate.md` for artifact validation.
+**Agent Release Tag** runs **Release Artifacts**; then see `docs/testing/release-gate.md` for artifact validation.
