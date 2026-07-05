@@ -1,0 +1,44 @@
+name: Repo Hygiene
+
+on:
+  schedule:
+    - cron: "30 7 * * 0"
+  workflow_dispatch:
+    inputs:
+      apply:
+        description: "Actually delete branches/issues (default dry-run only)"
+        required: false
+        type: boolean
+        default: false
+      delete_closed_issues:
+        description: "Also delete closed automation/smoke tracker issues"
+        required: false
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+  issues: write
+
+jobs:
+  hygiene:
+    name: Prune stale agent branches and trackers
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Run repo hygiene
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          args=(--branches --json)
+          if [[ "${{ inputs.apply }}" == "true" ]]; then
+            args+=(--apply)
+          fi
+          if [[ "${{ inputs.delete_closed_issues }}" == "true" ]]; then
+            args+=(--delete-closed-issues)
+          fi
+          /usr/bin/python3 scripts/repo_hygiene.py "${args[@]}"
