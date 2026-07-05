@@ -48,7 +48,7 @@ def check_settings() -> dict:
             f"(current: {workflow_permissions.get('default_workflow_permissions')!r})"
         )
 
-    if not workflow_permissions.get("can_approve_pull_requests_reviews"):
+    if not workflow_permissions.get("can_approve_pull_request_reviews"):
         blockers.append(
             "Enable Settings → Actions → General → "
             "'Allow GitHub Actions to create and approve pull requests'"

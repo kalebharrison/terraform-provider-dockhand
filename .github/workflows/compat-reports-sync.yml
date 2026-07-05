@@ -10,7 +10,6 @@ on:
 
 permissions:
   contents: write
-  pull-requests: write
 
 concurrency:
   group: compat-reports-sync
@@ -25,6 +24,7 @@ jobs:
       - name: Checkout main
         uses: actions/checkout@v7
         with:
+          ref: main
           fetch-depth: 0
 
       - name: Download compat reports artifact
@@ -43,95 +43,54 @@ jobs:
           echo "No compat-reports-sync artifact for run ${{ github.event.workflow_run.id }}; skipping."
           exit 0
 
-      - name: Publish reports
+      - name: Publish reports to main
         if: steps.download.outcome == 'success'
+        env:
+          SOURCE_RUN_URL: ${{ github.event.workflow_run.html_url }}
+          SOURCE_WORKFLOW: ${{ github.event.workflow_run.name }}
         shell: bash
         run: |
           set -euo pipefail
           COMPAT_DIR="$PWD/incoming" ./scripts/compat-reports-publish.sh
 
-      - name: Update single compatibility reports PR
+          if [[ -z "$(git status --porcelain docs/reports docs/non-present-endpoints.md)" ]]; then
+            echo "Compatibility reports already up to date on main."
+            exit 0
+          fi
+
+          git add docs/reports docs/non-present-endpoints.md
+          git -c user.name='github-actions[bot]' \
+            -c user.email='41898282+github-actions[bot]@users.noreply.github.com' \
+            commit -m "$(cat <<EOF
+          chore: refresh compatibility reports from CI
+
+          Source: ${SOURCE_WORKFLOW} (${SOURCE_RUN_URL})
+          Validation already passed in the source workflow; docs-only sync.
+          EOF
+          )"
+          git push origin HEAD:main
+
+      - name: Close obsolete compatibility report PRs
         if: steps.download.outcome == 'success'
         uses: actions/github-script@v9
-        env:
-          SOURCE_RUN_URL: ${{ github.event.workflow_run.html_url }}
-          SOURCE_WORKFLOW: ${{ github.event.workflow_run.name }}
-          SYNC_BRANCH: agent/compat-reports-sync
         with:
           script: |
-            const { execSync } = require("child_process");
-            const owner = context.repo.owner;
-            const repo = context.repo.repo;
-            const branch = process.env.SYNC_BRANCH;
             const title = "chore: refresh compatibility reports from CI";
-
-            const dirty = execSync("git status --porcelain", { encoding: "utf8" }).trim();
-            if (!dirty) {
-              core.info("Compatibility reports already up to date on main.");
-              return;
-            }
-
-            execSync(`git checkout -B ${branch}`);
-            execSync("git add docs/reports docs/non-present-endpoints.md");
-            execSync(
-              `git -c user.name='github-actions[bot]' -c user.email='41898282+github-actions[bot]@users.noreply.github.com' commit -m "chore: refresh compatibility reports from CI\\n\\nSource: ${process.env.SOURCE_WORKFLOW} (${process.env.SOURCE_RUN_URL})"`
-            );
-            execSync(`git push origin HEAD:${branch} --force`);
-
-            const openPulls = await github.paginate(github.rest.pulls.list, {
-              owner,
-              repo,
+            const pulls = await github.paginate(github.rest.pulls.list, {
+              owner: context.repo.owner,
+              repo: context.repo.repo,
               state: "open",
               per_page: 100,
             });
-            for (const pull of openPulls) {
-              if (pull.title !== title || pull.head.ref === branch) {
+            for (const pull of pulls) {
+              if (pull.title !== title) {
                 continue;
               }
               await github.rest.pulls.update({
-                owner,
-                repo,
+                owner: context.repo.owner,
+                repo: context.repo.repo,
                 pull_number: pull.number,
                 state: "closed",
               });
-              core.info(`Closed superseded compat PR #${pull.number} (${pull.head.ref})`);
+              core.info(`Closed obsolete compat reports PR #${pull.number}`);
             }
-
-            const existing = openPulls.filter(
-              (pull) => pull.head.ref === branch && pull.title === title
-            );
-            if (existing.length > 0) {
-              core.info(`Updated open PR #${existing[0].number} on ${branch}`);
-              return;
-            }
-
-            const body = [
-              "## Automated compatibility report refresh",
-              "",
-              "Updates probe and API drift baselines from a green CI compatibility run.",
-              "One shared PR is force-updated per run (no PR spam).",
-              "",
-              `- Source workflow: **${process.env.SOURCE_WORKFLOW}**`,
-              `- Source run: ${process.env.SOURCE_RUN_URL}`,
-              "",
-              "Merge when convenient; reports are docs-only.",
-            ].join("\n");
-
-            const created = await github.rest.pulls.create({
-              owner,
-              repo,
-              title,
-              head: branch,
-              base: "main",
-              body,
-              maintainer_can_modify: true,
-            });
-
-            await github.rest.issues.addLabels({
-              owner,
-              repo,
-              issue_number: created.data.number,
-              labels: ["maintenance"],
-            });
-
-            core.info(`Created PR #${created.data.number}`);

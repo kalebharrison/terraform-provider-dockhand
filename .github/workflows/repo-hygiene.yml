@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
     inputs:
       apply:
-        description: "Actually delete branches/issues (default dry-run only)"
+        description: "Actually delete branches/issues/runs (default dry-run only)"
         required: false
         type: boolean
         default: false
@@ -15,8 +15,14 @@ on:
         required: false
         type: boolean
         default: false
+      workflow_runs:
+        description: "Prune old workflow runs (14d retain, keep 1 per workflow)"
+        required: false
+        type: boolean
+        default: true
 
 permissions:
+  actions: write
   contents: write
   issues: write
 
@@ -35,8 +41,11 @@ jobs:
         run: |
           set -euo pipefail
           args=(--branches --json)
-          if [[ "${{ inputs.apply }}" == "true" ]]; then
+          if [[ "${{ github.event_name }}" == "schedule" || "${{ inputs.apply }}" == "true" ]]; then
             args+=(--apply)
+          fi
+          if [[ "${{ github.event_name }}" == "schedule" || "${{ inputs.workflow_runs }}" == "true" ]]; then
+            args+=(--workflow-runs --retain-days 14 --keep-minimum-runs 1)
           fi
           if [[ "${{ inputs.delete_closed_issues }}" == "true" ]]; then
             args+=(--delete-closed-issues)

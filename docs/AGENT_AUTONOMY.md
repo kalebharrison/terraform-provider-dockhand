@@ -57,9 +57,9 @@ After a green **Acceptance Full** or **Dockhand Release Watch** run:
 
 1. Harness probes ephemeral Dockhand (`scripts/endpoint-probe.py`, webui/docs audits).
 2. Workflow uploads artifact `compat-reports-sync`.
-3. **Compat Reports Sync** opens a PR (`agent/compat-reports-<run>`) updating baselines.
+3. **Compat Reports Sync** commits refreshed baselines directly to `main` (docs-only; validation already passed in the source run).
 
-PRs are labeled `agent` + `agent-auto-merge` so they merge without a human.
+No PR, merge, or maintainer approval is required for routine report refresh.
 
 ## Automated release path
 
