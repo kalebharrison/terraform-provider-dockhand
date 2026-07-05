@@ -1,6 +1,8 @@
 method,path,http_code,result,note
 POST,/api/auth/login,200,present,
 GET,/api/auth/session,200,present,
+GET,/api/auth/tokens,200,present,
+POST,/api/auth/tokens,405,present,Safe mode: options probe (mutation skipped)
 GET,/api/settings/general,200,present,
 POST,/api/settings/general,405,present,Safe mode: options probe (mutation skipped)
 GET,/api/auth/settings,200,present,
@@ -37,19 +39,35 @@ GET,/api/environments,200,present,
 POST,/api/environments,405,present,Safe mode: options probe (mutation skipped)
 GET,/api/environments/{id},200,present,
 PUT,/api/environments/{id},404,unexpected_404,Safe mode: placeholder probe
-DELETE,/api/environments/{id},404,unexpected_404,Safe mode: placeholder probe
+DELETE,/api/environments/{id},400,present,Safe mode: placeholder probe
+POST,/api/environments/test,405,present,Safe mode: options probe (mutation skipped)
+POST,/api/environments/{id}/test,404,unexpected_404,Safe mode: placeholder probe
+GET,/api/environments/detect-socket,200,present,
+GET,/api/environments/{id}/timezone,200,present,
+POST,/api/environments/{id}/timezone,404,unexpected_404,Safe mode: placeholder probe
+GET,/api/environments/{id}/update-check,200,present,
+POST,/api/environments/{id}/update-check,404,unexpected_404,Safe mode: placeholder probe
+GET,/api/environments/{id}/image-prune,200,present,
+POST,/api/environments/{id}/image-prune,404,unexpected_404,Safe mode: placeholder probe
+POST,/api/hawser/tokens,405,present,Safe mode: options probe (mutation skipped)
+GET,/api/settings/scanner,200,present,
+POST,/api/settings/scanner,405,present,Safe mode: options probe (mutation skipped)
+DELETE,/api/settings/scanner,405,present,Safe mode: options probe (mutation skipped)
+GET,/api/settings/scanner/cache,405,present,
+DELETE,/api/settings/scanner/cache,405,present,Safe mode: options probe (mutation skipped)
 GET,/api/registries,200,present,
 POST,/api/registries,405,present,Safe mode: options probe (mutation skipped)
 GET,/api/registries/{id},200,present,
 PUT,/api/registries/{id},400,present,Safe mode: placeholder probe
 DELETE,/api/registries/{id},400,present,Safe mode: placeholder probe
+POST,/api/registries/test,405,present,Safe mode: options probe (mutation skipped)
 GET,/api/registry/search,200,present,
 GET,/api/registry/tags,200,present,
 GET,/api/registry/catalog,400,present,
 DELETE,/api/registry/image,405,present,Safe mode: options probe (mutation skipped)
 GET,/api/git/credentials,200,present,
 POST,/api/git/credentials,405,present,Safe mode: options probe (mutation skipped)
-GET,/api/git/credentials/{id},200,present,
+GET,/api/git/credentials/{id},,unverified_no_fixture,No fixture available for path placeholder
 PUT,/api/git/credentials/{id},400,present,Safe mode: placeholder probe
 DELETE,/api/git/credentials/{id},400,present,Safe mode: placeholder probe
 GET,/api/git/repositories,200,present,
@@ -57,6 +75,13 @@ POST,/api/git/repositories,405,present,Safe mode: options probe (mutation skippe
 GET,/api/git/repositories/{id},200,present,
 PUT,/api/git/repositories/{id},400,present,Safe mode: placeholder probe
 DELETE,/api/git/repositories/{id},400,present,Safe mode: placeholder probe
+POST,/api/git/repositories/test,405,present,Safe mode: options probe (mutation skipped)
+POST,/api/git/preview-env,405,present,Safe mode: options probe (mutation skipped)
+GET,/api/git/stacks,200,present,
+POST,/api/git/stacks,405,present,Safe mode: options probe (mutation skipped)
+GET,/api/git/stacks/{id},200,present,
+PUT,/api/git/stacks/{id},404,unexpected_404,Safe mode: placeholder probe
+DELETE,/api/git/stacks/{id},404,unexpected_404,Safe mode: placeholder probe
 GET,/api/config-sets,200,present,
 POST,/api/config-sets,405,present,Safe mode: options probe (mutation skipped)
 GET,/api/config-sets/{id},,unverified_no_fixture,No fixture available for path placeholder
@@ -86,7 +111,7 @@ POST,/api/stacks/adopt,405,present,Safe mode: options probe (mutation skipped)
 GET,/api/stacks/sources,200,present,
 POST,/api/git/stacks/{id}/webhook,400,present,Safe mode: placeholder probe
 POST,/api/git/stacks/{id}/deploy-stream,404,unexpected_404,Safe mode: placeholder probe
-GET,/api/git/stacks/{id}/env-files,,unverified_no_fixture,No fixture available for path placeholder
+GET,/api/git/stacks/{id}/env-files,200,present,
 POST,/api/git/stacks/{id}/env-files,404,unexpected_404,Safe mode: placeholder probe
 GET,/api/dashboard/stats,200,present,
 GET,/api/networks,200,present,
@@ -98,7 +123,7 @@ POST,/api/networks/{id}/disconnect,400,present,Safe mode: placeholder probe
 GET,/api/volumes,200,present,
 POST,/api/volumes,405,present,Safe mode: options probe (mutation skipped)
 GET,/api/volumes/{name}/inspect,500,present,
-DELETE,/api/volumes/{name},500,present,Safe mode: placeholder probe
+DELETE,/api/volumes/{name},200,present,Safe mode: placeholder probe
 POST,/api/volumes/{name}/clone,400,present,Safe mode: placeholder probe
 GET,/api/images,200,present,
 POST,/api/images/pull,405,present,Safe mode: options probe (mutation skipped)
@@ -110,12 +135,12 @@ POST,/api/containers,405,present,Safe mode: options probe (mutation skipped)
 GET,/api/containers/{id},200,present,
 DELETE,/api/containers/{id},200,present,Safe mode: placeholder probe
 POST,/api/containers/{id}/start,500,present,Safe mode: placeholder probe
-POST,/api/containers/{id}/stop,500,present,Safe mode: placeholder probe
+POST,/api/containers/{id}/stop,404,unexpected_404,Safe mode: placeholder probe
 POST,/api/containers/{id}/restart,500,present,Safe mode: placeholder probe
 POST,/api/containers/{id}/pause,500,present,Safe mode: placeholder probe
 POST,/api/containers/{id}/unpause,500,present,Safe mode: placeholder probe
 POST,/api/containers/{id}/rename,400,present,Safe mode: placeholder probe
-POST,/api/containers/{id}/update,500,present,Safe mode: placeholder probe
+POST,/api/containers/{id}/update,404,unexpected_404,Safe mode: placeholder probe
 GET,/api/containers/{id}/logs,200,present,
 GET,/api/containers/{id}/top,200,present,
 GET,/api/containers/{id}/shells,200,present,
