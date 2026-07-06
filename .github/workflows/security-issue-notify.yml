@@ -33,7 +33,6 @@ jobs:
             const runUrl = wr.html_url || `https://github.com/${owner}/${repo}/actions/runs/${wr.id}`;
             const issueMarker = `<!-- security-issue-notify:${workflowName} -->`;
             const failureStates = new Set([
-              "action_required",
               "cancelled",
               "failure",
               "startup_failure",

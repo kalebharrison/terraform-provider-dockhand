@@ -36,7 +36,7 @@ jobs:
             const defaultBranch = context.payload.repository?.default_branch || "main";
             const branch = wr.head_branch || defaultBranch;
             const runUrl = wr.html_url || `https://github.com/${owner}/${repo}/actions/runs/${wr.id}`;
-            const failureStates = new Set(["action_required", "cancelled", "failure", "startup_failure", "timed_out"]);
+            const failureStates = new Set(["cancelled", "failure", "startup_failure", "timed_out"]);
             const agentFixable = new Set([
               "Go CI",
               "Workflow Lint",
@@ -53,6 +53,20 @@ jobs:
 
             if (eventName === "pull_request") return;
             if (branch !== defaultBranch) return;
+
+            if (workflowName === "Dockhand Release Watch") {
+              const jobs = await github.paginate(github.rest.actions.listJobsForWorkflowRun, {
+                owner,
+                repo,
+                run_id: wr.id,
+                per_page: 100,
+              });
+              const validated = jobs.find((job) => job.name === "Validate Provider Against Dockhand Release");
+              if (!validated || validated.conclusion !== "success") {
+                core.info("Skipping Release Watch notify for discover/skip-only run.");
+                return;
+              }
+            }
 
             const ensureLabel = async (name, color, description) => {
               try {

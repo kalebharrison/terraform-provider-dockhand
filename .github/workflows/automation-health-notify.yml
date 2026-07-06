@@ -3,14 +3,6 @@ name: Automation Health Notify
 on:
   schedule:
     - cron: "50 */6 * * *"
-  workflow_run:
-    workflows:
-      - Agent Release Orchestrate
-      - Agent Release Tag
-      - Go CI
-      - Dockhand Release Watch
-    types:
-      - completed
   workflow_dispatch:
 
 permissions:
@@ -21,13 +13,6 @@ permissions:
 jobs:
   notify:
     name: Release gate health
-    if: >-
-      github.event_name == 'schedule' ||
-      github.event_name == 'workflow_dispatch' ||
-      (
-        github.event.workflow_run.head_branch == github.event.repository.default_branch &&
-        (github.event.workflow_run.conclusion == 'success' || github.event.workflow_run.conclusion == 'failure')
-      )
     runs-on: ubuntu-latest
     steps:
       - name: Checkout

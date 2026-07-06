@@ -18,9 +18,53 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  gate:
+    name: Require validated compatibility run
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    runs-on: ubuntu-latest
+    outputs:
+      should_sync: ${{ steps.check.outputs.should_sync }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Decide whether source run produced reports
+        id: check
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SOURCE_WORKFLOW: ${{ github.event.workflow_run.name }}
+          SOURCE_RUN_ID: ${{ github.event.workflow_run.id }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          should_sync=false
+          case "${SOURCE_WORKFLOW}" in
+            "Acceptance Full")
+              conclusion="$(/usr/bin/python3 scripts/workflow_run_job_conclusion.py \
+                --run-id "${SOURCE_RUN_ID}" \
+                --job-name "Full Recursive Acceptance" \
+                --json | jq -r '.conclusion // empty')"
+              if [[ "${conclusion}" == "success" ]]; then
+                should_sync=true
+              fi
+              ;;
+            "Dockhand Release Watch")
+              conclusion="$(/usr/bin/python3 scripts/workflow_run_job_conclusion.py \
+                --run-id "${SOURCE_RUN_ID}" \
+                --job-name "Validate Provider Against Dockhand Release" \
+                --json | jq -r '.conclusion // empty')"
+              if [[ "${conclusion}" == "success" ]]; then
+                should_sync=true
+              fi
+              ;;
+          esac
+          echo "should_sync=${should_sync}" >> "${GITHUB_OUTPUT}"
+          echo "Source ${SOURCE_WORKFLOW} run ${SOURCE_RUN_ID}: should_sync=${should_sync} (job conclusion=${conclusion:-none})"
+
   sync:
     name: Sync compatibility reports to main
-    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    needs: gate
+    if: needs.gate.outputs.should_sync == 'true'
     runs-on: ubuntu-latest
     env:
       SYNC_BRANCH: automation/compat-reports-sync

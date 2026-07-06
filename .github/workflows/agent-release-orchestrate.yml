@@ -28,7 +28,28 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v7
 
+      - name: Require validated Release Watch job
+        if: github.event_name == 'workflow_run'
+        id: validated
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SOURCE_RUN_ID: ${{ github.event.workflow_run.id }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          conclusion="$(/usr/bin/python3 scripts/workflow_run_job_conclusion.py \
+            --run-id "${SOURCE_RUN_ID}" \
+            --job-name "Validate Provider Against Dockhand Release" \
+            --json | jq -r '.conclusion // empty')"
+          if [[ "${conclusion}" != "success" ]]; then
+            echo "validated=false" >> "${GITHUB_OUTPUT}"
+            echo "Release Watch run ${SOURCE_RUN_ID} did not validate (job conclusion=${conclusion:-none}); skipping orchestrate."
+            exit 0
+          fi
+          echo "validated=true" >> "${GITHUB_OUTPUT}"
+
       - name: Evaluate release gate for lens dispatch
+        if: github.event_name == 'workflow_dispatch' || steps.validated.outputs.validated == 'true'
         id: gate
         env:
           GH_TOKEN: ${{ github.token }}
