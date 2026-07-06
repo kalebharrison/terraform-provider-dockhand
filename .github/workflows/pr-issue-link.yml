@@ -22,8 +22,8 @@ jobs:
             const action = context.payload.action;
             const headRef = pr?.head?.ref || "";
 
-            if (headRef.startsWith("agent/")) {
-              core.info("Skipping issue-link enforcement for agent branch.");
+            if (headRef.startsWith("agent/") || headRef.startsWith("automation/")) {
+              core.info("Skipping issue-link enforcement for agent/automation branch.");
               return;
             }
 
