@@ -8,7 +8,7 @@ Provider releases should only be cut when all of the following pass on `main`:
 4. `Gitleaks`
 5. `dependency-review` (runs on PRs and on each `main` push with explicit base/head refs)
 6. `Acceptance Full` (most recent scheduled/dispatch run)
-7. `Dockhand Release Watch` — **validated** run in the current skip-only chain (unchanged Dockhand tag) without intervening failures; scheduled runs re-validate only when state is stale (default 168h) or Dockhand/provider changed; gate-driven dispatches use `force_validate` only when the latest run failed
+7. `Dockhand Release Watch` — **validated** run on the current skip chain without intervening failures; full validation runs only when Dockhand tag/digest changes or provider `main` moves; gate-driven dispatches use `force_validate` only when the latest run failed
 
 ## Release lens review (automated)
 
@@ -47,8 +47,10 @@ Tagging and artifact publish are performed by `.github/workflows/agent-release-t
 ## Release Watch Behavior
 
 - Workflow: `.github/workflows/dockhand-release-watch.yml`
-- Poll cadence: every 6 hours at `:10` UTC (skips validation when Dockhand tag/digest and provider `main` SHA are unchanged and state is fresh; re-validates after 168h).
+- Poll cadence: every 6 hours at `:10` UTC (lightweight discover only; skips full validation when Dockhand tag/digest and provider `main` SHA are unchanged).
 - Triggers: `schedule`, `workflow_dispatch` (`force_validate`, optional `image_tag`). Does **not** run on every `main` push (provider-only pushes would otherwise produce skip-only runs).
+- Full validation runs when: Dockhand tag or digest changes, provider `main` SHA changes, state is unset, or `force_validate` / manual `image_tag` is used. **No time-based re-validation.**
+- Periodic full coverage without a Dockhand bump: **Acceptance Full** (nightly).
 - On discover cache miss, migrates legacy issue #38 state and **seeds** the Actions cache immediately so skip logic does not re-query issues every run.
 - On success, saves state to the Actions cache (no tracking issue). **Compat Reports Sync** commits `docs/reports/dockhand-last-tested.json` for a human-readable last-validated record.
 - Includes docs-reference drift audit from `https://dockhand.pro/manual/#api-reference`.
@@ -62,6 +64,6 @@ When a compatibility run fails on new API drift:
 1. Review `api-drift-gate.md` artifact from the failed run.
 2. Integrate new routes into provider/probe coverage where appropriate.
 3. For accepted backlog gaps, add them to `docs/non-present-endpoints.md`.
-4. After a green **Acceptance Full** or **Release Watch** run, **Compat Reports Sync** opens a PR updating `docs/reports/` baselines — merge it (or let `agent-auto-merge` handle it).
+4. After a green **Acceptance Full** or **Release Watch** run, **Compat Reports Sync** updates `docs/reports/` baselines on `main` (or auto-merges a fallback PR when branch rules block direct push).
 
 Manual local harness runs are debug-only; see `docs/AGENT_AUTONOMY.md`.

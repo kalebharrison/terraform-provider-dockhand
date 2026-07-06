@@ -62,27 +62,7 @@ class ReleaseWatchStateTest(unittest.TestCase):
         self.assertTrue(should_run)
         self.assertEqual(reason, "provider_main_changed")
 
-    def test_decide_schedule_skips_when_fresh(self) -> None:
-        fresh = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
-        should_run, reason = state.decide_should_run(
-            tag="1.0.0",
-            digest="sha256:abc",
-            state={
-                "last_tag": "1.0.0",
-                "last_digest": "sha256:abc",
-                "updated_at": fresh,
-                "last_provider_sha": "abc123",
-            },
-            event_name="schedule",
-            force_validate=False,
-            manual_image_tag=False,
-            main_sha="abc123",
-            revalidate_hours=168,
-        )
-        self.assertFalse(should_run)
-        self.assertEqual(reason, "unchanged_tag_digest")
-
-    def test_decide_schedule_revalidates_when_stale(self) -> None:
+    def test_decide_schedule_skips_when_unchanged(self) -> None:
         stale = (datetime.now(timezone.utc) - timedelta(days=8)).strftime("%Y-%m-%dT%H:%M:%SZ")
         should_run, reason = state.decide_should_run(
             tag="1.0.0",
@@ -97,10 +77,26 @@ class ReleaseWatchStateTest(unittest.TestCase):
             force_validate=False,
             manual_image_tag=False,
             main_sha="abc123",
-            revalidate_hours=168,
         )
-        self.assertTrue(should_run)
-        self.assertEqual(reason, "scheduled_stale_revalidate")
+        self.assertFalse(should_run)
+        self.assertEqual(reason, "unchanged_tag_digest")
+
+    def test_decide_schedule_skips_without_updated_at(self) -> None:
+        should_run, reason = state.decide_should_run(
+            tag="1.0.0",
+            digest="sha256:abc",
+            state={
+                "last_tag": "1.0.0",
+                "last_digest": "sha256:abc",
+                "last_provider_sha": "abc123",
+            },
+            event_name="schedule",
+            force_validate=False,
+            manual_image_tag=False,
+            main_sha="abc123",
+        )
+        self.assertFalse(should_run)
+        self.assertEqual(reason, "unchanged_tag_digest")
 
     def test_write_and_load_roundtrip(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

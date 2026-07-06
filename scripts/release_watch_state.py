@@ -13,7 +13,6 @@ from pathlib import Path
 
 STATE_DIR = Path(".ci-state/dockhand-release-watch")
 STATE_FILE = STATE_DIR / "state.env"
-DEFAULT_REVALIDATE_HOURS = 168
 
 
 def _parse_env_file(text: str) -> dict[str, str]:
@@ -63,29 +62,6 @@ def parse_legacy_issue_body(body: str) -> dict[str, str]:
     return out
 
 
-def _parse_timestamp(value: str) -> datetime | None:
-    value = (value or "").strip()
-    if not value:
-        return None
-    if value.endswith("Z"):
-        value = value[:-1] + "+00:00"
-    try:
-        parsed = datetime.fromisoformat(value)
-    except ValueError:
-        return None
-    if parsed.tzinfo is None:
-        parsed = parsed.replace(tzinfo=timezone.utc)
-    return parsed.astimezone(timezone.utc)
-
-
-def hours_since(value: str) -> float | None:
-    parsed = _parse_timestamp(value)
-    if parsed is None:
-        return None
-    delta = datetime.now(timezone.utc) - parsed
-    return delta.total_seconds() / 3600.0
-
-
 def decide_should_run(
     *,
     tag: str,
@@ -95,12 +71,10 @@ def decide_should_run(
     force_validate: bool,
     manual_image_tag: bool,
     main_sha: str,
-    revalidate_hours: int = DEFAULT_REVALIDATE_HOURS,
 ) -> tuple[bool, str]:
     last_tag = state.get("last_tag", "")
     last_digest = state.get("last_digest", "")
     last_provider_sha = state.get("last_provider_sha", "")
-    updated_at = state.get("updated_at", "")
 
     if force_validate:
         return True, "gate_required"
@@ -123,11 +97,6 @@ def decide_should_run(
     if not unchanged:
         return True, "new_tag_or_digest"
 
-    if event_name == "schedule":
-        age = hours_since(updated_at)
-        if age is None or age >= revalidate_hours:
-            return True, "scheduled_stale_revalidate"
-
     return False, "unchanged_tag_digest"
 
 
@@ -143,7 +112,6 @@ def main(argv: list[str] | None = None) -> int:
     decide.add_argument("--force-validate", action="store_true")
     decide.add_argument("--manual-image-tag", action="store_true")
     decide.add_argument("--main-sha", default="")
-    decide.add_argument("--revalidate-hours", type=int, default=DEFAULT_REVALIDATE_HOURS)
     decide.add_argument("--state-file", type=Path, default=STATE_FILE)
 
     write = sub.add_parser("write", help="Write state.env")
@@ -166,7 +134,6 @@ def main(argv: list[str] | None = None) -> int:
             force_validate=args.force_validate,
             manual_image_tag=args.manual_image_tag,
             main_sha=args.main_sha,
-            revalidate_hours=args.revalidate_hours,
         )
         payload = {
             "should_run": should_run,

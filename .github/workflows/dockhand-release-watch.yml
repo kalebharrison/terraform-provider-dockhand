@@ -109,7 +109,6 @@ jobs:
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
-          REVALIDATE_HOURS: "168"
         run: |
           set -euo pipefail
           main_sha="$(gh api "repos/${GITHUB_REPOSITORY}/commits/main" --jq '.sha')"
@@ -118,7 +117,6 @@ jobs:
             --digest "${{ steps.pick.outputs.digest }}"
             --event-name "${{ github.event_name }}"
             --main-sha "${main_sha}"
-            --revalidate-hours "${REVALIDATE_HOURS}"
           )
           if [[ "${{ inputs.force_validate }}" == "true" ]]; then
             decide_args+=(--force-validate)
