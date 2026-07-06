@@ -66,6 +66,9 @@ labels:
   - name: agent-auto-merge
     color: "1D76DB"
     description: Opt-in squash auto-merge for agent PRs when checks pass
+  - name: compat-reports-sync
+    color: "5319E7"
+    description: Automated compatibility report refresh PR (acceptance skipped)
   - name: in-progress
     color: "1D76DB"
     description: Issue is linked to an open pull request
