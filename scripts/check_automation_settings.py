@@ -70,6 +70,19 @@ def main(argv: list[str] | None = None) -> int:
     try:
         payload = check_settings()
     except RuntimeError as err:
+        if args.json:
+            print(
+                json.dumps(
+                    {
+                        "ok": False,
+                        "blockers": [str(err)],
+                        "workflow_permissions": {},
+                        "actions_enabled": None,
+                    },
+                    indent=2,
+                )
+            )
+            return 1
         print(str(err), file=sys.stderr)
         return 2
 
