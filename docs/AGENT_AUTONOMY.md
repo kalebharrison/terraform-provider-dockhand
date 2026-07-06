@@ -46,6 +46,7 @@ See `docs/AGENT_RUNBOOK.md` and `docs/AGENT_CODING_STANDARDS.md`.
 | **Signed tag + artifacts + housekeeping** | `agent-release-tag.yml` | When lens verdict clears on `main` |
 | **Automation health alert** | `automation-health-notify.yml` | Opens tracker issue when release gate blockers persist ≥24h |
 | **Agent stall watchdog** | `agent-stall-watchdog.yml` | Re-dispatches when Cloud Agent progress stalls ≥24h |
+| **Stuck PR + CI intake watchdog** | `agent-autonomy-watchdog.yml` | Every 15m: approve `action_required` on agent/compat PRs; re-dispatch intake for undispatched `CI failure:` issues |
 | **Dependabot auto-merge** | `dependabot-auto-merge.yml` | Enables squash auto-merge for Dependabot PRs |
 | **Secret smoke** | `secret-smoke.yml` | Weekly: secrets, Actions settings, disable Bugbot via API |
 | Dependency vulnerabilities | `govulncheck.yml` | Weekly + PR |
@@ -72,7 +73,20 @@ No manual merge or workflow approval is required for routine report refresh.
 
 No maintainer prompt, manual tag, or laptop required. Use `release-issue-notify.yml` (`workflow_dispatch`) only to recover missed release comments.
 
-## Failure triage (CI-first)
+## Failure triage (CI-first, agent-owned)
+
+**Do not use maintainer chat or direct `main` pushes for routine repair.** The automation loop owns:
+
+| Failure | Automated path |
+|---------|----------------|
+| `main` CI / Workflow Lint / actionlint | **Automation Issue Notify** → `CI failure: …` issue → **Issue Agent Intake** → agent PR → **Agent PR Approve CI** |
+| Stuck PR waiting on `action_required` | **Agent Autonomy Watchdog** (every 15m) approves blocked runs and re-dispatches merge |
+| Undispatched `CI failure:` issue (intake missed) | **Agent Autonomy Watchdog** re-queues **Issue Agent Intake** |
+| Cloud Agent stall (no branch/commits) | **Agent Stall Watchdog** clears `agent-dispatched` and re-triggers intake |
+
+Maintainer chat and laptop commands are **debug-only** when automation is broken or secrets are missing.
+
+When investigating manually:
 
 1. Open the failed GitHub Actions run.
 2. For acceptance: download `*-logs-*` artifacts (scrubbed JSON).

@@ -18,8 +18,8 @@ How work enters the autonomous agent loop for `terraform-provider-dockhand`.
 **Skipped automatically:**
 
 - Labels `released`, `awaiting-release`, or `no-agent`
-- Titles like `[Automation] Workflow failing: …` (workflow health trackers)
-- Bot issues without `compatibility` / `api-drift` (unless manually dispatched)
+- Titles like `[Automation] Workflow failing: …` (workflow health trackers with `no-agent`)
+- Bot issues without `compatibility` / `api-drift` / `ci` / `security` / `agent` (unless manually dispatched)
 - Issues already labeled `agent-dispatched` (unless `regression` or manual)
 
 Eligibility rules live in `scripts/issue_agent_intake_eligibility.py` (unit-tested).

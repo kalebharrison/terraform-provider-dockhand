@@ -210,8 +210,22 @@ jobs:
           HEAD_SHA: ${{ steps.pr.outputs.head_sha }}
         shell: bash
         run: |
+          set -uo pipefail
+          /usr/bin/python3 scripts/agent_approve_pr_ci.py --head-sha "${HEAD_SHA}" --json || true
+
+      - name: Dispatch PR approve and merge
+        if: steps.publish.outputs.changed == 'true' && steps.direct.outputs.pushed != 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          HEAD_SHA: ${{ steps.pr.outputs.head_sha }}
+          PULL_NUMBER: ${{ steps.pr.outputs.pull_number }}
+        shell: bash
+        run: |
           set -euo pipefail
-          /usr/bin/python3 scripts/agent_approve_pr_ci.py --head-sha "${HEAD_SHA}" --json
+          gh workflow run agent-pr-approve-ci.yml \
+            --repo "${GITHUB_REPOSITORY}" \
+            -f "head_sha=${HEAD_SHA}" \
+            -f "pull_number=${PULL_NUMBER}"
 
       - name: Close obsolete compatibility report PRs
         if: steps.publish.outputs.changed == 'true'
