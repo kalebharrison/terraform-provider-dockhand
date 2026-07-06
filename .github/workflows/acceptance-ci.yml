@@ -12,8 +12,27 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  gate:
+    name: Evaluate acceptance scope
+    runs-on: ubuntu-latest
+    outputs:
+      skip: ${{ steps.eval.outputs.skip }}
+    steps:
+      - name: Detect compat reports refresh PR
+        id: eval
+        shell: bash
+        run: |
+          skip=false
+          if [[ "${{ github.event_name }}" == "pull_request" ]] \
+            && [[ "${{ github.head_ref }}" == automation/compat-reports-sync* ]]; then
+            skip=true
+          fi
+          echo "skip=${skip}" >> "${GITHUB_OUTPUT}"
+
   acceptance:
     name: Dockhand + DinD Acceptance Tests
+    needs: gate
+    if: needs.gate.outputs.skip != 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 35
     env:
@@ -84,3 +103,13 @@ jobs:
             /tmp/dh-*.json
             /tmp/dh-*.code
           if-no-files-found: ignore
+
+  acceptance-skip:
+    name: Dockhand + DinD Acceptance Tests
+    needs: gate
+    if: needs.gate.outputs.skip == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Skip upstream-validated compat reports refresh
+        run: |
+          echo "Compat reports PR; acceptance already passed in Release Watch / Acceptance Full."

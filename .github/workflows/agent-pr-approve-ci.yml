@@ -42,16 +42,23 @@ jobs:
       (
         github.event_name == 'workflow_run' &&
         github.event.workflow_run.conclusion == 'success' &&
-        startsWith(github.event.workflow_run.head_branch, 'agent/')
+        startsWith(github.event.workflow_run.head_branch, 'agent/') ||
+        startsWith(github.event.workflow_run.head_branch, 'automation/compat-reports-sync')
       ) ||
       (
         github.event_name == 'pull_request' &&
-        startsWith(github.event.pull_request.head.ref, 'agent/')
+        (
+          startsWith(github.event.pull_request.head.ref, 'agent/') ||
+          startsWith(github.event.pull_request.head.ref, 'automation/compat-reports-sync')
+        )
       ) ||
       (
         github.event_name == 'check_suite' &&
         github.event.check_suite.head_branch != null &&
-        startsWith(github.event.check_suite.head_branch, 'agent/')
+        (
+          startsWith(github.event.check_suite.head_branch, 'agent/') ||
+          startsWith(github.event.check_suite.head_branch, 'automation/compat-reports-sync')
+        )
       )
     runs-on: ubuntu-latest
     steps:
@@ -146,8 +153,11 @@ jobs:
               pull_number: pullNumber,
             });
 
-            if (!pr.head?.ref?.startsWith("agent/")) {
-              core.info("Not an agent branch PR; skipping merge.");
+            if (
+              !pr.head?.ref?.startsWith("agent/") &&
+              pr.head?.ref !== "automation/compat-reports-sync"
+            ) {
+              core.info("Not an automated agent/compat PR; skipping merge.");
               return;
             }
 
