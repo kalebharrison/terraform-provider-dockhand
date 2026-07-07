@@ -42,8 +42,10 @@ jobs:
       (
         github.event_name == 'workflow_run' &&
         github.event.workflow_run.conclusion == 'success' &&
-        startsWith(github.event.workflow_run.head_branch, 'agent/') ||
-        startsWith(github.event.workflow_run.head_branch, 'automation/')
+        (
+          startsWith(github.event.workflow_run.head_branch, 'agent/') ||
+          startsWith(github.event.workflow_run.head_branch, 'automation/')
+        )
       ) ||
       (
         github.event_name == 'pull_request' &&
@@ -174,44 +176,61 @@ jobs:
               return;
             }
 
-            const { data: checks } = await github.rest.checks.listForRef({
-              owner,
-              repo,
-              ref: pr.head.sha,
-              per_page: 100,
-            });
+            const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
-            const byName = new Map();
-            for (const run of checks.check_runs) {
-              const existing = byName.get(run.name);
-              if (!existing || new Date(run.started_at) > new Date(existing.started_at)) {
-                byName.set(run.name, run);
-              }
-            }
+            const waitForChecks = async (maxAttempts = 24, delayMs = 15000) => {
+              for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+                const { data: checks } = await github.rest.checks.listForRef({
+                  owner,
+                  repo,
+                  ref: pr.head.sha,
+                  per_page: 100,
+                });
 
-            const missing = [];
-            const failed = [];
-            for (const name of requiredChecks) {
-              const run = byName.get(name);
-              if (!run) {
-                missing.push(name);
-                continue;
-              }
-              if (run.status !== "completed") {
-                missing.push(`${name} (${run.status})`);
-                continue;
-              }
-              if (run.conclusion !== "success" && run.conclusion !== "skipped") {
-                failed.push(`${name} (${run.conclusion})`);
-              }
-            }
+                const byName = new Map();
+                for (const run of checks.check_runs) {
+                  const existing = byName.get(run.name);
+                  if (!existing || new Date(run.started_at) > new Date(existing.started_at)) {
+                    byName.set(run.name, run);
+                  }
+                }
 
-            if (missing.length > 0) {
-              core.info(`Required checks not complete: ${missing.join(", ")}`);
-              return;
-            }
-            if (failed.length > 0) {
-              core.info(`Required checks failed: ${failed.join(", ")}`);
+                const missing = [];
+                const failed = [];
+                for (const name of requiredChecks) {
+                  const run = byName.get(name);
+                  if (!run) {
+                    missing.push(name);
+                    continue;
+                  }
+                  if (run.status !== "completed") {
+                    missing.push(`${name} (${run.status})`);
+                    continue;
+                  }
+                  if (run.conclusion !== "success" && run.conclusion !== "skipped") {
+                    failed.push(`${name} (${run.conclusion})`);
+                  }
+                }
+
+                if (failed.length > 0) {
+                  core.info(`Required checks failed: ${failed.join(", ")}`);
+                  return false;
+                }
+                if (missing.length === 0) {
+                  return true;
+                }
+
+                core.info(
+                  `Required checks not complete (attempt ${attempt}/${maxAttempts}): ${missing.join(", ")}`
+                );
+                if (attempt < maxAttempts) {
+                  await sleep(delayMs);
+                }
+              }
+              return false;
+            };
+
+            if (!(await waitForChecks())) {
               return;
             }
 
