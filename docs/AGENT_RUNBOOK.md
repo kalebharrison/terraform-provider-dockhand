@@ -91,7 +91,8 @@ If the new acceptance suite should run on PRs, add the exact `TestAcc...` functi
 | `acceptance-ci.yml` | PR | Dockhand + DinD + Hawser targeted acceptance |
 | `agent-validate.yml` | push to `agent/**` | Agent pre-PR validation |
 | `agent-open-pr.yml` | after successful Agent Validate | Opens or updates agent PR; skips duplicates when issue is complete |
-| `agent-pr-approve-ci.yml` | agent PR events + after Agent Validate / Agent Open PR | Approves blocked checks; squash-merges when `agent-auto-merge` and checks pass |
+| `agent-pr-approve-ci.yml` | agent/automation PR events + after Agent Validate / Agent Open PR | Approves blocked checks; squash-merges when `agent-auto-merge` and checks pass |
+| `agent-autonomy-watchdog.yml` | every 15m | Unblocks stuck agent/automation PR checks; re-dispatches intake for undispatched `CI failure:` issues |
 | `agent-merge-cleanup.yml` | agent PR merged / push to `main` | Closes linked issues, labels `awaiting-release`, posts merge comment, deletes agent branch |
 | `issue-agent-intake.yml` | issue opened/labeled | Dispatches Cursor Cloud Agent + lens set |
 | `acceptance-full.yml` | nightly | Full `TestAcc` + drift audits |
@@ -104,6 +105,10 @@ If the new acceptance suite should run on PRs, add the exact `TestAcc...` functi
 | `release-issue-notify.yml` | manual `workflow_dispatch` | Recovery-only release comments on linked issues |
 
 ## Failure handling
+
+Routine repair is **agent-owned** — see `docs/AGENT_AUTONOMY.md`. Do not ask maintainer chat to fix lint, stuck PR approvals, or undispatched CI failure issues.
+
+When working inside the agent loop:
 
 1. Read the failed job log in GitHub Actions.
 2. For acceptance failures, download the `*-logs-*` artifact when present.

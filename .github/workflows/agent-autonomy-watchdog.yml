@@ -1,0 +1,49 @@
+name: Agent Autonomy Watchdog
+
+on:
+  schedule:
+    - cron: "*/15 * * * *"
+  workflow_dispatch:
+
+permissions:
+  actions: write
+  contents: read
+  issues: read
+  pull-requests: read
+
+jobs:
+  stuck-pr-checks:
+    name: Unblock stuck agent PR checks
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Approve blocked runs and dispatch merge
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -uo pipefail
+          /usr/bin/python3 scripts/agent_stuck_pr_watchdog.py --json | tee /tmp/stuck-prs.json
+          count="$(jq '.count' /tmp/stuck-prs.json)"
+          blocked="$(jq '.blocked_count // 0' /tmp/stuck-prs.json)"
+          echo "Processed ${count} open agent/automation pull request(s); ${blocked} still blocked."
+
+  undispatched-ci-intake:
+    name: Dispatch CI failure issues to agent
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Re-queue undispatched CI failure issues
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -uo pipefail
+          /usr/bin/python3 scripts/agent_ci_intake_watchdog.py --json | tee /tmp/ci-intake.json
+          count="$(jq '.count' /tmp/ci-intake.json)"
+          failures="$(jq '.dispatch_failures // 0' /tmp/ci-intake.json)"
+          echo "Re-dispatched intake for ${count} CI failure issue(s); ${failures} dispatch failure(s)."
