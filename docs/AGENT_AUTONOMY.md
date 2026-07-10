@@ -66,7 +66,7 @@ No manual merge or workflow approval is required for routine report refresh.
 
 1. Fixes merge to `main`; **Agent Merge Cleanup** (agent PRs) or **Issue Resolution Notify** (human PRs) labels linked issues `awaiting-release`.
 2. **Release Drafter** maintains the next draft version on each `main` push.
-3. **Agent Release Orchestrate** opens `release: prepare vX.Y.Z` when `scripts/release_gate_check.py --mode lens` passes (after a successful **validated** **Dockhand Release Watch** on `main`, or via manual dispatch).
+3. **Agent Release Orchestrate** opens `release: prepare vX.Y.Z` when `scripts/release_gate_check.py --mode lens` passes (validated **Dockhand Release Watch** on `main`, or manual dispatch). Release work includes `awaiting-release` issues **or** any commits on `main` since the latest published tag.
 4. **Issue Agent Intake** dispatches a Cloud Agent with the release-tier lens set.
 5. Agent appends lens sweeps + `### Release vX.Y.Z — verdict` with **Clear to tag: yes** to `docs/reports/agent-review-log.md` and merges via the normal agent PR loop.
 6. **Agent Release Tag** runs the full release pipeline when `scripts/release_gate_check.py --mode tag` passes: ensure Release Watch validated, **Release Artifacts** (GPG-signed checksums + attestations), label `awaiting-release` issues, cut `CHANGELOG.md`, and post release comments on linked issues.

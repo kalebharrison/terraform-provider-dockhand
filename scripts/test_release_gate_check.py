@@ -57,6 +57,32 @@ class WorkflowGreenTest(unittest.TestCase):
             )
 
 
+class GateResultTest(unittest.TestCase):
+    def test_ready_for_lens_with_unreleased_commits(self) -> None:
+        result = gate.GateResult(
+            ci_gates_pass=True,
+            version="0.1.87",
+            tag="v0.1.87",
+            unreleased_commits_on_main=3,
+        )
+        self.assertTrue(result.ready_for_lens_dispatch)
+        self.assertEqual(result.release_trigger, "unreleased_main_commits")
+
+    def test_ready_for_lens_without_release_work(self) -> None:
+        result = gate.GateResult(ci_gates_pass=True, version="0.1.87", tag="v0.1.87")
+        self.assertFalse(result.ready_for_lens_dispatch)
+
+    def test_awaiting_release_takes_precedence(self) -> None:
+        result = gate.GateResult(
+            ci_gates_pass=True,
+            version="0.1.87",
+            tag="v0.1.87",
+            awaiting_release_issues=[42],
+            unreleased_commits_on_main=5,
+        )
+        self.assertEqual(result.release_trigger, "awaiting_release_issues")
+
+
 class CutChangelogTest(unittest.TestCase):
     def test_cut_changelog_inserts_version_section(self) -> None:
         from release_housekeeping import cut_changelog
