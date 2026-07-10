@@ -65,11 +65,15 @@ jobs:
           jq -r '.version' /tmp/release-gate.json > /tmp/version
           jq -r '.tier' /tmp/release-gate.json > /tmp/tier
           jq -r '.awaiting_release_issues | join(", ")' /tmp/release-gate.json > /tmp/awaiting
+          jq -r '.unreleased_commits_on_main' /tmp/release-gate.json > /tmp/unreleased
+          jq -r '.release_trigger // empty' /tmp/release-gate.json > /tmp/trigger
           {
             echo "ready=$(cat /tmp/ready)"
             echo "version=$(cat /tmp/version)"
             echo "tier=$(cat /tmp/tier)"
             echo "awaiting=$(cat /tmp/awaiting)"
+            echo "unreleased=$(cat /tmp/unreleased)"
+            echo "trigger=$(cat /tmp/trigger)"
           } >> "${GITHUB_OUTPUT}"
 
       - name: Create release lens issue
@@ -79,6 +83,8 @@ jobs:
           VERSION: ${{ steps.gate.outputs.version }}
           TIER: ${{ steps.gate.outputs.tier }}
           AWAITING: ${{ steps.gate.outputs.awaiting }}
+          UNRELEASED: ${{ steps.gate.outputs.unreleased }}
+          TRIGGER: ${{ steps.gate.outputs.trigger }}
         with:
           script: |
             const owner = context.repo.owner;
@@ -86,6 +92,8 @@ jobs:
             const version = process.env.VERSION;
             const tier = process.env.TIER || "patch";
             const awaiting = process.env.AWAITING || "";
+            const unreleased = process.env.UNRELEASED || "0";
+            const trigger = process.env.TRIGGER || "unknown";
             const title = `release: prepare v${version}`;
 
             const existing = await github.rest.search.issuesAndPullRequests({
@@ -112,7 +120,7 @@ jobs:
               "## Problem",
               `Provider release **v${version}** is ready for automated release-tier lens review and tagging.`,
               "",
-              "CI release gates passed. Fixes are on `main` and issues are awaiting release.",
+              "CI release gates passed. Release work is queued on `main`.",
               "",
               "## Done when",
               `- Complete release-tier lens review per \`docs/testing/release-lens-review.md\` (**${tier}** tier)`,
@@ -122,7 +130,9 @@ jobs:
               "",
               "## Context",
               `- Tier: ${tier}`,
-              `- Awaiting-release issues: ${awaiting || "none listed"}`,
+              `- Release trigger: ${trigger}`,
+              `- Unreleased commits on main since latest tag: ${unreleased}`,
+              `- Awaiting-release issues: ${awaiting || "none"}`,
               `- Gate script: \`scripts/release_gate_check.py\``,
               `- Tagging workflow: \`.github/workflows/agent-release-tag.yml\``,
             ].join("\n");

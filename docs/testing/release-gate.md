@@ -12,7 +12,7 @@ Provider releases should only be cut when all of the following pass on `main`:
 
 ## Release lens review (automated)
 
-**Agent Release Orchestrate** opens a `release: prepare vX.Y.Z` issue when CI gates pass and fixes are `awaiting-release`. It runs after a successful **Dockhand Release Watch** on `main` or via manual dispatch (no standalone cron). **Issue Agent Intake** dispatches a Cloud Agent with the release-tier lens set per `docs/testing/release-lens-review.md`. **Agent Release Tag** is the single release completion workflow: ensure Release Watch validated → **Release Artifacts** (GPG-signed checksums for Terraform Registry + GitHub artifact attestations) → label `awaiting-release` issues, cut `CHANGELOG.md`, and post release comments on linked issues.
+**Agent Release Orchestrate** opens a `release: prepare vX.Y.Z` issue when CI gates pass and there is release work on `main`: open `awaiting-release` issues **or** commits since the latest published tag (including Dependabot dependency bumps). It runs after a successful **Dockhand Release Watch** on `main` or via manual dispatch (no standalone cron). **Issue Agent Intake** dispatches a Cloud Agent with the release-tier lens set per `docs/testing/release-lens-review.md`. **Agent Release Tag** is the single release completion workflow: ensure Release Watch validated → **Release Artifacts** (GPG-signed checksums for Terraform Registry + GitHub artifact attestations) → label `awaiting-release` issues, cut `CHANGELOG.md`, and post release comments on linked issues.
 
 Do not tag while **high** severity findings are open in the release verdict.
 
@@ -28,8 +28,8 @@ Before **Agent Release Tag** publishes `vX.Y.Z`:
 1. No open `compatibility` issues for the current Dockhand release.
 2. Required workflows green on `main` (Go CI, Govulncheck, Workflow Lint, Gitleaks, Dependency Review, Acceptance Full, Dockhand Release Watch).
 3. Release Drafter draft exists for `vX.Y.Z` and the tag is not published yet.
-4. At least one `awaiting-release` issue exists (for lens dispatch) **or** the review log already contains **Clear to tag: yes** for `vX.Y.Z`.
-5. `docs/reports/agent-review-log.md` on `main` contains `### Release vX.Y.Z — verdict` with **Clear to tag: yes**.
+4. At least one `awaiting-release` issue **or** commits on `main` since the latest published tag (dependency bumps, automation fixes, etc.).
+5. `docs/reports/agent-review-log.md` on `main` contains `### Release vX.Y.Z — verdict` with **Clear to tag: yes** (required for tagging; not for opening the release lens issue).
 
 Tagging and artifact publish are performed by `.github/workflows/agent-release-tag.yml`:
 

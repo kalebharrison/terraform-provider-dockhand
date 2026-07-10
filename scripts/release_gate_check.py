@@ -39,8 +39,21 @@ class GateResult:
     tier: str = "patch"
     blockers: list[str] = field(default_factory=list)
     awaiting_release_issues: list[int] = field(default_factory=list)
+    unreleased_commits_on_main: int = 0
     lens_verdict_clear: bool = False
     open_release_issue: int | None = None
+
+    @property
+    def has_release_work(self) -> bool:
+        return bool(self.awaiting_release_issues) or self.unreleased_commits_on_main > 0
+
+    @property
+    def release_trigger(self) -> str | None:
+        if self.awaiting_release_issues:
+            return "awaiting_release_issues"
+        if self.unreleased_commits_on_main > 0:
+            return "unreleased_main_commits"
+        return None
 
     @property
     def ready_for_lens_dispatch(self) -> bool:
@@ -48,8 +61,8 @@ class GateResult:
             self.ci_gates_pass
             and not self.lens_verdict_clear
             and self.open_release_issue is None
-            and bool(self.awaiting_release_issues)
             and bool(self.version)
+            and self.has_release_work
         )
 
     @property
@@ -66,6 +79,9 @@ class GateResult:
             "tier": self.tier,
             "blockers": self.blockers,
             "awaiting_release_issues": self.awaiting_release_issues,
+            "unreleased_commits_on_main": self.unreleased_commits_on_main,
+            "has_release_work": self.has_release_work,
+            "release_trigger": self.release_trigger,
             "lens_verdict_clear": self.lens_verdict_clear,
             "open_release_issue": self.open_release_issue,
         }
@@ -165,7 +181,7 @@ def awaiting_release_issues() -> list[int]:
             "issue",
             "list",
             "--state",
-            "all",
+            "open",
             "--label",
             "awaiting-release",
             "--json",
@@ -183,6 +199,24 @@ def awaiting_release_issues() -> list[int]:
             continue
         numbers.append(int(item["number"]))
     return numbers
+
+
+def commits_ahead_of_latest_release() -> int:
+    latest = latest_release_tag()
+    if latest is None:
+        proc = subprocess.run(
+            ["gh", "api", f"repos/{_repo()}/commits/main", "--jq", ".sha"],
+            cwd=ROOT,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        return 1 if proc.returncode == 0 and proc.stdout.strip() else 0
+
+    data = _gh_json(["api", f"repos/{_repo()}/compare/{latest.tag()}...main"])
+    if not isinstance(data, dict):
+        return 0
+    return max(int(data.get("ahead_by", 0)), 0)
 
 
 def workflow_runs(name: str, *, limit: int = 15) -> list[dict]:
@@ -350,6 +384,7 @@ def evaluate_gate(*, release_watch_mode: str = "strict") -> GateResult:
     result.tag = draft.tag()
     result.tier = release_tier(previous, draft)
     result.awaiting_release_issues = awaiting_release_issues()
+    result.unreleased_commits_on_main = commits_ahead_of_latest_release()
     result.open_release_issue = find_open_release_issue(result.version)
 
     review_log = ROOT / "docs/reports/agent-review-log.md"
