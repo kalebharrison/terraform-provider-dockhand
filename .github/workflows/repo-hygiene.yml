@@ -28,7 +28,7 @@ permissions:
 
 jobs:
   hygiene:
-    name: Prune stale agent branches and trackers
+    name: Prune stale agent/automation branches and trackers
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
