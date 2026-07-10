@@ -88,7 +88,9 @@ class GateResult:
 
 
 def _gh_json(args: list[str]) -> object:
-    cmd = ["gh", *args, "--repo", _repo()]
+    cmd = ["gh", *args]
+    if not args or args[0] != "api":
+        cmd.extend(["--repo", _repo()])
     proc = subprocess.run(cmd, cwd=ROOT, capture_output=True, text=True, check=False)
     if proc.returncode != 0:
         raise RuntimeError(proc.stderr.strip() or proc.stdout.strip() or "gh failed")
