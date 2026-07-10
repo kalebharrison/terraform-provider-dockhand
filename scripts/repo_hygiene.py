@@ -28,7 +28,43 @@ DELETE_CLOSED_TITLE_RES = (
     re.compile(r"^release: prepare v", re.I),
 )
 
-KEEP_BRANCH_NAMES = frozenset()
+KEEP_BRANCH_NAMES = frozenset(
+    {
+        # Reused by compat-reports-sync.yml for force-pushed docs-only PRs.
+        "automation/compat-reports-sync",
+    }
+)
+
+BRANCH_PREFIXES = ("agent/", "automation/")
+
+
+def is_prunable_branch(branch: str) -> bool:
+    return any(branch.startswith(prefix) for prefix in BRANCH_PREFIXES)
+
+
+def list_branches_with_prefix(prefix: str) -> list[str]:
+    data = _gh_json(["api", f"repos/{_repo()}/git/matching-refs/heads/{prefix}"])
+    if not isinstance(data, list):
+        return []
+    out: list[str] = []
+    for item in data:
+        ref = str(item.get("ref", ""))
+        if ref.startswith("refs/heads/"):
+            out.append(ref.removeprefix("refs/heads/"))
+    return sorted(out)
+
+
+def list_agent_branches() -> list[str]:
+    return list_branches_with_prefix("agent/")
+
+
+def list_automation_branches() -> list[str]:
+    return list_branches_with_prefix("automation/")
+
+
+def stale_branches_to_prune() -> list[str]:
+    branches = set(list_agent_branches()) | set(list_automation_branches())
+    return sorted(branches)
 
 
 def _repo() -> str:
@@ -59,18 +95,6 @@ def _gh_json(args: list[str]) -> object:
     return json.loads(proc.stdout)
 
 
-def list_agent_branches() -> list[str]:
-    data = _gh_json(["api", f"repos/{_repo()}/git/matching-refs/heads/agent/"])
-    if not isinstance(data, list):
-        return []
-    out: list[str] = []
-    for item in data:
-        ref = str(item.get("ref", ""))
-        if ref.startswith("refs/heads/"):
-            out.append(ref.removeprefix("refs/heads/"))
-    return sorted(out)
-
-
 def branch_has_open_pr(branch: str) -> bool:
     data = _gh_json(["pr", "list", "--state", "open", "--head", branch, "--json", "number"])
     return isinstance(data, list) and len(data) > 0
@@ -87,6 +111,8 @@ def _gh_run(args: list[str]) -> None:
 
 def delete_branch(branch: str, *, apply: bool) -> bool:
     if branch in KEEP_BRANCH_NAMES:
+        return False
+    if not is_prunable_branch(branch):
         return False
     if branch_has_open_pr(branch):
         return False
@@ -278,7 +304,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument(
         "--branches",
         action="store_true",
-        help="Delete stale agent/* branches without open PRs",
+        help="Delete stale agent/* and automation/* branches without open PRs",
     )
     parser.add_argument(
         "--delete-closed-issues",
@@ -317,7 +343,7 @@ def main(argv: list[str] | None = None) -> int:
     report: dict[str, object] = {"apply": args.apply, "branches": [], "issues": [], "workflow_runs": {}}
 
     if args.branches:
-        for branch in list_agent_branches():
+        for branch in stale_branches_to_prune():
             if delete_branch(branch, apply=args.apply):
                 report["branches"].append(branch)
 
