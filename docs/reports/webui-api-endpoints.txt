@@ -69,6 +69,7 @@
 /api/preferences/favorite-groups
 /api/preferences/favorites
 /api/preferences/grid
+/api/preferences/sidebar
 /api/profile
 /api/profile/avatar
 /api/profile/preferences
@@ -118,3 +119,7 @@
 /api/users/
 /api/volumes
 /api/volumes/
+/api/vulnerabilities
+/api/vulnerabilities/count
+/api/vulnerabilities/export
+/api/vulnerabilities/scan-all
