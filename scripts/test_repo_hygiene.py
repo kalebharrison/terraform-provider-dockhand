@@ -17,6 +17,9 @@ class RepoHygieneBranchTest(unittest.TestCase):
     def test_automation_branch_is_prunable(self) -> None:
         self.assertTrue(is_prunable_branch("automation/pr-merge-retry"))
 
+    def test_cursor_branch_is_prunable(self) -> None:
+        self.assertTrue(is_prunable_branch("cursor/repository-hygiene-automation-919d"))
+
     def test_main_is_not_prunable(self) -> None:
         self.assertFalse(is_prunable_branch("main"))
 

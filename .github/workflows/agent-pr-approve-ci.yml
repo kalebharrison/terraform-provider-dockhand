@@ -32,6 +32,7 @@ on:
 permissions:
   actions: write
   contents: write
+  issues: write
   pull-requests: write
 
 jobs:
@@ -44,14 +45,16 @@ jobs:
         github.event.workflow_run.conclusion == 'success' &&
         (
           startsWith(github.event.workflow_run.head_branch, 'agent/') ||
-          startsWith(github.event.workflow_run.head_branch, 'automation/')
+          startsWith(github.event.workflow_run.head_branch, 'automation/') ||
+          startsWith(github.event.workflow_run.head_branch, 'cursor/')
         )
       ) ||
       (
         github.event_name == 'pull_request' &&
         (
           startsWith(github.event.pull_request.head.ref, 'agent/') ||
-          startsWith(github.event.pull_request.head.ref, 'automation/')
+          startsWith(github.event.pull_request.head.ref, 'automation/') ||
+          startsWith(github.event.pull_request.head.ref, 'cursor/')
         )
       ) ||
       (
@@ -59,7 +62,8 @@ jobs:
         github.event.check_suite.head_branch != null &&
         (
           startsWith(github.event.check_suite.head_branch, 'agent/') ||
-          startsWith(github.event.check_suite.head_branch, 'automation/')
+          startsWith(github.event.check_suite.head_branch, 'automation/') ||
+          startsWith(github.event.check_suite.head_branch, 'cursor/')
         )
       )
     runs-on: ubuntu-latest
@@ -155,17 +159,32 @@ jobs:
               pull_number: pullNumber,
             });
 
-            if (
-              !pr.head?.ref?.startsWith("agent/") &&
-              !pr.head?.ref?.startsWith("automation/")
-            ) {
-              core.info("Not an automated agent/compat PR; skipping merge.");
+            const headRef = pr.head?.ref || "";
+            const isAgentBranch = headRef.startsWith("agent/");
+            const isAutomationBranch = headRef.startsWith("automation/");
+            const isTrustedCursorBranch =
+              headRef.startsWith("cursor/") &&
+              pr.user?.login === "cursor[bot]" &&
+              pr.head?.repo?.full_name === `${owner}/${repo}`;
+
+            if (!isAgentBranch && !isAutomationBranch && !isTrustedCursorBranch) {
+              core.info("Not a trusted automated PR; skipping merge.");
               return;
             }
 
-            const labels = (pr.labels || []).map((label) =>
+            let labels = (pr.labels || []).map((label) =>
               typeof label === "string" ? label : label.name
             );
+            if (isTrustedCursorBranch && !labels.includes("agent-auto-merge")) {
+              await github.rest.issues.addLabels({
+                owner,
+                repo,
+                issue_number: pullNumber,
+                labels: ["agent-auto-merge"],
+              });
+              labels = [...labels, "agent-auto-merge"];
+              core.info(`Added agent-auto-merge to trusted Cursor PR #${pullNumber}.`);
+            }
             if (!labels.includes("agent-auto-merge")) {
               core.info("PR missing agent-auto-merge label; skipping merge.");
               return;

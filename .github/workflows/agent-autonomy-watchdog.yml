@@ -13,7 +13,7 @@ permissions:
 
 jobs:
   stuck-pr-checks:
-    name: Unblock stuck agent PR checks
+    name: Unblock stuck automated PR checks
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -28,16 +28,16 @@ jobs:
           /usr/bin/python3 scripts/agent_stuck_pr_watchdog.py --json | tee /tmp/stuck-prs.json
           count="$(jq '.count' /tmp/stuck-prs.json)"
           blocked="$(jq '.blocked_count // 0' /tmp/stuck-prs.json)"
-          echo "Processed ${count} open agent/automation pull request(s); ${blocked} still blocked."
+          echo "Processed ${count} open trusted automated pull request(s); ${blocked} still blocked."
 
-  undispatched-ci-intake:
-    name: Dispatch CI failure issues to agent
+  undispatched-agent-intake:
+    name: Dispatch queued issues to agent
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v7
 
-      - name: Re-queue undispatched CI failure issues
+      - name: Re-queue undispatched eligible agent issues
         env:
           GH_TOKEN: ${{ github.token }}
         shell: bash
@@ -46,4 +46,4 @@ jobs:
           /usr/bin/python3 scripts/agent_ci_intake_watchdog.py --json | tee /tmp/ci-intake.json
           count="$(jq '.count' /tmp/ci-intake.json)"
           failures="$(jq '.dispatch_failures // 0' /tmp/ci-intake.json)"
-          echo "Re-dispatched intake for ${count} CI failure issue(s); ${failures} dispatch failure(s)."
+          echo "Re-dispatched intake for ${count} eligible agent issue(s); ${failures} dispatch failure(s)."

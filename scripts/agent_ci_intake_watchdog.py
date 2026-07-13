@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Re-dispatch Issue Agent Intake for CI failure issues that never left the queue."""
+"""Re-dispatch Issue Agent Intake for eligible agent issues left in the queue."""
 
 from __future__ import annotations
 
@@ -10,9 +10,6 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
-
-CI_ISSUE_PREFIXES = ("CI failure:", "Security CI failure:")
-
 
 def _repo() -> str:
     import os
@@ -54,11 +51,6 @@ def label_names(raw_labels: object) -> set[str]:
     return {name for name in names if name}
 
 
-def is_ci_failure_title(title: str) -> bool:
-    text = (title or "").strip()
-    return any(text.startswith(prefix) for prefix in CI_ISSUE_PREFIXES)
-
-
 def dispatch_intake(issue_number: int) -> None:
     proc = subprocess.run(
         [
@@ -80,7 +72,7 @@ def dispatch_intake(issue_number: int) -> None:
         raise RuntimeError(proc.stderr.strip() or proc.stdout.strip() or "workflow dispatch failed")
 
 
-def find_undispatched_ci_issues() -> list[dict]:
+def find_undispatched_agent_issues() -> list[dict]:
     sys.path.insert(0, str(Path(__file__).resolve().parent))
     from issue_agent_intake_eligibility import intake_eligible
 
@@ -105,13 +97,8 @@ def find_undispatched_ci_issues() -> list[dict]:
     for issue in data:
         number = int(issue["number"])
         title = str(issue.get("title", ""))
-        if not is_ci_failure_title(title):
-            continue
-
         labels = label_names(issue.get("labels"))
         if "agent-dispatched" in labels or "no-agent" in labels:
-            continue
-        if not (labels & {"ci", "security"}):
             continue
 
         author = issue.get("author") if isinstance(issue.get("author"), dict) else {}
@@ -135,7 +122,7 @@ def find_undispatched_ci_issues() -> list[dict]:
 
 def redispatch(*, dry_run: bool = False) -> list[dict]:
     results: list[dict] = []
-    for item in find_undispatched_ci_issues():
+    for item in find_undispatched_agent_issues():
         entry = dict(item)
         if dry_run:
             entry["intake_dispatch"] = "dry-run"

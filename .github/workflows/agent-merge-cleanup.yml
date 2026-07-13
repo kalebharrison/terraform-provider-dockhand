@@ -69,8 +69,17 @@ jobs:
             const keepBranches = new Set(["automation/compat-reports-sync"]);
             const isAgentBranch = headRef.startsWith("agent/");
             const isAutomationBranch = headRef.startsWith("automation/");
+            const isTrustedCursorBranch =
+              headRef.startsWith("cursor/") &&
+              pr.user?.login === "cursor[bot]" &&
+              pr.head?.repo?.full_name === `${owner}/${repo}`;
 
-            if (!isAgentBranch && !isAutomationBranch && context.eventName !== "workflow_dispatch") {
+            if (
+              !isAgentBranch &&
+              !isAutomationBranch &&
+              !isTrustedCursorBranch &&
+              context.eventName !== "workflow_dispatch"
+            ) {
               core.info(`Skipping non-automated PR #${pr.number} (${headRef || "unknown ref"}).`);
               return;
             }
@@ -79,7 +88,7 @@ jobs:
               if (headRef && !keepBranches.has(headRef)) {
                 try {
                   await github.rest.git.deleteRef({ owner, repo, ref: `heads/${headRef}` });
-                  core.info(`Deleted automation branch ${headRef} after merge.`);
+                  core.info(`Deleted automated branch ${headRef} after merge.`);
                 } catch (error) {
                   if (error.status !== 422) {
                     core.warning(`Could not delete branch ${headRef}: ${error.message}`);

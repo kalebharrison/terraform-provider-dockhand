@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Unblock open agent/automation PRs stuck on action_required workflow runs."""
+"""Unblock trusted automated PRs stuck on action_required workflow runs."""
 
 from __future__ import annotations
 
@@ -12,6 +12,8 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 
 HEAD_PREFIXES = ("agent/", "automation/")
+CURSOR_HEAD_PREFIX = "cursor/"
+CURSOR_AUTHORS = frozenset({"app/cursor", "cursor[bot]"})
 
 
 def _repo() -> str:
@@ -47,6 +49,16 @@ def is_target_head(head_ref: str) -> bool:
     return any(ref.startswith(prefix) for prefix in HEAD_PREFIXES)
 
 
+def is_target_pull_request(item: dict) -> bool:
+    head_ref = str(item.get("headRefName", "")).strip()
+    if is_target_head(head_ref):
+        return True
+    if not head_ref.startswith(CURSOR_HEAD_PREFIX):
+        return False
+    author = item.get("author") if isinstance(item.get("author"), dict) else {}
+    return str(author.get("login", "")).strip().lower() in CURSOR_AUTHORS
+
+
 def open_agent_pull_requests() -> list[dict]:
     data = _gh_json(
         [
@@ -55,14 +67,14 @@ def open_agent_pull_requests() -> list[dict]:
             "--state",
             "open",
             "--json",
-            "number,headRefName,headRefOid,labels",
+            "number,headRefName,headRefOid,labels,author",
             "--limit",
             "100",
         ]
     )
     if not isinstance(data, list):
         return []
-    return [item for item in data if is_target_head(str(item.get("headRefName", "")))]
+    return [item for item in data if is_target_pull_request(item)]
 
 
 def dispatch_pr_approve(pull_number: int, head_sha: str) -> None:
