@@ -91,8 +91,8 @@ If the new acceptance suite should run on PRs, add the exact `TestAcc...` functi
 | `acceptance-ci.yml` | PR | Dockhand + DinD + Hawser targeted acceptance |
 | `agent-validate.yml` | push to `agent/**` | Agent pre-PR validation |
 | `agent-open-pr.yml` | after successful Agent Validate | Opens or updates agent PR; skips duplicates when issue is complete |
-| `agent-pr-approve-ci.yml` | agent/automation PR events + after Agent Validate / Agent Open PR | Approves blocked checks; squash-merges when `agent-auto-merge` and checks pass |
-| `agent-autonomy-watchdog.yml` | every 15m | Unblocks stuck agent/automation PR checks; re-dispatches intake for undispatched `CI failure:` issues |
+| `agent-pr-approve-ci.yml` | trusted agent/automation/Cursor PR events + after Agent Validate / Agent Open PR | Approves blocked checks; squash-merges when `agent-auto-merge` and checks pass |
+| `agent-autonomy-watchdog.yml` | every 15m | Unblocks trusted automated PRs; re-dispatches intake for eligible queued agent issues |
 | `agent-merge-cleanup.yml` | agent PR merged / push to `main` | Closes linked issues, labels `awaiting-release`, posts merge comment, deletes agent branch |
 | `issue-agent-intake.yml` | issue opened/labeled | Dispatches Cursor Cloud Agent + lens set |
 | `acceptance-full.yml` | nightly | Full `TestAcc` + drift audits |

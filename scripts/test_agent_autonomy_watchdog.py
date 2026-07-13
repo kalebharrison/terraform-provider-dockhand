@@ -7,8 +7,7 @@ import unittest
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 
-from agent_ci_intake_watchdog import is_ci_failure_title
-from agent_stuck_pr_watchdog import is_target_head
+from agent_stuck_pr_watchdog import is_target_head, is_target_pull_request
 
 
 class AgentAutonomyWatchdogTest(unittest.TestCase):
@@ -21,14 +20,25 @@ class AgentAutonomyWatchdogTest(unittest.TestCase):
     def test_non_target_branch(self) -> None:
         self.assertFalse(is_target_head("feature/manual-fix"))
 
-    def test_ci_failure_title(self) -> None:
-        self.assertTrue(is_ci_failure_title("CI failure: Workflow Lint"))
+    def test_cursor_bot_pr_is_targeted(self) -> None:
+        self.assertTrue(
+            is_target_pull_request(
+                {
+                    "headRefName": "cursor/repository-hygiene-automation-919d",
+                    "author": {"login": "app/cursor"},
+                }
+            )
+        )
 
-    def test_security_ci_failure_title(self) -> None:
-        self.assertTrue(is_ci_failure_title("Security CI failure: Secret Scan"))
-
-    def test_non_ci_title(self) -> None:
-        self.assertFalse(is_ci_failure_title("[Automation] Workflow failing: Go CI"))
+    def test_untrusted_cursor_named_pr_is_not_targeted(self) -> None:
+        self.assertFalse(
+            is_target_pull_request(
+                {
+                    "headRefName": "cursor/not-from-cursor",
+                    "author": {"login": "random-user"},
+                }
+            )
+        )
 
 
 if __name__ == "__main__":

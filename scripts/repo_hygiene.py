@@ -35,7 +35,7 @@ KEEP_BRANCH_NAMES = frozenset(
     }
 )
 
-BRANCH_PREFIXES = ("agent/", "automation/")
+BRANCH_PREFIXES = ("agent/", "automation/", "cursor/")
 
 
 def is_prunable_branch(branch: str) -> bool:
@@ -62,8 +62,16 @@ def list_automation_branches() -> list[str]:
     return list_branches_with_prefix("automation/")
 
 
+def list_cursor_branches() -> list[str]:
+    return list_branches_with_prefix("cursor/")
+
+
 def stale_branches_to_prune() -> list[str]:
-    branches = set(list_agent_branches()) | set(list_automation_branches())
+    branches = (
+        set(list_agent_branches())
+        | set(list_automation_branches())
+        | set(list_cursor_branches())
+    )
     return sorted(branches)
 
 
@@ -304,7 +312,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument(
         "--branches",
         action="store_true",
-        help="Delete stale agent/* and automation/* branches without open PRs",
+        help="Delete stale agent/*, automation/*, and cursor/* branches without open PRs",
     )
     parser.add_argument(
         "--delete-closed-issues",

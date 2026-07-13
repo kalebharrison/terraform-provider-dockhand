@@ -28,27 +28,43 @@ def _gh_api(path: str) -> dict:
     return json.loads(proc.stdout)
 
 
+def _is_integration_access_denied(error: RuntimeError) -> bool:
+    message = str(error).lower()
+    return "resource not accessible by integration" in message or "http 403" in message
+
+
 def check_settings() -> dict:
     repo = _repo()
     blockers: list[str] = []
 
-    permissions = _gh_api(f"repos/{repo}/actions/permissions")
-    if not permissions.get("enabled", True):
+    try:
+        permissions = _gh_api(f"repos/{repo}/actions/permissions")
+    except RuntimeError as err:
+        if not _is_integration_access_denied(err):
+            raise
+        permissions = {}
+    if permissions and not permissions.get("enabled", True):
         blockers.append("GitHub Actions is disabled for this repository")
 
     try:
         workflow_permissions = _gh_api(f"repos/{repo}/actions/permissions/workflow")
     except RuntimeError as err:
-        blockers.append(f"could not read workflow permissions: {err}")
+        if not _is_integration_access_denied(err):
+            blockers.append(f"could not read workflow permissions: {err}")
         workflow_permissions = {}
 
-    if workflow_permissions.get("default_workflow_permissions") != "write":
+    if (
+        workflow_permissions
+        and workflow_permissions.get("default_workflow_permissions") != "write"
+    ):
         blockers.append(
             "workflow default permissions must be 'write' "
             f"(current: {workflow_permissions.get('default_workflow_permissions')!r})"
         )
 
-    if not workflow_permissions.get("can_approve_pull_request_reviews"):
+    if workflow_permissions and not workflow_permissions.get(
+        "can_approve_pull_request_reviews"
+    ):
         blockers.append(
             "Enable Settings → Actions → General → "
             "'Allow GitHub Actions to create and approve pull requests'"
@@ -59,6 +75,7 @@ def check_settings() -> dict:
         "blockers": blockers,
         "workflow_permissions": workflow_permissions,
         "actions_enabled": permissions.get("enabled", True),
+        "settings_readable": bool(permissions and workflow_permissions),
     }
 
 
