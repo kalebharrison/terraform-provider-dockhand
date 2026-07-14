@@ -268,10 +268,18 @@ jobs:
               core.warning(`Auto-merge enable failed for PR #${pullNumber}: ${error.message}`);
             }
 
-            await github.rest.pulls.merge({
-              owner,
-              repo,
-              pull_number: pullNumber,
-              merge_method: "squash",
-            });
-            core.info(`Squash-merged PR #${pullNumber}`);
+            try {
+              await github.rest.pulls.merge({
+                owner,
+                repo,
+                pull_number: pullNumber,
+                merge_method: "squash",
+              });
+              core.info(`Squash-merged PR #${pullNumber}`);
+            } catch (error) {
+              if (error.status === 405 && /merge already in progress/i.test(error.message)) {
+                core.info(`Merge already in progress for PR #${pullNumber}; treating as successful handoff.`);
+                return;
+              }
+              throw error;
+            }
