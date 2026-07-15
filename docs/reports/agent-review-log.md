@@ -2,7 +2,7 @@
 
 Append-only record of lens sweeps. See `docs/AGENT_REVIEW_LENSES.md`.
 
-**Next lens:** none — last release pass 2026-07-04 (v0.1.86). Re-run before next `v*` release.
+**Next lens:** none — last release pass 2026-07-13 (v0.1.87). Re-run before next `v*` release.
 
 ---
 
@@ -621,4 +621,105 @@ Append-only record of lens sweeps. See `docs/AGENT_REVIEW_LENSES.md`.
 - **Clear to tag:** yes
 - **Blocking findings:** none
 - **Deferred medium/low:** optional async `dockhand_job` acceptance when API stable; CHANGELOG cut heading post-tag; Compat Reports Sync PR merge after next green run
+
+---
+
+## Release v0.1.87 — lens review
+
+- **Tier:** patch
+- **Started:** 2026-07-13
+- **Base commit:** `800bd5b`
+- **CI gates:** pass (`scripts/release_gate_check.py`)
+- **Awaiting-release issues:** none
+- **Unreleased commits:** 33 (CI/automation, compat baselines, dependency bumps)
+- **Status:** clear to tag
+
+---
+
+### 2026-07-13 — API compatibility
+
+**Scope:** `scripts/endpoint-probe.py`, `scripts/api-drift-gate.py`, `docs/api-matrix.md`, `docs/non-present-endpoints.md`, `docs/reports/endpoint-probe.md`, `docs/reports/api-drift-gate.md`, `docs/reports/dockhand-last-tested.json`, `internal/provider/client_*.go` (grep for changes since `v0.1.86`).
+
+**Summary:** No provider client or probe-list changes since `v0.1.86`. Compat Reports Sync refreshed baselines on 2026-07-13; Release Watch validated Dockhand `latest` (`sha256:871700eb…`). Probe tracks 156 routes with only the documented backlog absent (`GET /api/configs`, `GET /api/backups`). API drift gate reports zero new relevant endpoints.
+
+| Severity | Location | Finding | Suggested action |
+|----------|----------|---------|------------------|
+| med | `docs/reports/endpoint-probe.md:23-37` | 13 parameterized routes show unexpected 404 in static probe (users, environments, git stacks, containers) — fixture/safe-mode artifacts; acceptance and Release Watch exercise these paths on live Dockhand | Continue tuning probe fixtures on future agent branches; no release block |
+| low | `docs/api-matrix.md` | Residual WebUI gap notes may lag newest resources | Periodic doc sweep on minor releases |
+| — | `docs/non-present-endpoints.md:7-14` | Last-verified July 13, 2026; backlog matches probe | Current |
+| — | `scripts/api-drift-gate.md:10` | `New relevant endpoints not allowlisted: 0` | Current |
+| — | `internal/provider/client_*.go` | No edits since `v0.1.86` | Skim confirmed |
+
+---
+
+### 2026-07-13 — Terraform schema & state
+
+**Scope:** `internal/provider/provider.go`, `resource_git_stack.go`, `resource_stack.go`, `resource_container.go`, `resource_batch_action.go`, `runtime_helpers.go` (grep for changes since `v0.1.86`).
+
+**Summary:** No provider schema or state logic changed in the v0.1.87 window. Prior release fixes remain intact: one-shot `deploy_now`/`force_redeploy` reset, `enabled` reconciliation, inline batch failure detection, resolved `default_env` on action resources.
+
+| Severity | Location | Finding | Suggested action |
+|----------|----------|---------|------------------|
+| med | `internal/provider/resource_git_stack.go:192-197` | `env_vars_json` can hold secrets; marked Sensitive but write-only on read | Document write-only semantics in resource doc (deferred from v0.1.86) |
+| med | `internal/provider/resource_stack.go`, `resource_container.go` | `enabled` reconciliation skips transitional statuses | Extend status map or emit diagnostic on unknown status (deferred) |
+| low | `internal/provider/resource_stack.go:52-55` | Stack `id` Computed without `UseStateForUnknown` | Add plan modifier when touching stack resource (deferred) |
+| — | `internal/provider/*.go` | No edits since `v0.1.86` | Skim confirmed; no new regressions |
+
+---
+
+### 2026-07-13 — Acceptance & regression
+
+**Scope:** `acceptance_manifest.json`, `acceptance_pr_ci.json`, `acceptance_manifest_test.go`, `scripts/run-acceptance-harness.sh`, `scripts/check-acceptance-skips.py`, `.github/workflows/acceptance-ci.yml`, `.github/workflows/dockhand-release-watch.yml`, `.github/workflows/compat-reports-sync.yml`, CI automation commits since `v0.1.86`.
+
+**Summary:** Acceptance Full and Dockhand Release Watch are green on `main` per `release_gate_check.py`. Manifest and PR CI subset (13 suites) unchanged. This release window improves CI reliability: Release Watch skips revalidation when Dockhand digest and provider SHA are unchanged; Compat Reports Sync commits baselines directly to `main`; auto-merge polls for checks; agent loop routes CI failures and stuck PRs.
+
+| Severity | Location | Finding | Suggested action |
+|----------|----------|---------|------------------|
+| med | `acceptance_manifest_test.go:34-60` | 22 `manifestOperationExemptions` remain (mostly action delete checks) | Shrink incrementally on future agent branches (deferred) |
+| med | `acceptance_pr_ci.json` | 13 suites vs ~85 manifest entries — nightly-only coverage by design | Document in CONTRIBUTING; rotate PR suites on minor releases (deferred) |
+| low | `resource_new_surfaces_tf_acc_test.go` | `dockhand_job` skipped when batch completes inline | Optional coverage when API stable (deferred from v0.1.86) |
+| low | `examples/scenarios/registry-and-image/main.tf:34` | `timestamp()` trigger causes perpetual diff | Replace with static trigger in follow-up (deferred) |
+| — | `dockhand-release-watch.yml`, `release_watch_state.py` | Skip full validation when image digest + provider SHA unchanged | Fixed (#167 area) |
+| — | `compat-reports-sync.yml` | Direct commit to `main`; zero-touch baseline refresh | Fixed |
+| — | `agent-pr-approve-ci.yml` | Poll for PR checks before auto-merge | Fixed (#162) |
+
+---
+
+### 2026-07-13 — Security engineer
+
+**Scope:** `internal/provider/provider.go`, `internal/provider/auth.go`, `internal/provider/client.go`, secret-bearing resources (sample grep), `.github/workflows/*`, `go.mod` (`golang.org/x/crypto` bump), `.gitignore`.
+
+**Summary:** No provider auth or secret-handling code changed since `v0.1.86`. `golang.org/x/crypto` bumped to v0.52.0 (#165); GitHub Actions bumped (checkout v7, cache v6, download-artifact v8, attest-build-provenance v4.1.1). No `pull_request_target` workflows. Agent branches still cannot modify workflow files vs `main`.
+
+| Severity | Location | Finding | Suggested action |
+|----------|----------|---------|------------------|
+| med | `.github/workflows/acceptance-ci.yml` | Throwaway CI password in workflow env (public repo) | Acceptable ephemeral creds; optional generated secret (deferred) |
+| med | `internal/provider/auth.go:132` | Error bodies may echo server JSON | Truncate/sanitize diagnostics in future hardening (deferred) |
+| low | CI failure artifacts | Session cookies possible in `dh-*.json` uploads | Scrub artifacts in follow-up (deferred) |
+| — | `go.mod` | `golang.org/x/crypto v0.52.0` indirect dep bump | Merged via Dependabot #165 |
+| — | `.github/workflows/*.yml` | No `pull_request_target`; workflow integrity checks maintained | Current |
+
+---
+
+### 2026-07-13 — Release & upgrade
+
+**Scope:** `CHANGELOG.md`, `README.md`, `docs/testing/release-gate.md`, `scripts/release_gate_check.py`, `scripts/release_housekeeping.py`, `.github/workflows/agent-release-tag.yml`, unreleased commit log since `v0.1.86`.
+
+**Summary:** Patch-tier maintenance release: 33 commits since `v0.1.86` with no provider schema or client changes. Release automation now tags when `main` has unreleased commits (not only `awaiting-release` issues). `release_gate_check.py` reports `ci_gates_pass: true`, `tier: patch`, zero blockers. `./scripts/verify.sh --quality` passes locally. `CHANGELOG.md` Unreleased documents CI/automation improvements shipping in v0.1.87.
+
+| Severity | Location | Finding | Suggested action |
+|----------|----------|---------|------------------|
+| med | `CHANGELOG.md` | Unreleased section not yet cut to `[0.1.87]` heading | Post-tag housekeeping via **Agent Release Tag** / `release_housekeeping.py` |
+| low | `README.md:23` | `version = ">= 0.1.63"` constraint | Bump to `>= 0.1.87` after tag (optional doc follow-up) |
+| — | `scripts/release_gate_check.py` | Gates green; `ready_for_lens_dispatch: true` | Satisfied |
+| — | `agent-release-tag.yml`, #167 | Release when main has unreleased commits | Fixed |
+| — | `scripts/release_notify.py` (861906b) | `gh release list` API compatibility | Fixed |
+
+---
+
+### Release v0.1.87 — verdict
+
+- **Clear to tag:** yes
+- **Blocking findings:** none
+- **Deferred medium/low:** probe fixture 404 tuning; shrink `manifestOperationExemptions`; registry-and-image `timestamp()` example; README version pin bump; optional artifact scrubbing and auth error sanitization — carry forward from v0.1.85/v0.1.86 (no new high-severity regressions)
 

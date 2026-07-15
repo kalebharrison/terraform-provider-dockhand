@@ -9,7 +9,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- _Nothing yet._
+- Release automation tags when `main` has unreleased commits, not only `awaiting-release` issues.
+- Weekly repo hygiene workflow and stale agent branch pruning.
+
+### Changed
+
+- **Compat Reports Sync** commits probe/drift baselines directly to `main` (zero-touch).
+- **Dockhand Release Watch** skips full validation when Dockhand image digest and provider `main` SHA are unchanged.
+- Agent loop routes CI failures and stuck PR approvals through automation; auto-merge polls for PR checks before merging.
+- GitHub Actions dependency bumps: `actions/checkout` v7, `actions/cache` v6, `actions/download-artifact` v8, `actions/attest-build-provenance` v4.1.1.
+- `golang.org/x/crypto` v0.52.0 (indirect).
+
+### Fixed
+
+- Release gate and compat-sync scripts stop passing `--repo` to `gh api` where unsupported.
+- Release notify script compatibility with `gh release list` API change.
+- Reduced `workflow_run` cascade noise and false failure emails.
+- Compat Reports Sync PR branch and stall watchdog `gh api` usage.
 
 ## [0.1.86] - 2026-07-04
 
