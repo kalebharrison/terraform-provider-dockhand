@@ -22,7 +22,11 @@ jobs:
             const action = context.payload.action;
             const headRef = pr?.head?.ref || "";
 
-            if (headRef.startsWith("agent/") || headRef.startsWith("automation/")) {
+            if (
+              headRef.startsWith("agent/") ||
+              headRef.startsWith("automation/") ||
+              headRef.startsWith("cursor/repository-hygiene-automation-")
+            ) {
               core.info("Skipping issue-link enforcement for agent/automation branch.");
               return;
             }
