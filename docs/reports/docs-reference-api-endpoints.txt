@@ -1,5 +1,13 @@
 /api/activity
 /api/auth/oidc/callback
+/api/backup/configs
+/api/backup/destinations
+/api/backup/destinations/test
+/api/backup/restore
+/api/backup/restore/preview
+/api/backup/restore/stop
+/api/backup/snapshots
+/api/backup/snapshots/diff
 /api/batch
 /api/containers
 /api/containers/abc123/restart
@@ -18,6 +26,7 @@
 /api/images/push
 /api/images/scan
 /api/images/scan/export
+/api/jobs/{id}
 /api/jobs/{jobId}
 /api/labels
 /api/networks
