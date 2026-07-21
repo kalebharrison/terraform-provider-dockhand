@@ -195,6 +195,11 @@ jobs:
               return;
             }
 
+            if (pr.draft) {
+              core.info(`PR #${pullNumber} is still a draft; skipping merge.`);
+              return;
+            }
+
             const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
             const waitForChecks = async (maxAttempts = 24, delayMs = 15000) => {
