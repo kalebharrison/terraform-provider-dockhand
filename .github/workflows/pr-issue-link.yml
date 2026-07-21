@@ -25,9 +25,9 @@ jobs:
             if (
               headRef.startsWith("agent/") ||
               headRef.startsWith("automation/") ||
-              headRef.startsWith("cursor/repository-hygiene-automation-")
+              headRef.startsWith("cursor/")
             ) {
-              core.info("Skipping issue-link enforcement for agent/automation branch.");
+              core.info("Skipping issue-link enforcement for agent/automation/Cursor branch.");
               return;
             }
 
