@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- `dockhand_environment`: create with `public_ip` no longer produces an inconsistent apply when Dockhand omits or ignores `publicIp` on `POST /api/environments` (follow-up `PUT` persists the planned value).
+
 ## [0.1.87] - 2026-07-15
 
 ### Added

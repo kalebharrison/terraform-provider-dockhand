@@ -35,7 +35,7 @@ func TestAccEnvironmentResourceDirectDinDTerraform(t *testing.T) {
 		ProtoV6ProviderFactories: testAccProviderFactories(),
 		Steps: []resource.TestStep{
 			{
-				Config: testAccEnvironmentDirectDinDConfig(envName, dindHost, "globe", containerName),
+				Config: testAccEnvironmentDirectDinDConfig(envName, dindHost, "globe", "203.0.113.10", containerName),
 				Check: resource.ComposeTestCheckFunc(
 					resource.TestCheckResourceAttr("dockhand_environment.test", "name", envName),
 					resource.TestCheckResourceAttr("dockhand_environment.test", "connection_type", "direct"),
@@ -43,22 +43,24 @@ func TestAccEnvironmentResourceDirectDinDTerraform(t *testing.T) {
 					resource.TestCheckResourceAttr("dockhand_environment.test", "port", "2375"),
 					resource.TestCheckResourceAttr("dockhand_environment.test", "protocol", "http"),
 					resource.TestCheckResourceAttr("dockhand_environment.test", "icon", "globe"),
+					resource.TestCheckResourceAttr("dockhand_environment.test", "public_ip", "203.0.113.10"),
 					resource.TestCheckResourceAttrSet("dockhand_environment.test", "id"),
 					resource.TestCheckResourceAttr("dockhand_container.test", "name", containerName),
 					resource.TestCheckResourceAttrSet("dockhand_container.test", "id"),
 				),
 			},
 			{
-				Config: testAccEnvironmentDirectDinDConfig(envName, dindHost, "server", containerName),
+				Config: testAccEnvironmentDirectDinDConfig(envName, dindHost, "server", "198.51.100.20", containerName),
 				Check: resource.ComposeTestCheckFunc(
 					resource.TestCheckResourceAttr("dockhand_environment.test", "icon", "server"),
+					resource.TestCheckResourceAttr("dockhand_environment.test", "public_ip", "198.51.100.20"),
 				),
 			},
 		},
 	})
 }
 
-func testAccEnvironmentDirectDinDConfig(envName string, dindHost string, icon string, containerName string) string {
+func testAccEnvironmentDirectDinDConfig(envName string, dindHost string, icon string, publicIP string, containerName string) string {
 	return fmt.Sprintf(`
 provider "dockhand" {}
 
@@ -70,6 +72,7 @@ resource "dockhand_environment" "test" {
   protocol        = "http"
   tls_skip_verify = false
   icon            = %q
+  public_ip       = %q
 
   collect_activity  = true
   collect_metrics   = true
@@ -89,7 +92,7 @@ resource "dockhand_container" "test" {
   image   = dockhand_image.test.name
   enabled = false
 }
-`, envName, dindHost, icon, containerName)
+`, envName, dindHost, icon, publicIP, containerName)
 }
 
 func TestAccEnvironmentResourceAgentTokenTerraform(t *testing.T) {

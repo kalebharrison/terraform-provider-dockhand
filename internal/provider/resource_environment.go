@@ -278,7 +278,26 @@ func (r *environmentResource) Create(ctx context.Context, req resource.CreateReq
 		return
 	}
 
+	// Some Dockhand builds accept publicIp on PUT but omit or ignore it on POST.
+	// Follow up with an update so create matches plan and persists the value.
+	publicIPFollowUp := false
+	if environmentPublicIPNeedsFollowUp(plan, created) {
+		id := strconv.FormatInt(created.ID, 10)
+		updated, _, updateErr := r.client.UpdateEnvironment(ctx, id, payload)
+		if updateErr != nil {
+			resp.Diagnostics.AddError("Error setting Dockhand environment public_ip after create", updateErr.Error())
+			return
+		}
+		created = updated
+		publicIPFollowUp = true
+	}
+
 	state := modelFromEnvironmentResponse(plan, created)
+	// PUT may persist publicIp even when the response body still omits it.
+	if publicIPFollowUp && !plan.PublicIP.IsNull() && !plan.PublicIP.IsUnknown() &&
+		state.PublicIP.ValueString() != plan.PublicIP.ValueString() {
+		state.PublicIP = plan.PublicIP
+	}
 	state = r.applyEnvironmentAgentToken(ctx, state, plan, environmentModel{}, &resp.Diagnostics)
 	state = r.applyEnvironmentAux(ctx, state, plan, state.ID.ValueString(), &resp.Diagnostics)
 	state = r.readEnvironmentAux(ctx, state, &resp.Diagnostics)
@@ -610,6 +629,22 @@ func environmentPublicIPValue(v *string) types.String {
 		return types.StringValue("")
 	}
 	return types.StringValue(*v)
+}
+
+func environmentPublicIPFromResponse(in *environmentResponse) string {
+	if in == nil || in.PublicIP == nil {
+		return ""
+	}
+	return *in.PublicIP
+}
+
+// environmentPublicIPNeedsFollowUp reports whether create left public_ip out of sync
+// with the planned value, so Create should PUT the environment again.
+func environmentPublicIPNeedsFollowUp(plan environmentModel, created *environmentResponse) bool {
+	if plan.PublicIP.IsNull() || plan.PublicIP.IsUnknown() {
+		return false
+	}
+	return plan.PublicIP.ValueString() != environmentPublicIPFromResponse(created)
 }
 
 func normalizeEnvironmentConnectionTypeForAPI(connectionType string) string {

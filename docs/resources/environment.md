@@ -18,6 +18,7 @@ resource "dockhand_environment" "socket" {
   # client_cert = file("${path.module}/certs/client.pem")
   # client_key  = file("${path.module}/certs/client-key.pem")
   icon            = "globe"
+  public_ip       = "203.0.113.10"
 
   collect_activity         = true
   collect_metrics          = true
@@ -47,6 +48,7 @@ resource "dockhand_environment" "agent" {
 
 - `socket_path` is required when `connection_type = "socket"`.
 - `public_ip` defaults to an empty string when unset.
+- Some Dockhand builds ignore or omit `publicIp` on `POST /api/environments`. When create returns an empty/`null` `public_ip` that does not match the plan, the provider immediately follows up with `PUT /api/environments/{id}` so initial apply succeeds (same path as a later update).
 - `connection_type = "agent"` maps to Dockhand `hawser-edge`.
 - `agent_token` for `connection_type = "agent"` is provisioned through Dockhand `/api/hawser/tokens` with the configured raw token.
 - mTLS fields are available:
