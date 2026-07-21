@@ -92,11 +92,20 @@ jobs:
 
             const fs = require("fs");
             const bodyPath = `${process.env.RUNNER_TEMP}/issue-body.txt`;
+            const titlePath = `${process.env.RUNNER_TEMP}/issue-title.txt`;
+            const labelsPath = `${process.env.RUNNER_TEMP}/issue-labels.txt`;
+            const commentPath = `${process.env.RUNNER_TEMP}/issue-comment.txt`;
             fs.writeFileSync(bodyPath, body, "utf8");
+            fs.writeFileSync(titlePath, title, "utf8");
+            fs.writeFileSync(labelsPath, labels.join(","), "utf8");
+            fs.writeFileSync(commentPath, commentBody, "utf8");
 
             core.setOutput("issue_number", String(issueNumber));
             core.setOutput("title", title);
             core.setOutput("body_path", bodyPath);
+            core.setOutput("title_path", titlePath);
+            core.setOutput("labels_path", labelsPath);
+            core.setOutput("comment_path", commentPath);
             core.setOutput("labels", labels.join(","));
             core.setOutput("author_type", authorType);
             core.setOutput("author_login", authorLogin);
@@ -105,6 +114,7 @@ jobs:
             core.setOutput("comment_body", commentBody);
             core.setOutput("has_dispatched", hasDispatched ? "true" : "false");
             core.setOutput("has_regression", hasRegression ? "true" : "false");
+            core.setOutput("skip", "false");
 
       - name: Evaluate intake eligibility
         id: eligible
@@ -115,14 +125,14 @@ jobs:
           args=(
             /usr/bin/python3 scripts/issue_agent_intake_eligibility.py
             --json
-            --title "${{ steps.ctx.outputs.title }}"
-            --labels "${{ steps.ctx.outputs.labels }}"
+            --title-file "${{ steps.ctx.outputs.title_path }}"
+            --labels-file "${{ steps.ctx.outputs.labels_path }}"
             --author-type "${{ steps.ctx.outputs.author_type }}"
             --author-login "${{ steps.ctx.outputs.author_login }}"
             --trigger "${{ steps.ctx.outputs.trigger }}"
             --body-file "${{ steps.ctx.outputs.body_path }}"
             --labeled-name "${{ steps.ctx.outputs.labeled_name }}"
-            --comment-body "${{ steps.ctx.outputs.comment_body }}"
+            --comment-body-file "${{ steps.ctx.outputs.comment_path }}"
           )
           if [[ "${{ steps.ctx.outputs.has_dispatched }}" == "true" ]]; then
             args+=(--has-dispatched)
@@ -134,7 +144,11 @@ jobs:
           eligible="$(printf '%s' "${result}" | jq -r '.eligible')"
           reason="$(printf '%s' "${result}" | jq -r '.reason // empty')"
           echo "eligible=${eligible}" >> "${GITHUB_OUTPUT}"
-          echo "reason=${reason}" >> "${GITHUB_OUTPUT}"
+          {
+            echo "reason<<EOF"
+            printf '%s\n' "${reason}"
+            echo "EOF"
+          } >> "${GITHUB_OUTPUT}"
 
       - name: Explain skipped intake
         if: >-
@@ -170,14 +184,19 @@ jobs:
         id: dispatch
         if: steps.eligible.outputs.eligible == 'true'
         uses: actions/github-script@v9
+        env:
+          ISSUE_NUMBER: ${{ steps.ctx.outputs.issue_number }}
+          ISSUE_TITLE: ${{ steps.ctx.outputs.title }}
+          TRIGGER: ${{ steps.ctx.outputs.trigger }}
+          HAS_REGRESSION: ${{ steps.ctx.outputs.has_regression }}
         with:
           script: |
             const owner = context.repo.owner;
             const repo = context.repo.repo;
-            const issueNumber = Number("${{ steps.ctx.outputs.issue_number }}");
-            const title = "${{ steps.ctx.outputs.title }}";
-            const trigger = "${{ steps.ctx.outputs.trigger }}";
-            const hasRegression = "${{ steps.ctx.outputs.has_regression }}" === "true";
+            const issueNumber = Number(process.env.ISSUE_NUMBER);
+            const title = process.env.ISSUE_TITLE || "";
+            const trigger = process.env.TRIGGER || "unknown";
+            const hasRegression = process.env.HAS_REGRESSION === "true";
 
             const issue = await github.rest.issues.get({ owner, repo, issue_number: issueNumber });
             const labels = (issue.data.labels || []).map((l) =>
@@ -273,8 +292,8 @@ jobs:
           fi
           /usr/bin/python3 scripts/issue_agent_intake.py \
             --issue-number "${{ steps.ctx.outputs.issue_number }}" \
-            --title "${{ steps.ctx.outputs.title }}" \
-            --labels "${{ steps.ctx.outputs.labels }}" \
+            --title-file "${{ steps.ctx.outputs.title_path }}" \
+            --labels-file "${{ steps.ctx.outputs.labels_path }}" \
             --body-file "${{ steps.ctx.outputs.body_path }}" \
             --branch "${{ steps.dispatch.outputs.branch }}"
 

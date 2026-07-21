@@ -99,7 +99,7 @@ def intake_eligible(
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--title", required=True)
+    parser.add_argument("--title", default="")
     parser.add_argument("--labels", default="", help="Comma-separated label names")
     parser.add_argument("--author-type", default="")
     parser.add_argument("--author-login", default="")
@@ -110,6 +110,12 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--has-regression", action="store_true")
     parser.add_argument("--labeled-name", default="")
     parser.add_argument("--comment-body", default="")
+    parser.add_argument(
+        "--comment-body-file",
+        help="Read comment body from a file (avoids shell backtick expansion)",
+    )
+    parser.add_argument("--title-file", help="Read issue title from a file")
+    parser.add_argument("--labels-file", help="Read comma-separated labels from a file")
     parser.add_argument("--json", action="store_true", help="Print JSON result")
     args = parser.parse_args(argv)
 
@@ -118,9 +124,27 @@ def main(argv: list[str] | None = None) -> int:
         with open(args.body_file, encoding="utf-8") as handle:
             body = handle.read()
 
-    labels = [part.strip() for part in args.labels.split(",") if part.strip()]
+    comment_body = args.comment_body
+    if args.comment_body_file:
+        with open(args.comment_body_file, encoding="utf-8") as handle:
+            comment_body = handle.read()
+
+    title = args.title
+    if args.title_file:
+        with open(args.title_file, encoding="utf-8") as handle:
+            title = handle.read().rstrip("\n")
+
+    labels_raw = args.labels
+    if args.labels_file:
+        with open(args.labels_file, encoding="utf-8") as handle:
+            labels_raw = handle.read().strip()
+
+    if not title.strip():
+        raise SystemExit("--title or --title-file is required")
+
+    labels = [part.strip() for part in labels_raw.split(",") if part.strip()]
     eligible, reason = intake_eligible(
-        title=args.title,
+        title=title,
         labels=labels,
         author_type=args.author_type,
         author_login=args.author_login,
@@ -129,7 +153,7 @@ def main(argv: list[str] | None = None) -> int:
         has_dispatched=args.has_dispatched,
         has_regression=args.has_regression,
         labeled_name=args.labeled_name,
-        comment_body=args.comment_body,
+        comment_body=comment_body,
     )
 
     result = {"eligible": eligible, "reason": reason}

@@ -140,35 +140,50 @@ def dispatch_cursor_agent(
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--issue-number", type=int, required=True)
-    parser.add_argument("--title", required=True)
+    parser.add_argument("--title", default="")
+    parser.add_argument("--title-file", help="Read issue title from a file")
     parser.add_argument("--body", default="")
     parser.add_argument("--body-file", help="Read issue body from a file")
     parser.add_argument("--labels", default="", help="Comma-separated issue labels")
+    parser.add_argument("--labels-file", help="Read comma-separated labels from a file")
     parser.add_argument("--branch", help="Override branch name")
     parser.add_argument("--repo-url", default=DEFAULT_REPO_URL)
     parser.add_argument("--model", default="composer-2.5")
     parser.add_argument("--dry-run", action="store_true")
     args = parser.parse_args(argv)
 
+    title = args.title
+    if args.title_file:
+        with open(args.title_file, encoding="utf-8") as handle:
+            title = handle.read().rstrip("\n")
+    if not title.strip():
+        print("--title or --title-file is required", file=sys.stderr)
+        return 2
+
     body = args.body
     if args.body_file:
         with open(args.body_file, encoding="utf-8") as handle:
             body = handle.read()
 
-    branch = args.branch or branch_name(args.issue_number, args.title)
+    labels_raw = args.labels
+    if args.labels_file:
+        with open(args.labels_file, encoding="utf-8") as handle:
+            labels_raw = handle.read().strip()
+
+    branch = args.branch or branch_name(args.issue_number, title)
     if not BRANCH_RE.match(branch):
         print(f"invalid agent branch: {branch}", file=sys.stderr)
         return 2
 
-    labels = parse_labels(args.labels)
-    prompt = build_prompt(args.issue_number, args.title, body, branch, labels)
+    labels = parse_labels(labels_raw)
+    prompt = build_prompt(args.issue_number, title, body, branch, labels)
     if args.dry_run:
         print(
             json.dumps(
                 {
                     "branch": branch,
                     "prompt_chars": len(prompt),
-                    "lenses": select_lenses(labels, args.title, body),
+                    "lenses": select_lenses(labels, title, body),
                 },
                 indent=2,
             )
