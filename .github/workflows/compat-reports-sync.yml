@@ -194,7 +194,7 @@ jobs:
               owner,
               repo,
               issue_number: pullNumber,
-              labels: ["maintenance", "compat-reports-sync", "agent-auto-merge"],
+              labels: ["maintenance", "compat-reports-sync", "skip-changelog", "agent-auto-merge"],
             });
             const { data: pr } = await github.rest.pulls.get({
               owner,
