@@ -43,6 +43,7 @@ func TestAccEnvironmentResourceDirectDinDTerraform(t *testing.T) {
 					resource.TestCheckResourceAttr("dockhand_environment.test", "port", "2375"),
 					resource.TestCheckResourceAttr("dockhand_environment.test", "protocol", "http"),
 					resource.TestCheckResourceAttr("dockhand_environment.test", "icon", "globe"),
+					resource.TestCheckResourceAttr("dockhand_environment.test", "public_ip", ""),
 					resource.TestCheckResourceAttrSet("dockhand_environment.test", "id"),
 					resource.TestCheckResourceAttr("dockhand_container.test", "name", containerName),
 					resource.TestCheckResourceAttrSet("dockhand_container.test", "id"),
