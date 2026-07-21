@@ -19,7 +19,23 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v7
 
+      - name: Skip docs-only compatibility report refresh PRs
+        id: scope
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          HEAD_REF: ${{ github.head_ref }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ "${EVENT_NAME}" == "pull_request" ]] && [[ "${HEAD_REF}" == automation/compat-reports-sync* ]]; then
+            echo "skip=true" >> "${GITHUB_OUTPUT}"
+            echo "Skipping govulncheck for docs-only compat reports sync PR."
+          else
+            echo "skip=false" >> "${GITHUB_OUTPUT}"
+          fi
+
       - name: Setup Go
+        if: steps.scope.outputs.skip != 'true'
         uses: actions/setup-go@v7
         with:
           go-version-file: go.mod
@@ -27,6 +43,7 @@ jobs:
           cache: true
 
       - name: Run govulncheck
+        if: steps.scope.outputs.skip != 'true'
         run: |
           go install golang.org/x/vuln/cmd/govulncheck@latest
           "$(go env GOPATH)/bin/govulncheck" -C . -format text ./...
