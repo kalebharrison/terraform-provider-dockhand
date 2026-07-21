@@ -2,7 +2,7 @@
 
 Append-only record of lens sweeps. See `docs/AGENT_REVIEW_LENSES.md`.
 
-**Next lens:** none — last release pass 2026-07-20 (v0.1.88). Re-run before next `v*` release.
+**Next lens:** none — last release pass 2026-07-21 (v0.1.89). Re-run before next `v*` release.
 
 ---
 
@@ -872,4 +872,104 @@ Append-only record of lens sweeps. See `docs/AGENT_REVIEW_LENSES.md`.
 - **Clear to tag:** yes
 - **Blocking findings:** none
 - **Deferred medium/low:** probe fixture 404 tuning; backup API routes for future provider expansion; shrink `manifestOperationExemptions`; registry-and-image `timestamp()` example; README version pin bump; optional artifact scrubbing and auth error sanitization — carry forward from v0.1.85/v0.1.86/v0.1.87 (no new high-severity regressions)
+
+---
+
+## Release v0.1.89 — lens review
+
+- **Tier:** patch
+- **Started:** 2026-07-21
+- **Base commit:** `f0d910f`
+- **CI gates:** pass (`scripts/release_gate_check.py`)
+- **Awaiting-release issues:** none
+- **Unreleased commits:** 3 (CI/automation hardening, compat baseline refreshes)
+- **Status:** clear to tag
+
+---
+
+### 2026-07-21 — API compatibility
+
+**Scope:** `scripts/endpoint-probe.py`, `scripts/api-drift-gate.py`, `docs/api-matrix.md`, `docs/non-present-endpoints.md`, `docs/reports/endpoint-probe.md`, `docs/reports/api-drift-gate.md`, `docs/reports/dockhand-last-tested.json`, `internal/provider/client_*.go` (grep for changes since `v0.1.88`).
+
+**Summary:** No provider client or probe-list changes since `v0.1.88`. Compat Reports Sync refreshed baselines on 2026-07-21; Release Watch validated Dockhand `latest` (`sha256:871700eb…`). Probe tracks 156 routes with only the documented backlog absent (`GET /api/configs`, `GET /api/backups`). API drift gate reports zero new relevant endpoints.
+
+| Severity | Location | Finding | Suggested action |
+|----------|----------|---------|------------------|
+| med | `docs/reports/endpoint-probe.md:23-37` | 13 parameterized routes show unexpected 404 in static probe — fixture/safe-mode artifacts; acceptance and Release Watch exercise these paths on live Dockhand | Continue tuning probe fixtures on future agent branches; no release block |
+| med | `docs/reports/docs-reference-api-endpoints.txt` | Docs drift audit lists `/api/backup/*` routes not yet in probe or provider | Track for future provider expansion; no release block |
+| low | `docs/api-matrix.md` | Residual WebUI gap notes may lag newest resources | Periodic doc sweep on minor releases |
+| — | `docs/non-present-endpoints.md:7-14` | Last-verified July 21, 2026; backlog matches probe | Current |
+| — | `docs/reports/api-drift-gate.md:10` | `New relevant endpoints not allowlisted: 0` | Current |
+| — | `internal/provider/client_*.go` | No edits since `v0.1.88` | Skim confirmed |
+
+---
+
+### 2026-07-21 — Terraform schema & state
+
+**Scope:** `internal/provider/provider.go`, `resource_environment.go`, `resource_git_stack.go`, `resource_stack.go`, `resource_container.go` (grep for changes since `v0.1.88`).
+
+**Summary:** No provider schema or state logic changed in the v0.1.89 window. v0.1.88 fix for `dockhand_environment` `public_ip` on create remains the latest provider change. Prior release fixes intact: one-shot `deploy_now`/`force_redeploy` reset, `enabled` reconciliation, inline batch failure detection, resolved `default_env` on action resources.
+
+| Severity | Location | Finding | Suggested action |
+|----------|----------|---------|------------------|
+| med | `internal/provider/resource_git_stack.go:192-197` | `env_vars_json` can hold secrets; marked Sensitive but write-only on read | Document write-only semantics in resource doc (deferred from v0.1.86) |
+| med | `internal/provider/resource_stack.go`, `resource_container.go` | `enabled` reconciliation skips transitional statuses | Extend status map or emit diagnostic on unknown status (deferred) |
+| low | `internal/provider/resource_stack.go:52-55` | Stack `id` Computed without `UseStateForUnknown` | Add plan modifier when touching stack resource (deferred) |
+| — | `internal/provider/*.go` | No edits since `v0.1.88` | Skim confirmed; no new regressions |
+
+---
+
+### 2026-07-21 — Acceptance & regression
+
+**Scope:** `acceptance_manifest.json`, `acceptance_pr_ci.json`, `acceptance_manifest_test.go`, `.github/workflows/acceptance-ci.yml`, `.github/workflows/dockhand-release-watch.yml`, `.github/workflows/compat-reports-sync.yml`, CI automation commits since `v0.1.88`.
+
+**Summary:** Acceptance Full and Dockhand Release Watch are green on `main` per `release_gate_check.py`. Manifest and PR CI subset (13 suites) unchanged. This release window is CI-only: agent intake hardening (#222), release-drafter compat-sync exclusion, compat baseline refreshes (#220, #221).
+
+| Severity | Location | Finding | Suggested action |
+|----------|----------|---------|------------------|
+| med | `acceptance_manifest_test.go:34-60` | 22 `manifestOperationExemptions` remain (mostly action delete checks) | Shrink incrementally on future agent branches (deferred) |
+| med | `acceptance_pr_ci.json` | 13 suites vs ~85 manifest entries — nightly-only coverage by design | Document in CONTRIBUTING; rotate PR suites on minor releases (deferred) |
+| low | `resource_new_surfaces_tf_acc_test.go` | `dockhand_job` skipped when batch completes inline | Optional coverage when API stable (deferred from v0.1.86) |
+| low | `examples/scenarios/registry-and-image/main.tf:34` | `timestamp()` trigger causes perpetual diff | Replace with static trigger in follow-up (deferred) |
+| — | `.github/workflows/issue-agent-intake.yml` | Issue title/body/comment passed via temp files — fixes backtick shell breakage | Fixed (#222) |
+| — | `.github/workflows/agent-pr-approve-ci.yml` | Skips merge attempts on draft PRs (405 noise) | Fixed (#222) |
+
+---
+
+### 2026-07-21 — Security engineer
+
+**Scope:** `internal/provider/provider.go`, `internal/provider/auth.go`, `internal/provider/client.go`, secret-bearing resources (sample grep), `.github/workflows/*`, `scripts/issue_agent_intake*.py`, `go.mod`, `.gitignore`.
+
+**Summary:** No provider auth or secret-handling code changed since `v0.1.88`. CI hardening (#222) passes issue content via temp files instead of inline shell args (reduces quoting/injection risk from markdown backticks). Agent PR Approve CI skips draft merges. Release Drafter excludes compat-sync PRs from release notes. No `pull_request_target` workflows.
+
+| Severity | Location | Finding | Suggested action |
+|----------|----------|---------|------------------|
+| med | `.github/workflows/acceptance-ci.yml` | Throwaway CI password in workflow env (public repo) | Acceptable ephemeral creds; optional generated secret (deferred) |
+| med | `internal/provider/auth.go:132` | Error bodies may echo server JSON | Truncate/sanitize diagnostics in future hardening (deferred) |
+| low | CI failure artifacts | Session cookies possible in `dh-*.json` uploads | Scrub artifacts in follow-up (deferred) |
+| — | `.github/workflows/issue-agent-intake.yml:93-101` | Issue body/title/labels/comment written to temp files before Python intake | Fixed (#222) |
+| — | `.github/workflows/*.yml` | No `pull_request_target`; workflow integrity checks maintained | Current |
+
+---
+
+### 2026-07-21 — Release & upgrade
+
+**Scope:** `CHANGELOG.md`, `README.md`, `docs/testing/release-gate.md`, `scripts/release_gate_check.py`, `.github/release-drafter.yml`, `.github/workflows/compat-reports-sync.yml`, unreleased commit log since `v0.1.88`.
+
+**Summary:** Patch-tier maintenance release: 3 commits since `v0.1.88` with no provider schema or client changes. CI improvements: agent intake temp-file hardening, draft-PR merge skip, compat-sync excluded from Release Drafter notes. `release_gate_check.py` reports `ci_gates_pass: true`, `tier: patch`, zero blockers. `./scripts/verify.sh --quality` passes locally.
+
+| Severity | Location | Finding | Suggested action |
+|----------|----------|---------|------------------|
+| med | `CHANGELOG.md` | Unreleased section empty; v0.1.89 notes not yet written | Post-tag housekeeping via **Agent Release Tag** / `release_housekeeping.py` |
+| low | `README.md:23` | `version = ">= 0.1.63"` constraint | Bump to `>= 0.1.89` after tag (optional doc follow-up) |
+| — | `.github/release-drafter.yml:45-48` | `compat-reports-sync` and `skip-changelog` labels excluded from release notes | Fixed (#222) |
+| — | `scripts/release_gate_check.py` | Gates green; `ready_for_lens_dispatch: true` | Satisfied |
+
+---
+
+### Release v0.1.89 — verdict
+
+- **Clear to tag:** yes
+- **Blocking findings:** none
+- **Deferred medium/low:** probe fixture 404 tuning; backup API routes for future provider expansion; shrink `manifestOperationExemptions`; registry-and-image `timestamp()` example; README version pin bump; optional artifact scrubbing and auth error sanitization — carry forward from v0.1.85–v0.1.88 (no new high-severity regressions)
 
