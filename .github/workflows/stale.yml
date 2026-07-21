@@ -35,6 +35,28 @@ jobs:
           days-before-pr-close: 14
           stale-issue-label: stale
           stale-pr-label: stale
-          exempt-issue-labels: security,pinned,in-progress,awaiting-release,released
+          exempt-issue-labels: security,pinned,in-progress,awaiting-release,released,status: needs-info
           exempt-pr-labels: security,pinned,agent,in-progress
           operations-per-run: 200
+
+  needs-info:
+    name: Auto-close needs-info after 30 days
+    runs-on: ubuntu-latest
+    steps:
+      - name: Close inactive needs-info issues
+        uses: actions/stale@v10
+        with:
+          any-of-labels: "status: needs-info"
+          stale-issue-message: >
+            No update for 30 days while this issue was labeled `status: needs-info`
+            (waiting on reporter retest/feedback). Marking stale and closing.
+          close-issue-message: >
+            Closing after 30 days with no retest/feedback on `status: needs-info`.
+            Reopen and comment if the problem still exists.
+          days-before-issue-stale: 30
+          days-before-issue-close: 0
+          days-before-pr-stale: -1
+          days-before-pr-close: -1
+          stale-issue-label: stale
+          exempt-issue-labels: security,pinned
+          operations-per-run: 100
