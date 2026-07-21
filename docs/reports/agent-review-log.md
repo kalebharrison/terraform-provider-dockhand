@@ -824,3 +824,60 @@ Append-only record of lens sweeps. See `docs/AGENT_REVIEW_LENSES.md`.
 - **Blocking findings:** none
 - **Deferred medium/low:** probe fixture 404 tuning; backup API routes for future provider expansion; shrink `manifestOperationExemptions`; registry-and-image `timestamp()` example; README version pin bump; optional artifact scrubbing and auth error sanitization — carry forward from v0.1.85/v0.1.86/v0.1.87 (no new high-severity regressions)
 
+---
+
+## Issue #115 — [Feature]: Add environment public IP attribute
+
+### 2026-07-21 — Acceptance & regression
+
+**Scope:** `internal/provider/resource_environment_test.go`, `internal/provider/resource_environment_tf_acc_test.go`, `internal/provider/testdata/acceptance_manifest.json`, `internal/provider/testdata/acceptance_pr_ci.json`.
+
+**Summary:** Unit tests cover payload mapping, empty default on read, and API round-trip for `public_ip`. Acceptance suites exercise environment create/update/import but do not assert `public_ip` explicitly; manifest and PR CI regex coverage remain valid.
+
+| Severity | Location | Finding | Suggested action |
+|----------|----------|---------|------------------|
+| low | `internal/provider/resource_environment_tf_acc_test.go` | No acceptance assertion for `public_ip` create/read/update | Optional follow-up: add `TestCheckResourceAttr` when Dockhand exposes stable public IP in harness |
+| — | `internal/provider/resource_environment_test.go:197-243` | Unit tests for payload + empty default + API value | Satisfied |
+| — | `internal/provider/testdata/acceptance_manifest.json:21` | `dockhand_environment` manifest row with `TestAccEnvironmentResource` regex | Satisfied |
+
+---
+
+### 2026-07-21 — Terraform schema & state
+
+**Scope:** `internal/provider/resource_environment.go`, `internal/provider/data_source_environments.go`, `internal/provider/client_types.go`.
+
+**Summary:** `public_ip` is Optional+Computed with empty-string default via `environmentPublicIPValue`. Create/update payloads send `publicIp` (including empty string when unset). Read and list data source preserve API values or default to `""`. No high-severity schema or state issues.
+
+| Severity | Location | Finding | Suggested action |
+|----------|----------|---------|------------------|
+| — | `internal/provider/resource_environment.go:146-150` | Optional+Computed schema with MarkdownDescription | Satisfied |
+| — | `internal/provider/resource_environment.go:426-429,608-613` | Payload mapping + empty default helper | Satisfied |
+| — | `internal/provider/data_source_environments.go:152` | List data source uses same empty default | Satisfied |
+
+---
+
+### 2026-07-21 — GitOps / IaC practitioner
+
+**Scope:** `docs/resources/environment.md`, `examples/resources/dockhand_environment/resource.tf`, `docs/api-matrix.md`.
+
+**Summary:** Resource docs note empty default; api-matrix documents `public_ip` on create/read/update. Example HCL updated on this branch to show optional `public_ip`.
+
+| Severity | Location | Finding | Suggested action |
+|----------|----------|---------|------------------|
+| — | `docs/resources/environment.md`, `examples/resources/dockhand_environment/resource.tf` | Example shows `public_ip = ""` with comment | Fixed on branch |
+| low | `docs/data-sources/` | No dedicated `dockhand_environments` doc page | Pre-existing gap; defer |
+
+---
+
+### 2026-07-21 — Dockhand domain / runtime
+
+**Scope:** `internal/provider/resource_environment.go`, `internal/provider/client_types.go` (`publicIp` JSON), `docs/api-matrix.md`.
+
+**Summary:** Provider maps Terraform `public_ip` ↔ Dockhand API `publicIp` on create, update, read, and environments list. Empty default matches Dockhand UI behavior for unset public IP.
+
+| Severity | Location | Finding | Suggested action |
+|----------|----------|---------|------------------|
+| — | `internal/provider/client_types.go:552,578` | Typed `publicIp` on payload and response | Satisfied |
+| — | `docs/api-matrix.md:85-87` | Matrix notes `public_ip` on environment CRUD | Satisfied |
+| med | `internal/provider/resource_environment.go:377-456` | `direct`/`agent` field validation only on test action, not managed resource | Pre-existing (#115 scope); track in backlog |
+

@@ -18,6 +18,7 @@ resource "dockhand_environment" "socket" {
   # client_cert = file("${path.module}/certs/client.pem")
   # client_key  = file("${path.module}/certs/client-key.pem")
   icon            = "globe"
+  public_ip       = "" # optional; defaults to empty string when unset
 
   collect_activity         = true
   collect_metrics          = true

@@ -6,6 +6,7 @@ resource "dockhand_environment" "example" {
   protocol        = "http"
   tls_skip_verify = false
   icon            = "globe"
+  public_ip       = "" # optional; advertised public IP for this environment
 
   collect_activity                 = true
   collect_metrics                  = true
