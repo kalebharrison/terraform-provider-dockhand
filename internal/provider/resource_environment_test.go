@@ -242,3 +242,65 @@ func TestModelFromEnvironmentResponsePublicIPFromAPI(t *testing.T) {
 		t.Fatalf("expected public_ip %q, got %q", ip, out.PublicIP.ValueString())
 	}
 }
+
+func TestEnvironmentPublicIPNeedsFollowUp(t *testing.T) {
+	ip := "10.1.7.185"
+	empty := ""
+
+	cases := []struct {
+		name     string
+		planIP   types.String
+		response *environmentResponse
+		want     bool
+	}{
+		{
+			name:     "null plan skips",
+			planIP:   types.StringNull(),
+			response: &environmentResponse{},
+			want:     false,
+		},
+		{
+			name:     "unknown plan skips",
+			planIP:   types.StringUnknown(),
+			response: &environmentResponse{},
+			want:     false,
+		},
+		{
+			name:     "create omitted publicIp",
+			planIP:   types.StringValue(ip),
+			response: &environmentResponse{},
+			want:     true,
+		},
+		{
+			name:   "create returned empty publicIp",
+			planIP: types.StringValue(ip),
+			response: &environmentResponse{
+				PublicIP: &empty,
+			},
+			want: true,
+		},
+		{
+			name:   "create returned matching publicIp",
+			planIP: types.StringValue(ip),
+			response: &environmentResponse{
+				PublicIP: &ip,
+			},
+			want: false,
+		},
+		{
+			name:     "planned empty and create omitted matches",
+			planIP:   types.StringValue(""),
+			response: &environmentResponse{},
+			want:     false,
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			got := environmentPublicIPNeedsFollowUp(environmentModel{PublicIP: tc.planIP}, tc.response)
+			if got != tc.want {
+				t.Fatalf("environmentPublicIPNeedsFollowUp() = %v, want %v", got, tc.want)
+			}
+		})
+	}
+}

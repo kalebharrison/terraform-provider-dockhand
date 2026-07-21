@@ -6,6 +6,55 @@ Append-only record of lens sweeps. See `docs/AGENT_REVIEW_LENSES.md`.
 
 ---
 
+## Issue #115 regression — environment `public_ip` on create
+
+- **Branch:** `agent/issue-115-environment-public-ip-create`
+- **Lenses:** Terraform schema & state; Acceptance & regression; GitOps / IaC practitioner; Dockhand domain / runtime
+- **Started:** 2026-07-20
+
+### 2026-07-20 — Terraform schema & state
+
+**Scope:** `internal/provider/resource_environment.go` Create/`buildEnvironmentPayload`/`modelFromEnvironmentResponse`, `client_types.go` `environmentPayload`/`environmentResponse`.
+
+**Summary:** Create sent `publicIp` on POST but state used the create response, which can be empty/`null` while Update (PUT) persists the value. That produced Plugin Framework inconsistent-result-after-apply for planned non-empty `public_ip`.
+
+| Severity | Location | Finding | Suggested action |
+|----------|----------|---------|------------------|
+| high | `resource_environment.go` Create | POST response can leave `public_ip` as `""` despite plan | Follow-up PUT when planned `public_ip` ≠ create response (implemented) |
+| — | `environmentPublicIPNeedsFollowUp` | Unit-tested mismatch/empty/match/null/unknown cases | Covered |
+
+### 2026-07-20 — Acceptance & regression
+
+**Scope:** `resource_environment_test.go`, `resource_environment_tf_acc_test.go`, `acceptance_pr_ci.json` (`TestAccEnvironmentResourceDirectDinDTerraform`).
+
+**Summary:** Unit coverage for follow-up detection; DinD acceptance create+update now asserts `public_ip`.
+
+| Severity | Location | Finding | Suggested action |
+|----------|----------|---------|------------------|
+| med | prior DinD acc config | Did not set `public_ip` on create | Assert create+update values (implemented) |
+
+### 2026-07-20 — GitOps / IaC practitioner
+
+**Scope:** `docs/resources/environment.md`, `examples/resources/dockhand_environment/resource.tf`, `docs/api-matrix.md`, `CHANGELOG.md`.
+
+**Summary:** Documented create-time PUT follow-up; example and docs show `public_ip`; changelog Unreleased note added.
+
+| Severity | Location | Finding | Suggested action |
+|----------|----------|---------|------------------|
+| — | docs/examples | Operators need create-path caveat | Documented |
+
+### 2026-07-20 — Dockhand domain / runtime
+
+**Scope:** `client_environment.go` Create/Update, reporter notes (update works, create inconsistent).
+
+**Summary:** Matches Dockhand behavior where PUT accepts `publicIp` and POST may ignore/omit it; provider create path now mirrors a successful update for that field.
+
+| Severity | Location | Finding | Suggested action |
+|----------|----------|---------|------------------|
+| — | Create follow-up | Same payload as create reused for PUT | Implemented |
+
+---
+
 ## Baseline full lens review (pre-autonomy deployment)
 
 - **Tier:** all 11 (baseline audit)

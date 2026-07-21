@@ -142,7 +142,13 @@ jobs:
 
             for (const issueNumber of issueNumbers) {
               const issue = await github.rest.issues.get({ owner, repo, issue_number: issueNumber });
-              if (issue.data.state !== "closed") {
+              const labelNames = (issue.data.labels || []).map((l) =>
+                typeof l === "string" ? l : l.name
+              );
+              const needsInfo = labelNames.includes("status: needs-info");
+
+              // Keep needs-info issues open for reporter retest; stale.yml closes after 30 days.
+              if (!needsInfo && issue.data.state !== "closed") {
                 await github.rest.issues.update({
                   owner,
                   repo,
@@ -150,6 +156,8 @@ jobs:
                   state: "closed",
                 });
                 core.info(`Closed issue #${issueNumber}.`);
+              } else if (needsInfo) {
+                core.info(`Leaving issue #${issueNumber} open (status: needs-info; awaiting retest).`);
               }
 
               try {
@@ -194,32 +202,59 @@ jobs:
                 continue;
               }
 
+              const body = needsInfo
+                ? [
+                    "## Fix merged to `main` — please retest",
+                    "",
+                    `A fix landed in PR #${pr.number}: ${pr.html_url}`,
+                    "",
+                    "### What was fixed",
+                    "",
+                    summary,
+                    "",
+                    impactBlock,
+                    "### Release status",
+                    "",
+                    "The change is on `main` but **not yet in a tagged release**.",
+                    "When a version is published, **Agent Release Tag** will comment here with the tag and upgrade instructions.",
+                    "",
+                    "### Please retest",
+                    "",
+                    "After upgrading to that release, please confirm whether creating a new `dockhand_environment` **with** `public_ip` succeeds, and comment with the result.",
+                    "",
+                    "This issue will stay **open** for feedback. If there is no response for **30 days**, automation will auto-close it (`status: needs-info`).",
+                    "",
+                    "---",
+                    "_Posted by Agent Merge Cleanup._",
+                  ].join("\n")
+                : [
+                    "## Fix merged to `main`",
+                    "",
+                    `This issue was addressed in PR #${pr.number}: ${pr.html_url}`,
+                    "",
+                    "### What was fixed",
+                    "",
+                    summary,
+                    "",
+                    impactBlock,
+                    "### Release status",
+                    "",
+                    "The change is on `main` but **not yet in a tagged release**.",
+                    "When a version is published, **Agent Release Tag** will comment here with the tag and upgrade instructions.",
+                    "",
+                    "### If the problem continues",
+                    "",
+                    "Comment here with **reopen** or describe what still fails after upgrading.",
+                    "",
+                    "---",
+                    "_Posted by Agent Merge Cleanup._",
+                  ].join("\n");
+
               await github.rest.issues.createComment({
                 owner,
                 repo,
                 issue_number: issueNumber,
-                body: [
-                  "## Fix merged to `main`",
-                  "",
-                  `This issue was addressed in PR #${pr.number}: ${pr.html_url}`,
-                  "",
-                  "### What was fixed",
-                  "",
-                  summary,
-                  "",
-                  impactBlock,
-                  "### Release status",
-                  "",
-                  "The change is on `main` but **not yet in a tagged release**.",
-                  "When a version is published, **Agent Release Tag** will comment here with the tag and upgrade instructions.",
-                  "",
-                  "### If the problem continues",
-                  "",
-                  "Comment here with **reopen** or describe what still fails after upgrading.",
-                  "",
-                  "---",
-                  "_Posted by Agent Merge Cleanup._",
-                ].join("\n"),
+                body,
               });
             }
 
