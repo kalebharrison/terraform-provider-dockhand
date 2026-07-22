@@ -38,3 +38,5 @@ run /usr/bin/python3 -m unittest scripts/test_agent_stall_watchdog.py
 run /usr/bin/python3 -m unittest scripts/test_agent_approve_pr_ci.py
 run /usr/bin/python3 -m unittest scripts/test_repo_hygiene.py
 run /usr/bin/python3 -m unittest scripts/test_check_automation_settings.py
+run /usr/bin/python3 -m unittest scripts/test_cursor_cloud_agents_auth.py
+run /usr/bin/python3 -m unittest scripts/test_cursor_bugbot_settings.py
