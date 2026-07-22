@@ -33,7 +33,7 @@ The workflow:
 
 **Agent Validate** requires an update to `docs/reports/agent-review-log.md` on the agent branch before acceptance tests run.
 
-**Required secret:** `CURSOR_API_KEY` (Cursor Dashboard → Integrations / API Keys). Add in GitHub **Settings → Secrets and variables → Actions**.
+**Required secret:** `CURSOR_API_KEY` (Cursor Dashboard → Cloud Agents / API Keys; a user key is enough). Add in GitHub **Settings → Secrets and variables → Actions**. **Secret Smoke** verifies it with Cloud Agents `GET /v1/me` (not the Bugbot admin API).
 
 After the agent pushes:
 

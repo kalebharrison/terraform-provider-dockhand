@@ -98,7 +98,7 @@ When investigating manually:
 - Agents do not need VPN/home network access to your Dockhand.
 - Cloud Agents do not run DinD locally (`docs/AGENT_DEPLOYMENT.md`).
 - Maintainers are not a release gate — automation is.
-- **Cursor Bugbot** PR comments are disabled automatically — **Secret Smoke** calls `scripts/cursor_bugbot_settings.py --disable` weekly when `CURSOR_API_KEY` is configured. You can also turn off Bugbot manually at [cursor.com/dashboard/bugbot](https://cursor.com/dashboard/bugbot).
+- **Cursor Bugbot** PR comments are disabled when the Bugbot admin API is available — **Secret Smoke** calls `scripts/cursor_bugbot_settings.py --disable --best-effort` weekly. That API is Team/Enterprise-only; on solo/Pro+ accounts the step skips without failing (turn Bugbot off manually at [cursor.com/dashboard/bugbot](https://cursor.com/dashboard/bugbot) if needed). `CURSOR_API_KEY` validity is checked via Cloud Agents `GET /v1/me`, not Bugbot.
 
 ## Related docs
 

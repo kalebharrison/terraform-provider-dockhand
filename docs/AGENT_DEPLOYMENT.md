@@ -43,13 +43,13 @@ gh api repos/kalebharrison/terraform-provider-dockhand/branches/main/protection 
 
 ## 2b. Configure Cursor API secret
 
-Add repository secret **`CURSOR_API_KEY`** (Cursor Dashboard → Integrations / API Keys).
+Add repository secret **`CURSOR_API_KEY`** (Cursor Dashboard → Cloud Agents / API Keys — a user API key is enough; Team/Enterprise is not required for intake).
 
 Without it, **Issue Agent Intake** fails fast with an actionable error. The rest of the agent loop (Validate, Open PR, Approve CI, Auto Merge) still works for manually pushed `agent/**` branches.
 
 Also enable **Settings → Actions → General → Allow GitHub Actions to create and approve pull requests** (required for Agent Open PR and Agent Approve CI).
 
-**Secret Smoke** (weekly) verifies `CURSOR_API_KEY`, `GPG_PRIVATE_KEY`, workflow default permissions (`write`), PR approval setting, and disables Cursor Bugbot via `scripts/check_automation_settings.py` and `scripts/cursor_bugbot_settings.py`. A failed run means automation will stall until settings or secrets are corrected.
+**Secret Smoke** (weekly) verifies `CURSOR_API_KEY` against the Cloud Agents API (`GET /v1/me` via `scripts/cursor_cloud_agents_auth.py`), checks `GPG_PRIVATE_KEY` presence, and verifies workflow default permissions (`write`) / PR approval setting via `scripts/check_automation_settings.py`. It also attempts to disable Cursor Bugbot via `scripts/cursor_bugbot_settings.py --best-effort` — that call is optional (Bugbot admin API is Team/Enterprise-only) and never fails the smoke check. A failed run means automation will stall until settings or secrets are corrected.
 
 ## 3. Smoke test the loop (branch push)
 

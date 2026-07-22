@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **Secret Smoke**: validate `CURSOR_API_KEY` via Cloud Agents `GET /v1/me` instead of the Bugbot admin API; Bugbot disable is best-effort so non-team accounts no longer open a false secret-health issue.
+
 ### Added
 
 - _Nothing yet._
