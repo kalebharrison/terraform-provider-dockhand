@@ -4,7 +4,7 @@ This file tracks API endpoints that are not currently available on the tested Do
 
 ## Last Verified
 
-- Date: July 21, 2026 (CI Acceptance Full / Release Watch)
+- Date: July 22, 2026 (CI Acceptance Full / Release Watch)
 - Probe: `scripts/endpoint-probe.py` (safe mode)
 - Report: `docs/reports/endpoint-probe.md`
 
