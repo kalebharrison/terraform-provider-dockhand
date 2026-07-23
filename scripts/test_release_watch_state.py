@@ -58,9 +58,85 @@ class ReleaseWatchStateTest(unittest.TestCase):
             force_validate=False,
             manual_image_tag=False,
             main_sha="newsha",
+            intervening_commits=[
+                ("fix(provider): real change", ["internal/provider/provider.go"]),
+            ],
         )
         self.assertTrue(should_run)
         self.assertEqual(reason, "provider_main_changed")
+
+    def test_decide_skips_when_only_compat_sync_commits(self) -> None:
+        should_run, reason = state.decide_should_run(
+            tag="1.0.0",
+            digest="sha256:abc",
+            state={
+                "last_tag": "1.0.0",
+                "last_digest": "sha256:abc",
+                "last_provider_sha": "oldsha",
+            },
+            event_name="schedule",
+            force_validate=False,
+            manual_image_tag=False,
+            main_sha="newsha",
+            intervening_commits=[
+                (
+                    "chore: refresh compatibility reports from CI (#235)",
+                    ["docs/reports/dockhand-last-tested.json"],
+                ),
+                (
+                    "chore: refresh compatibility reports from CI",
+                    [
+                        "docs/reports/endpoint-probe.md",
+                        "docs/non-present-endpoints.md",
+                    ],
+                ),
+            ],
+        )
+        self.assertFalse(should_run)
+        self.assertEqual(reason, "unchanged_tag_digest")
+
+    def test_decide_provider_changed_mixed_with_compat(self) -> None:
+        should_run, reason = state.decide_should_run(
+            tag="1.0.0",
+            digest="sha256:abc",
+            state={
+                "last_tag": "1.0.0",
+                "last_digest": "sha256:abc",
+                "last_provider_sha": "oldsha",
+            },
+            event_name="schedule",
+            force_validate=False,
+            manual_image_tag=False,
+            main_sha="newsha",
+            intervening_commits=[
+                (
+                    "chore: refresh compatibility reports from CI (#230)",
+                    ["docs/reports/dockhand-last-tested.json"],
+                ),
+                ("chore: bump golang.org/x/text", ["go.mod", "go.sum"]),
+            ],
+        )
+        self.assertTrue(should_run)
+        self.assertEqual(reason, "provider_main_changed")
+
+    def test_is_compat_only_helpers(self) -> None:
+        self.assertTrue(state.is_compat_sync_subject("chore: refresh compatibility reports from CI"))
+        self.assertTrue(
+            state.is_compat_sync_subject("chore: refresh compatibility reports from CI (#235)")
+        )
+        self.assertFalse(state.is_compat_sync_subject("chore: something else"))
+        self.assertTrue(
+            state.is_compat_only_paths(
+                ["docs/reports/endpoint-probe.md", "docs/non-present-endpoints.md"]
+            )
+        )
+        self.assertFalse(state.is_compat_only_paths(["docs/reports/x.md", "go.mod"]))
+        self.assertTrue(
+            state.is_compat_only_commit(
+                "docs: unrelated title",
+                ["docs/reports/dockhand-last-tested.json"],
+            )
+        )
 
     def test_decide_schedule_skips_when_unchanged(self) -> None:
         stale = (datetime.now(timezone.utc) - timedelta(days=8)).strftime("%Y-%m-%dT%H:%M:%SZ")

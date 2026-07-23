@@ -108,6 +108,14 @@ jobs:
             exit 0
           fi
 
+          # Skip timestamp/source_run/Date-only churn — that loop opens a PR every
+          # Release Watch cycle and floods watching maintainer email.
+          if ! /usr/bin/python3 scripts/compat_reports_changed.py --check-working-tree; then
+            echo "Compatibility reports have no substantive changes (volatile metadata only)."
+            echo "changed=false" >> "${GITHUB_OUTPUT}"
+            exit 0
+          fi
+
           git add docs/reports docs/non-present-endpoints.md
           git -c user.name='github-actions[bot]' \
             -c user.email='41898282+github-actions[bot]@users.noreply.github.com' \
