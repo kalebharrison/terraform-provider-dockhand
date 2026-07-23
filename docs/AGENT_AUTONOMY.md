@@ -59,6 +59,7 @@ After a green **Acceptance Full** or **Dockhand Release Watch** run:
 1. Harness probes ephemeral Dockhand (`scripts/endpoint-probe.py`, webui/docs audits).
 2. Workflow uploads artifact `compat-reports-sync`.
 3. **Compat Reports Sync** commits refreshed baselines to `main` when branch rules allow; otherwise it opens one shared auto-merge PR (`automation/compat-reports-sync`), approves blocked checks, and merges without a maintainer. Those PRs are labeled `compat-reports-sync` + `skip-changelog` so **Release Drafter** omits them from release notes.
+4. Sync is a **no-op** when only volatile metadata changed (`updated_at` / `source_run` / the non-present `- Date:` line). **Dockhand Release Watch** also skips re-validation when `main` advanced only via prior compat-sync commits (same Dockhand digest).
 
 No manual merge or workflow approval is required for routine report refresh.
 

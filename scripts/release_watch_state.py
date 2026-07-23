@@ -5,14 +5,18 @@ from __future__ import annotations
 
 import argparse
 import json
-import os
 import re
+import subprocess
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
 
 STATE_DIR = Path(".ci-state/dockhand-release-watch")
 STATE_FILE = STATE_DIR / "state.env"
+
+COMPAT_SYNC_SUBJECT = "chore: refresh compatibility reports from CI"
+COMPAT_PATH_PREFIXES = ("docs/reports/",)
+COMPAT_EXACT_PATHS = frozenset({"docs/non-present-endpoints.md"})
 
 
 def _parse_env_file(text: str) -> dict[str, str]:
@@ -62,6 +66,93 @@ def parse_legacy_issue_body(body: str) -> dict[str, str]:
     return out
 
 
+def is_compat_sync_subject(subject: str) -> bool:
+    """True for squash/merge subjects from Compat Reports Sync."""
+    text = subject.strip()
+    if text == COMPAT_SYNC_SUBJECT:
+        return True
+    # Squash merge: "chore: refresh compatibility reports from CI (#235)"
+    if text.startswith(COMPAT_SYNC_SUBJECT + " ("):
+        return True
+    return False
+
+
+def is_compat_only_paths(paths: list[str]) -> bool:
+    """True when every touched path is a docs baseline Compat Reports Sync may update."""
+    if not paths:
+        return False
+    for path in paths:
+        normalized = path.strip().lstrip("./")
+        if not normalized:
+            continue
+        if normalized in COMPAT_EXACT_PATHS:
+            continue
+        if any(normalized.startswith(prefix) for prefix in COMPAT_PATH_PREFIXES):
+            continue
+        return False
+    return True
+
+
+def is_compat_only_commit(subject: str, paths: list[str]) -> bool:
+    """Ignore docs-only sync commits when deciding whether provider main changed."""
+    if is_compat_sync_subject(subject):
+        return True
+    return is_compat_only_paths(paths)
+
+
+def has_substantive_provider_commits(commits: list[tuple[str, list[str]]]) -> bool:
+    """True if any intervening commit is not a compat-reports sync."""
+    return any(not is_compat_only_commit(subject, paths) for subject, paths in commits)
+
+
+def list_commits_between(
+    last_sha: str,
+    main_sha: str,
+    *,
+    repo: Path | None = None,
+) -> list[tuple[str, list[str]]] | None:
+    """Return (subject, paths) for commits in last_sha..main_sha, or None on git failure."""
+    if not last_sha or not main_sha or last_sha == main_sha:
+        return []
+    cwd = str(repo) if repo is not None else None
+    proc = subprocess.run(
+        [
+            "git",
+            "log",
+            "--format=%H%x00%s",
+            "--name-only",
+            f"{last_sha}..{main_sha}",
+        ],
+        check=False,
+        capture_output=True,
+        text=True,
+        cwd=cwd,
+    )
+    if proc.returncode != 0:
+        return None
+
+    commits: list[tuple[str, list[str]]] = []
+    current_subject: str | None = None
+    current_paths: list[str] = []
+    for raw in proc.stdout.splitlines():
+        line = raw.strip("\r")
+        if "\x00" in line:
+            if current_subject is not None:
+                commits.append((current_subject, current_paths))
+            _sha, subject = line.split("\x00", 1)
+            current_subject = subject
+            current_paths = []
+            continue
+        if not line:
+            continue
+        if current_subject is None:
+            continue
+        current_paths.append(line)
+    if current_subject is not None:
+        commits.append((current_subject, current_paths))
+    return commits
+
+
 def decide_should_run(
     *,
     tag: str,
@@ -71,6 +162,8 @@ def decide_should_run(
     force_validate: bool,
     manual_image_tag: bool,
     main_sha: str,
+    intervening_commits: list[tuple[str, list[str]]] | None = None,
+    git_repo: Path | None = None,
 ) -> tuple[bool, str]:
     last_tag = state.get("last_tag", "")
     last_digest = state.get("last_digest", "")
@@ -89,7 +182,15 @@ def decide_should_run(
     if digest and not last_digest:
         return True, "state_missing_digest"
     if main_sha and last_provider_sha and main_sha != last_provider_sha:
-        return True, "provider_main_changed"
+        commits = intervening_commits
+        if commits is None:
+            commits = list_commits_between(last_provider_sha, main_sha, repo=git_repo)
+        if commits is None:
+            # Unknown history — keep previous fail-open behavior.
+            return True, "provider_main_changed"
+        if has_substantive_provider_commits(commits):
+            return True, "provider_main_changed"
+        # Only compat-report sync commits advanced main; treat like unchanged digest.
 
     unchanged = (digest and last_digest and digest == last_digest) or (
         not digest or not last_digest
@@ -113,6 +214,12 @@ def main(argv: list[str] | None = None) -> int:
     decide.add_argument("--manual-image-tag", action="store_true")
     decide.add_argument("--main-sha", default="")
     decide.add_argument("--state-file", type=Path, default=STATE_FILE)
+    decide.add_argument(
+        "--git-repo",
+        type=Path,
+        default=None,
+        help="Repo root for walking last_provider_sha..main_sha (default: cwd)",
+    )
 
     write = sub.add_parser("write", help="Write state.env")
     write.add_argument("--tag", required=True)
@@ -134,6 +241,7 @@ def main(argv: list[str] | None = None) -> int:
             force_validate=args.force_validate,
             manual_image_tag=args.manual_image_tag,
             main_sha=args.main_sha,
+            git_repo=args.git_repo,
         )
         payload = {
             "should_run": should_run,

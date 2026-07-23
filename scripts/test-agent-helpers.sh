@@ -33,6 +33,8 @@ run /usr/bin/python3 -m unittest scripts/test_issue_agent_intake_eligibility.py
 run /usr/bin/python3 -m unittest scripts/test_issue_agent_intake_lenses.py
 run /usr/bin/python3 -m unittest scripts/test_release_verdict.py
 run /usr/bin/python3 -m unittest scripts/test_release_gate_check.py
+run /usr/bin/python3 -m unittest scripts/test_release_watch_state.py
+run /usr/bin/python3 -m unittest scripts/test_compat_reports_changed.py
 run /usr/bin/python3 -m unittest scripts/test_automation_health_gate.py
 run /usr/bin/python3 -m unittest scripts/test_agent_stall_watchdog.py
 run /usr/bin/python3 -m unittest scripts/test_agent_approve_pr_ci.py

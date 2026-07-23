@@ -34,6 +34,9 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v7
+        with:
+          # Need history to ignore docs-only compat-sync commits when deciding skip.
+          fetch-depth: 0
 
       - name: Restore watch state cache
         uses: actions/cache/restore@v6
