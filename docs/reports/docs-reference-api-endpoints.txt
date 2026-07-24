@@ -1,13 +1,17 @@
 /api/activity
 /api/auth/oidc/callback
 /api/backup/configs
+/api/backup/configs/1719/run
 /api/backup/destinations
+/api/backup/destinations/25/init
 /api/backup/destinations/test
 /api/backup/restore
 /api/backup/restore/preview
 /api/backup/restore/stop
 /api/backup/snapshots
 /api/backup/snapshots/diff
+/api/backup/snapshots/{id}
+/api/backup/snapshots/{id}/metadata
 /api/batch
 /api/containers
 /api/containers/abc123/restart
