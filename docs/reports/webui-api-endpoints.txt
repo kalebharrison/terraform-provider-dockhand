@@ -19,6 +19,16 @@
 /api/auth/tokens/
 /api/auto-update
 /api/auto-update/
+/api/backup/configs
+/api/backup/configs/
+/api/backup/destinations
+/api/backup/destinations/
+/api/backup/destinations/test
+/api/backup/restore
+/api/backup/restore/preview
+/api/backup/snapshots
+/api/backup/snapshots/
+/api/backup/snapshots/diff
 /api/batch
 /api/changelog
 /api/config-sets
