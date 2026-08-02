@@ -28,9 +28,10 @@ type gitStackWebhookActionResource struct {
 }
 
 type gitStackWebhookActionModel struct {
-	ID      types.String `tfsdk:"id"`
-	StackID types.String `tfsdk:"stack_id"`
-	Trigger types.String `tfsdk:"trigger"`
+	ID            types.String `tfsdk:"id"`
+	StackID       types.String `tfsdk:"stack_id"`
+	WebhookSecret types.String `tfsdk:"webhook_secret"`
+	Trigger       types.String `tfsdk:"trigger"`
 }
 
 func (r *gitStackWebhookActionResource) Metadata(_ context.Context, req resource.MetadataRequest, resp *resource.MetadataResponse) {
@@ -39,7 +40,7 @@ func (r *gitStackWebhookActionResource) Metadata(_ context.Context, req resource
 
 func (r *gitStackWebhookActionResource) Schema(_ context.Context, _ resource.SchemaRequest, resp *resource.SchemaResponse) {
 	resp.Schema = schema.Schema{
-		MarkdownDescription: "Triggers a one-shot git stack webhook call via `/api/git/stacks/{id}/webhook`. Change `trigger` to run again.",
+		MarkdownDescription: "Triggers a one-shot git stack webhook call via `/api/git/stacks/{id}/webhook`. Change `trigger` to run again. Current Dockhand requires a valid webhook secret/signature when the stack webhook is enabled.",
 		Attributes: map[string]schema.Attribute{
 			"id": schema.StringAttribute{
 				Computed: true,
@@ -47,6 +48,14 @@ func (r *gitStackWebhookActionResource) Schema(_ context.Context, _ resource.Sch
 			"stack_id": schema.StringAttribute{
 				MarkdownDescription: "Git stack numeric ID.",
 				Required:            true,
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.RequiresReplace(),
+				},
+			},
+			"webhook_secret": schema.StringAttribute{
+				MarkdownDescription: "Webhook secret configured on the git stack. Used to sign the request (`X-Hub-Signature-256` / `X-Gitlab-Token` / `?secret=`).",
+				Optional:            true,
+				Sensitive:           true,
 				PlanModifiers: []planmodifier.String{
 					stringplanmodifier.RequiresReplace(),
 				},
@@ -91,7 +100,12 @@ func (r *gitStackWebhookActionResource) Create(ctx context.Context, req resource
 		return
 	}
 
-	status, err := r.client.TriggerGitStackWebhook(ctx, stackID)
+	secret := ""
+	if !plan.WebhookSecret.IsNull() && !plan.WebhookSecret.IsUnknown() {
+		secret = strings.TrimSpace(plan.WebhookSecret.ValueString())
+	}
+
+	status, err := r.client.TriggerGitStackWebhook(ctx, stackID, secret)
 	if err != nil {
 		resp.Diagnostics.AddError("Error triggering git stack webhook", err.Error())
 		return

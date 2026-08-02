@@ -2,6 +2,10 @@ package provider
 
 import (
 	"context"
+	"crypto/hmac"
+	"crypto/sha256"
+	"encoding/hex"
+	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
@@ -177,8 +181,26 @@ func (c *Client) DeleteGitStack(ctx context.Context, env string, id string) (int
 	return c.doJSONWithStatus(ctx, http.MethodDelete, "/api/git/stacks/"+url.PathEscape(id), query, nil, nil)
 }
 
-func (c *Client) TriggerGitStackWebhook(ctx context.Context, id string) (int, error) {
-	return c.doJSONWithStatus(ctx, http.MethodPost, "/api/git/stacks/"+url.PathEscape(id)+"/webhook", nil, map[string]any{}, nil)
+func (c *Client) TriggerGitStackWebhook(ctx context.Context, id string, secret string) (int, error) {
+	body := map[string]any{}
+	payload, err := json.Marshal(body)
+	if err != nil {
+		return 0, err
+	}
+
+	query := map[string]string{}
+	headers := map[string]string{}
+	secret = strings.TrimSpace(secret)
+	if secret != "" {
+		query["secret"] = secret
+		headers["X-Gitlab-Token"] = secret
+		mac := hmac.New(sha256.New, []byte(secret))
+		_, _ = mac.Write(payload)
+		headers["X-Hub-Signature-256"] = "sha256=" + hex.EncodeToString(mac.Sum(nil))
+	}
+
+	// json.RawMessage keeps HMAC bytes identical to the request body Dockhand verifies.
+	return c.doJSONWithStatusHeaders(ctx, http.MethodPost, "/api/git/stacks/"+url.PathEscape(id)+"/webhook", query, headers, json.RawMessage(payload), nil)
 }
 
 func (c *Client) ListGitStackEnvFiles(ctx context.Context, id string) ([]string, int, error) {
