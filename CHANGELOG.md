@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.89] - 2026-08-02
+
 ### Fixed
 
 - `dockhand_git_stack`: when `webhook_enabled=true`, require `webhook_secret` or `webhook_secret_auto_generate=true`. Auto-generate now creates a provider-side secret and sends it (Dockhand no longer accepts omitting the secret).
