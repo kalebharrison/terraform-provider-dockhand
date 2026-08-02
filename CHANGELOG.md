@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- `dockhand_git_stack`: when `webhook_enabled=true`, require `webhook_secret` or `webhook_secret_auto_generate=true` (Dockhand rejects an empty secret). Acceptance webhook action coverage updated accordingly.
 - **Secret Smoke**: validate `CURSOR_API_KEY` via Cloud Agents `GET /v1/me` instead of the Bugbot admin API; Bugbot disable is best-effort so non-team accounts no longer open a false secret-health issue.
 
 ### Added

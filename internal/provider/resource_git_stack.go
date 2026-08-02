@@ -448,12 +448,15 @@ func buildGitStackPayload(plan gitStackModel, triggers gitStackDeployTriggers) (
 	if webhookEnabled {
 		if !plan.WebhookSecret.IsNull() && !plan.WebhookSecret.IsUnknown() {
 			secret := strings.TrimSpace(plan.WebhookSecret.ValueString())
+			if secret == "" {
+				return gitStackPayload{}, fmt.Errorf("webhook_secret cannot be empty when webhook_enabled=true; set a secret or webhook_secret_auto_generate=true")
+			}
 			payload.WebhookSecret = &secret
 		} else if !webhookSecretAutoGenerate {
-			// Explicitly send empty secret when webhook is enabled and auto-generation is disabled.
-			empty := ""
-			payload.WebhookSecret = &empty
+			// Dockhand rejects webhook_enabled without a secret; do not send "".
+			return gitStackPayload{}, fmt.Errorf("webhook_enabled=true requires webhook_secret or webhook_secret_auto_generate=true")
 		}
+		// auto-generate: omit webhookSecret so Dockhand creates one
 	}
 
 	envVars, err := parseGitStackEnvVarsJSON(plan.EnvVarsJSON)

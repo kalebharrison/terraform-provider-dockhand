@@ -54,7 +54,8 @@ Set `context_dir` to widen Dockhand's compose working directory (relative to the
 - `auto_update_enabled` (Boolean, default: `false`)
 - `auto_update_cron` (String, default: `0 3 * * *`)
 - `webhook_enabled` (Boolean, default: `false`)
-- `webhook_secret` (String, Sensitive)
+- `webhook_secret_auto_generate` (Boolean, default: `false`) When `true` with `webhook_enabled=true`, Dockhand auto-generates a webhook secret if `webhook_secret` is omitted. Current Dockhand requires a secret whenever the webhook is enabled.
+- `webhook_secret` (String, Sensitive) Required when `webhook_enabled=true` unless `webhook_secret_auto_generate=true`.
 - `deploy_now` (Boolean, default: `false`) One-shot: set `true` to deploy on apply; state resets to `false` after apply.
 - `build_on_deploy` (Boolean, default: `false`)
 - `repull_images` (Boolean, default: `false`)
