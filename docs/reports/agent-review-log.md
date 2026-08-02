@@ -973,3 +973,65 @@ Append-only record of lens sweeps. See `docs/AGENT_REVIEW_LENSES.md`.
 - **Blocking findings:** none
 - **Deferred medium/low:** probe fixture 404 tuning; backup API routes for future provider expansion; shrink `manifestOperationExemptions`; registry-and-image `timestamp()` example; README version pin bump; optional artifact scrubbing and auth error sanitization — carry forward from v0.1.85–v0.1.88 (no new high-severity regressions)
 
+---
+
+## Issue #244 — API drift detected: dockhand latest
+
+### 2026-08-02 — API compatibility
+
+**Scope:** `scripts/endpoint-probe.py`, `scripts/api-drift-gate.py`, `docs/api-matrix.md`, `docs/non-present-endpoints.md`, `docs/reports/docs-reference-api-endpoints.txt`, `docs/reports/api-drift-gate.md`, `internal/provider/client_registry.go`.
+
+**Summary:** Dockhand `latest` added `GET /api/registry/tag-info`, discovered by Acceptance Full compat sync (run 30753361374). Added probe entry with `image`, `tag`, and optional `registry` query fixtures matching existing registry probe patterns. Simulated drift gate (`newly_discovered=1`) passes with zero unallowlisted endpoints after probe update.
+
+| Severity | Location | Finding | Suggested action |
+|----------|----------|---------|------------------|
+| med | `docs/api-matrix.md:170` | `tag-info` tracked by probe only; no Terraform data source yet | Add `dockhand_registry_tag_info` data source in follow-up when response shape is documented |
+| low | `internal/provider/client_registry.go` | No client wrapper for `tag-info` | Optional client method when implementing data source (deferred) |
+| — | `scripts/endpoint-probe.py:78,470-474` | Probe tracks `GET /api/registry/tag-info` | Fixed (#244) |
+| — | `scripts/api-drift-gate.py` | Simulated new-endpoint gate passes (`new_relevant_unallowlisted=0`) | Fixed (#244) |
+| — | `docs/non-present-endpoints.md` | Backlog still limited to 404 routes (`configs`, `backups`) | Current |
+
+---
+
+### 2026-08-02 — Ops / SRE
+
+**Scope:** `.github/workflows/acceptance-ci.yml`, `.github/workflows/dockhand-release-watch.yml`, `.github/workflows/compat-reports-sync.yml`, `.github/workflows/agent-validate.yml`, `scripts/verify.sh`, `scripts/lens_sweep_gate.py`, CI run https://github.com/kalebharrison/terraform-provider-dockhand/actions/runs/30753361374.
+
+**Summary:** Drift failure originated from Compat Reports Sync comparing refreshed docs-reference endpoints against probe baseline. Fix is probe-only; no harness or workflow changes required. Agent Validate enforces lens log update via `lens_sweep_gate.py`.
+
+| Severity | Location | Finding | Suggested action |
+|----------|----------|---------|------------------|
+| med | `compat-reports-sync.yml` | Drift gate opens agent issues on new routes — working as designed | None; this issue is the expected remediation path |
+| low | `docs/reports/docs-reference-api-endpoints.txt` | Baseline will refresh post-merge via Compat Reports Sync | Automatic after green Acceptance Full |
+| — | `scripts/verify.sh` | Quality gate unchanged; probe list edit is Python-only | Current |
+| — | `scripts/lens_sweep_gate.py` | Requires agent-review-log update on agent branches | Satisfied by this sweep |
+
+---
+
+### 2026-08-02 — Acceptance & regression
+
+**Scope:** `internal/provider/testdata/acceptance_manifest.json`, `internal/provider/testdata/acceptance_pr_ci.json`, `internal/provider/resource_new_surfaces_tf_acc_test.go` (`TestAccRegistrySurfacesTerraform`), `scripts/endpoint-probe.py`, `internal/provider/*_tf_acc_test.go` (grep for registry coverage).
+
+**Summary:** No acceptance manifest or test changes required — probe coverage satisfies the drift gate without a new Terraform surface. Existing `TestAccRegistrySurfacesTerraform` exercises `dockhand_registry_tags`, `dockhand_registry_search`, and `dockhand_registry_catalog`; tag metadata via `tag-info` remains unmapped until a data source is added.
+
+| Severity | Location | Finding | Suggested action |
+|----------|----------|---------|------------------|
+| med | `acceptance_manifest.json` | No manifest row for future `dockhand_registry_tag_info` | Add when data source is implemented (deferred) |
+| low | `resource_new_surfaces_tf_acc_test.go` | Registry acceptance suite does not cover `tag-info` | Extend suite when client/data source lands (deferred) |
+| — | `scripts/endpoint-probe.py` | Probe fixture uses `library/busybox:latest` | Fixed (#244) |
+| — | `acceptance_pr_ci.json` | PR CI registry path unchanged | Current |
+
+---
+
+### 2026-08-02 — Senior developer
+
+**Scope:** `scripts/endpoint-probe.py` (probe list + fixture block), `internal/provider/client_registry.go`, `docs/api-matrix.md`, `AGENTS.md`, `CHANGELOG.md`.
+
+**Summary:** Minimal focused diff: one probe list entry, one fixture block mirroring adjacent registry routes, and doc/changelog updates. No Go code changes; client domain file unchanged. Probe fixture ordering follows existing `registry/tags` → `registry/catalog` pattern.
+
+| Severity | Location | Finding | Suggested action |
+|----------|----------|---------|------------------|
+| low | `scripts/endpoint-probe.py:470-474` | Tag-info fixture duplicates registry/image query shape | Acceptable; extract shared helper only if more registry probes accumulate (deferred) |
+| — | `scripts/endpoint-probe.py` | Entry inserted adjacent to related registry routes | Fixed (#244) |
+| — | `CHANGELOG.md` | Unreleased note documents probe coverage | Fixed (#244) |
+

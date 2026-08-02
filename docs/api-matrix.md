@@ -167,7 +167,7 @@ Live verification artifacts:
 | `/api/batch` + `/api/jobs/{jobId}` | generic async job action + job status data source (`run-and-poll`) | implemented |
 | `/api/environments/test` + `/api/environments/detect-socket` | environment connectivity validation action + socket discovery data source | implemented |
 | `/api/notifications/test` | notification test-send one-shot action | implemented |
-| `/api/registry/*` (`search`,`tags`,`catalog`,`image`) | registry catalog/search data sources + remote image delete action | implemented |
+| `/api/registry/*` (`search`,`tags`,`tag-info`,`catalog`,`image`) | registry catalog/search data sources + remote image delete action; `tag-info` tracked by probe only | partial |
 | `/api/prune/*` | explicit cleanup action resources | implemented |
 | `/api/system*` | system introspection/file-browser data sources | implemented |
 | `/api/configs` | config management resource/data source | planned (verified not present on tested instance; `404`) |

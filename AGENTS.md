@@ -214,6 +214,7 @@ Optional: download release zips into `./terraform/dockhand/mirror` for local Ter
   - `POST /api/images/scan`
   - `GET /api/registry/search`
   - `GET /api/registry/tags`
+  - `GET /api/registry/tag-info`
   - `GET /api/registry/catalog`
   - `DELETE /api/registry/image`
   - `GET/POST/DELETE /api/containers`
