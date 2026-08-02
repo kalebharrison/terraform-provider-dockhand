@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"reflect"
+	"strings"
 	"testing"
 
 	"github.com/hashicorp/terraform-plugin-framework/types"
@@ -135,7 +136,7 @@ func TestMergeGitStackStatePreservesContextDirWhenRemoteOmitsIt(t *testing.T) {
 	}
 }
 
-func TestBuildGitStackPayloadWebhookDisabledAutoGenerateSendsEmptySecret(t *testing.T) {
+func TestBuildGitStackPayloadWebhookRequiresSecretOrAutoGenerate(t *testing.T) {
 	plan := gitStackModel{
 		StackName:                 types.StringValue("test-stack"),
 		ComposePath:               types.StringValue("docker-compose.yml"),
@@ -150,12 +151,12 @@ func TestBuildGitStackPayloadWebhookDisabledAutoGenerateSendsEmptySecret(t *test
 		Branch:                    types.StringValue("main"),
 	}
 
-	payload, err := buildGitStackPayload(plan, gitStackDeployTriggers{})
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
+	_, err := buildGitStackPayload(plan, gitStackDeployTriggers{})
+	if err == nil {
+		t.Fatal("expected error when webhook is enabled without secret or auto-generate")
 	}
-	if payload.WebhookSecret == nil || *payload.WebhookSecret != "" {
-		t.Fatalf("expected empty webhook secret payload when auto-generate is disabled")
+	if !strings.Contains(err.Error(), "webhook_secret") {
+		t.Fatalf("unexpected error: %v", err)
 	}
 }
 
