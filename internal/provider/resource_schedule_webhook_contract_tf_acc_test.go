@@ -162,8 +162,9 @@ resource "dockhand_git_stack" "test" {
 }
 
 resource "dockhand_git_stack_webhook_action" "test" {
-  stack_id = dockhand_git_stack.test.id
-  trigger  = %q
+  stack_id       = dockhand_git_stack.test.id
+  webhook_secret = dockhand_git_stack.test.webhook_secret
+  trigger        = %q
 }
 `, env, stackName, repoURL, branch, composePath, credentialBlock, trigger)
 }

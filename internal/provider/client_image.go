@@ -135,7 +135,7 @@ func (c *Client) PushImage(ctx context.Context, env string, imageID string, regi
 		RegistryID: registryID,
 	}
 	pushClient := c.httpClientWithTimeout(5 * time.Minute)
-	return c.doJSONWithStatusUsingClient(ctx, pushClient, http.MethodPost, "/api/images/push", query, payload, nil)
+	return c.doJSONWithStatusUsingClient(ctx, pushClient, http.MethodPost, "/api/images/push", query, nil, payload, nil)
 }
 
 func (c *Client) ScanImage(ctx context.Context, env string, imageName string) (string, int, error) {
@@ -147,7 +147,7 @@ func (c *Client) ScanImage(ctx context.Context, env string, imageName string) (s
 	scanClient := *c.httpClient
 	scanClient.Timeout = 3 * time.Minute
 
-	status, err := c.doJSONWithStatusUsingClient(ctx, &scanClient, http.MethodPost, "/api/images/scan", query, imageScanPayload{ImageName: imageName}, nil)
+	status, err := c.doJSONWithStatusUsingClient(ctx, &scanClient, http.MethodPost, "/api/images/scan", query, nil, imageScanPayload{ImageName: imageName}, nil)
 	if err != nil {
 		return "", status, err
 	}

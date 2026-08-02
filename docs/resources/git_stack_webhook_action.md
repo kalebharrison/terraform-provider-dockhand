@@ -6,8 +6,9 @@ Triggers a one-shot webhook run for a Dockhand git stack.
 
 ```terraform
 resource "dockhand_git_stack_webhook_action" "sync_stack" {
-  stack_id = "12"
-  trigger  = "2026-02-12T22:00:00Z"
+  stack_id       = dockhand_git_stack.example.id
+  webhook_secret = dockhand_git_stack.example.webhook_secret
+  trigger        = "2026-02-12T22:00:00Z"
 }
 ```
 
@@ -19,6 +20,7 @@ resource "dockhand_git_stack_webhook_action" "sync_stack" {
 
 ### Optional
 
+- `webhook_secret` (String, Sensitive) Webhook secret from the git stack. Required by current Dockhand when the stack webhook is enabled (request is signed with `X-Hub-Signature-256` / `X-Gitlab-Token` and `?secret=`).
 - `trigger` (String) Arbitrary value; change it to re-run.
 
 ### Read-Only

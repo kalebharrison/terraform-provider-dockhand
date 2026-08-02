@@ -120,10 +120,14 @@ func (c *Client) Health(ctx context.Context, env string) (*healthResponse, error
 }
 
 func (c *Client) doJSONWithStatus(ctx context.Context, method string, path string, query map[string]string, in any, out any) (int, error) {
-	return c.doJSONWithStatusUsingClient(ctx, c.httpClient, method, path, query, in, out)
+	return c.doJSONWithStatusUsingClient(ctx, c.httpClient, method, path, query, nil, in, out)
 }
 
-func (c *Client) doJSONWithStatusUsingClient(ctx context.Context, httpClient *http.Client, method string, path string, query map[string]string, in any, out any) (int, error) {
+func (c *Client) doJSONWithStatusHeaders(ctx context.Context, method string, path string, query map[string]string, headers map[string]string, in any, out any) (int, error) {
+	return c.doJSONWithStatusUsingClient(ctx, c.httpClient, method, path, query, headers, in, out)
+}
+
+func (c *Client) doJSONWithStatusUsingClient(ctx context.Context, httpClient *http.Client, method string, path string, query map[string]string, headers map[string]string, in any, out any) (int, error) {
 	var payloadBytes []byte
 	if in != nil {
 		data, err := json.Marshal(in)
@@ -167,6 +171,12 @@ func (c *Client) doJSONWithStatusUsingClient(ctx context.Context, httpClient *ht
 		req.Header.Set("Accept", "application/json")
 		if payloadBytes != nil {
 			req.Header.Set("Content-Type", "application/json")
+		}
+		for key, value := range headers {
+			if strings.TrimSpace(key) == "" || strings.TrimSpace(value) == "" {
+				continue
+			}
+			req.Header.Set(key, value)
 		}
 		c.applyAuthHeaders(req)
 
