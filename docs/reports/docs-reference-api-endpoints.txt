@@ -34,6 +34,13 @@
 /api/jobs/{jobId}
 /api/labels
 /api/networks
+/api/registries
+/api/registries/test
+/api/registry/catalog
+/api/registry/image
+/api/registry/search
+/api/registry/tag-info
+/api/registry/tags
 /api/schedules
 /api/stacks
 /api/stacks/mystack/deploy
