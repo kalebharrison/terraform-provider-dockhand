@@ -2,6 +2,8 @@ package provider
 
 import (
 	"context"
+	"crypto/rand"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -155,15 +157,16 @@ func (r *gitStackResource) Schema(_ context.Context, _ resource.SchemaRequest, r
 				Default:  booldefault.StaticBool(false),
 			},
 			"webhook_secret_auto_generate": schema.BoolAttribute{
-				MarkdownDescription: "When `true` and `webhook_enabled=true`, allow Dockhand to auto-generate a webhook secret if `webhook_secret` is not provided.",
+				MarkdownDescription: "When `true` and `webhook_enabled=true` without `webhook_secret`, the provider generates a random secret and sends it to Dockhand (required by current Dockhand when webhooks are enabled).",
 				Optional:            true,
 				Computed:            true,
 				Default:             booldefault.StaticBool(false),
 			},
 			"webhook_secret": schema.StringAttribute{
-				Optional:  true,
-				Computed:  true,
-				Sensitive: true,
+				MarkdownDescription: "Webhook HMAC secret. Required when `webhook_enabled=true` unless `webhook_secret_auto_generate=true`.",
+				Optional:            true,
+				Computed:            true,
+				Sensitive:           true,
 			},
 			"deploy_now": schema.BoolAttribute{
 				MarkdownDescription: "Request immediate deployment when set to `true`. Only sent to the API when transitioning to `true` (create or after changing from `false`). For ad-hoc redeploys prefer `dockhand_git_stack_deploy_action`.",
@@ -239,6 +242,11 @@ func (r *gitStackResource) Create(ctx context.Context, req resource.CreateReques
 		return
 	}
 
+	if err := prepareGitStackWebhookSecret(&plan, nil); err != nil {
+		resp.Diagnostics.AddError("Invalid git stack configuration", err.Error())
+		return
+	}
+
 	payload, err := buildGitStackPayload(plan, gitStackDeployTriggersFrom(plan, gitStackModel{}, true))
 	if err != nil {
 		resp.Diagnostics.AddError("Invalid git stack configuration", err.Error())
@@ -305,6 +313,11 @@ func (r *gitStackResource) Update(ctx context.Context, req resource.UpdateReques
 	env, err := r.client.requireResolvedEnv(firstKnownString(plan.Env, state.Env))
 	if err != nil {
 		resp.Diagnostics.AddError("Missing environment", err.Error())
+		return
+	}
+
+	if err := prepareGitStackWebhookSecret(&plan, &state); err != nil {
+		resp.Diagnostics.AddError("Invalid git stack configuration", err.Error())
 		return
 	}
 
@@ -375,6 +388,57 @@ func (r *gitStackResource) ImportState(ctx context.Context, req resource.ImportS
 	resource.ImportStatePassthroughID(ctx, path.Root("id"), req, resp)
 }
 
+func generateWebhookSecret() (string, error) {
+	buf := make([]byte, 24)
+	if _, err := rand.Read(buf); err != nil {
+		return "", fmt.Errorf("generate webhook secret: %w", err)
+	}
+	return hex.EncodeToString(buf), nil
+}
+
+// prepareGitStackWebhookSecret ensures plan has a non-empty webhook_secret when
+// webhooks are enabled. Current Dockhand rejects webhookEnabled without a secret;
+// webhook_secret_auto_generate causes the provider to generate (or reuse state) one.
+func prepareGitStackWebhookSecret(plan *gitStackModel, state *gitStackModel) error {
+	webhookEnabled := false
+	if !plan.WebhookEnabled.IsNull() && !plan.WebhookEnabled.IsUnknown() {
+		webhookEnabled = plan.WebhookEnabled.ValueBool()
+	}
+	if !webhookEnabled {
+		return nil
+	}
+
+	if !plan.WebhookSecret.IsNull() && !plan.WebhookSecret.IsUnknown() {
+		if strings.TrimSpace(plan.WebhookSecret.ValueString()) == "" {
+			return fmt.Errorf("webhook_secret cannot be empty when webhook_enabled=true; set a secret or webhook_secret_auto_generate=true")
+		}
+		return nil
+	}
+
+	autoGenerate := false
+	if !plan.WebhookSecretAutoGenerate.IsNull() && !plan.WebhookSecretAutoGenerate.IsUnknown() {
+		autoGenerate = plan.WebhookSecretAutoGenerate.ValueBool()
+	}
+	if !autoGenerate {
+		return fmt.Errorf("webhook_enabled=true requires webhook_secret or webhook_secret_auto_generate=true")
+	}
+
+	if state != nil && !state.WebhookSecret.IsNull() && !state.WebhookSecret.IsUnknown() {
+		existing := strings.TrimSpace(state.WebhookSecret.ValueString())
+		if existing != "" {
+			plan.WebhookSecret = types.StringValue(existing)
+			return nil
+		}
+	}
+
+	secret, err := generateWebhookSecret()
+	if err != nil {
+		return err
+	}
+	plan.WebhookSecret = types.StringValue(secret)
+	return nil
+}
+
 func buildGitStackPayload(plan gitStackModel, triggers gitStackDeployTriggers) (gitStackPayload, error) {
 	stackName := strings.TrimSpace(plan.StackName.ValueString())
 	if stackName == "" {
@@ -401,11 +465,6 @@ func buildGitStackPayload(plan gitStackModel, triggers gitStackDeployTriggers) (
 	webhookEnabled := false
 	if !plan.WebhookEnabled.IsNull() && !plan.WebhookEnabled.IsUnknown() {
 		webhookEnabled = plan.WebhookEnabled.ValueBool()
-	}
-
-	webhookSecretAutoGenerate := false
-	if !plan.WebhookSecretAutoGenerate.IsNull() && !plan.WebhookSecretAutoGenerate.IsUnknown() {
-		webhookSecretAutoGenerate = plan.WebhookSecretAutoGenerate.ValueBool()
 	}
 
 	buildOnDeploy := false
@@ -446,17 +505,14 @@ func buildGitStackPayload(plan gitStackModel, triggers gitStackDeployTriggers) (
 	}
 
 	if webhookEnabled {
-		if !plan.WebhookSecret.IsNull() && !plan.WebhookSecret.IsUnknown() {
-			secret := strings.TrimSpace(plan.WebhookSecret.ValueString())
-			if secret == "" {
-				return gitStackPayload{}, fmt.Errorf("webhook_secret cannot be empty when webhook_enabled=true; set a secret or webhook_secret_auto_generate=true")
-			}
-			payload.WebhookSecret = &secret
-		} else if !webhookSecretAutoGenerate {
-			// Dockhand rejects webhook_enabled without a secret; do not send "".
+		if plan.WebhookSecret.IsNull() || plan.WebhookSecret.IsUnknown() {
 			return gitStackPayload{}, fmt.Errorf("webhook_enabled=true requires webhook_secret or webhook_secret_auto_generate=true")
 		}
-		// auto-generate: omit webhookSecret so Dockhand creates one
+		secret := strings.TrimSpace(plan.WebhookSecret.ValueString())
+		if secret == "" {
+			return gitStackPayload{}, fmt.Errorf("webhook_secret cannot be empty when webhook_enabled=true; set a secret or webhook_secret_auto_generate=true")
+		}
+		payload.WebhookSecret = &secret
 	}
 
 	envVars, err := parseGitStackEnvVarsJSON(plan.EnvVarsJSON)

@@ -150,14 +150,15 @@ func testAccGitStackWebhookActionConfig(env string, stackName string, repoURL st
 provider "dockhand" {}
 
 resource "dockhand_git_stack" "test" {
-  env                           = %q
-  stack_name                    = %q
-  url                           = %q
-  branch                        = %q
-  compose_path                  = %q
-  deploy_now                    = true
-  webhook_enabled               = true
-  webhook_secret_auto_generate  = true%s
+  env                          = %q
+  stack_name                   = %q
+  url                          = %q
+  branch                       = %q
+  compose_path                 = %q
+  deploy_now                   = true
+  webhook_enabled              = true
+  webhook_secret               = "tf-acc-webhook-secret"
+  webhook_secret_auto_generate = true%s
 }
 
 resource "dockhand_git_stack_webhook_action" "test" {
