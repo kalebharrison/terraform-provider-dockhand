@@ -13,7 +13,12 @@ This file tracks API endpoints that are not currently available on the tested Do
 - `GET /api/configs`
 - `GET /api/backups`
 
+## Present but not yet in provider/probe surface
+
+- `/api/registry/tag-info` — discovered on Dockhand `latest` (2026-08-02); track for future registry tag metadata coverage (issue #244).
+
 ## Notes
 
 - These are documented as backlog candidates only; no provider resources/data sources should depend on them until the API is present and stable.
 - Compatibility reports refresh via **Compat Reports Sync** on green Acceptance Full / Release Watch runs.
+- Paths listed above also serve as the API drift allowlist consumed by `scripts/api-drift-gate.py`.
