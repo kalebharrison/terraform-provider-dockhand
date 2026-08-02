@@ -160,27 +160,52 @@ func TestBuildGitStackPayloadWebhookRequiresSecretOrAutoGenerate(t *testing.T) {
 	}
 }
 
-func TestBuildGitStackPayloadWebhookAllowsAutoGenerate(t *testing.T) {
+func TestPrepareGitStackWebhookSecretAutoGenerates(t *testing.T) {
 	plan := gitStackModel{
+		WebhookEnabled:            types.BoolValue(true),
+		WebhookSecretAutoGenerate: types.BoolValue(true),
+		WebhookSecret:             types.StringNull(),
+	}
+	if err := prepareGitStackWebhookSecret(&plan, nil); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if plan.WebhookSecret.IsNull() || strings.TrimSpace(plan.WebhookSecret.ValueString()) == "" {
+		t.Fatal("expected auto-generate to populate webhook_secret on plan")
+	}
+
+	payload, err := buildGitStackPayload(gitStackModel{
 		StackName:                 types.StringValue("test-stack"),
 		ComposePath:               types.StringValue("docker-compose.yml"),
 		WebhookEnabled:            types.BoolValue(true),
 		WebhookSecretAutoGenerate: types.BoolValue(true),
-		WebhookSecret:             types.StringNull(),
+		WebhookSecret:             plan.WebhookSecret,
 		AutoUpdateEnabled:         types.BoolValue(false),
 		AutoUpdateCron:            types.StringValue("0 3 * * *"),
 		DeployNow:                 types.BoolValue(false),
 		EnvVarsJSON:               types.StringValue("[]"),
 		URL:                       types.StringValue("https://example.com/repo.git"),
 		Branch:                    types.StringValue("main"),
-	}
-
-	payload, err := buildGitStackPayload(plan, gitStackDeployTriggers{})
+	}, gitStackDeployTriggers{})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if payload.WebhookSecret != nil {
-		t.Fatalf("expected webhook secret to remain nil when auto-generate is enabled")
+	if payload.WebhookSecret == nil || *payload.WebhookSecret == "" {
+		t.Fatal("expected generated webhook secret to be sent in payload")
+	}
+}
+
+func TestPrepareGitStackWebhookSecretReusesState(t *testing.T) {
+	plan := gitStackModel{
+		WebhookEnabled:            types.BoolValue(true),
+		WebhookSecretAutoGenerate: types.BoolValue(true),
+		WebhookSecret:             types.StringNull(),
+	}
+	state := gitStackModel{WebhookSecret: types.StringValue("existing-secret")}
+	if err := prepareGitStackWebhookSecret(&plan, &state); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if plan.WebhookSecret.ValueString() != "existing-secret" {
+		t.Fatalf("expected state secret reuse, got %q", plan.WebhookSecret.ValueString())
 	}
 }
 
