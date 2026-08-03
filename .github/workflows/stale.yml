@@ -15,7 +15,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Process stale issues and pull requests
-        uses: actions/stale@v10
+        uses: actions/stale@v11
         with:
           stale-issue-message: >
             This issue has been automatically marked stale due to inactivity.
@@ -44,7 +44,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Close inactive needs-info issues
-        uses: actions/stale@v10
+        uses: actions/stale@v11
         with:
           any-of-labels: "status: needs-info"
           stale-issue-message: >
