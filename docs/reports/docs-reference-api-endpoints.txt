@@ -12,6 +12,7 @@
 /api/backup/snapshots/diff
 /api/backup/snapshots/{id}
 /api/backup/snapshots/{id}/metadata
+/api/backup/stack-path
 /api/batch
 /api/containers
 /api/containers/abc123/restart
