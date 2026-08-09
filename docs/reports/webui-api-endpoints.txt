@@ -29,6 +29,8 @@
 /api/backup/snapshots
 /api/backup/snapshots/
 /api/backup/snapshots/diff
+/api/backup/stack-dir-listing
+/api/backup/stack-path
 /api/batch
 /api/changelog
 /api/config-sets
@@ -94,6 +96,7 @@
 /api/registry/catalog
 /api/registry/image
 /api/registry/search
+/api/registry/tag-info
 /api/registry/tags
 /api/roles
 /api/roles/
@@ -108,6 +111,7 @@
 /api/self-update/check
 /api/self-update/progress
 /api/settings/general
+/api/settings/navigation
 /api/settings/scanner
 /api/settings/scanner/cache
 /api/settings/theme
