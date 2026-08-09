@@ -5,6 +5,7 @@
 /api/backup/destinations
 /api/backup/destinations/25/init
 /api/backup/destinations/test
+/api/backup/instance
 /api/backup/restore
 /api/backup/restore/preview
 /api/backup/restore/stop
