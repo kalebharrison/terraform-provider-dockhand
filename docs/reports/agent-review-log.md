@@ -973,3 +973,61 @@ Append-only record of lens sweeps. See `docs/AGENT_REVIEW_LENSES.md`.
 - **Blocking findings:** none
 - **Deferred medium/low:** probe fixture 404 tuning; backup API routes for future provider expansion; shrink `manifestOperationExemptions`; registry-and-image `timestamp()` example; README version pin bump; optional artifact scrubbing and auth error sanitization — carry forward from v0.1.85–v0.1.88 (no new high-severity regressions)
 
+---
+
+## Issue #252 — API drift detected: dockhand latest
+
+- **Branch:** `agent/issue-252-api-drift-detected-dockhand-latest`
+- **Lenses:** API compatibility; Ops / SRE; Acceptance & regression; Senior developer
+- **Started:** 2026-08-09
+
+### 2026-08-09 — API compatibility
+
+**Scope:** `scripts/endpoint-probe.py`, `scripts/api-drift-gate.py`, `docs/api-matrix.md`, `docs/non-present-endpoints.md`, `docs/reports/endpoint-probe.md`, `docs/reports/webui-api-endpoints.txt`, `internal/provider/client_settings_auth.go`.
+
+**Summary:** Release Watch on Dockhand `latest` discovered `GET /api/settings/navigation` in the WebUI crawl; the route was relevant under `/api/settings` but absent from probe coverage and the allowlist. Added a safe GET probe entry alongside existing settings routes so the drift gate treats the path as tracked.
+
+| Severity | Location | Finding | Suggested action |
+|----------|----------|---------|------------------|
+| high | `scripts/endpoint-probe.py:18-19` | `/api/settings/navigation` missing from `ENDPOINTS`; caused `new_relevant_unallowlisted=1` on Release Watch | Add `GET /api/settings/navigation` (fixed) |
+| med | `docs/reports/endpoint-probe.md` | Static probe report predates navigation route | **Compat Reports Sync** refreshes after green Acceptance Full / Release Watch |
+| med | `docs/non-present-endpoints.md:16-18` | Backlog lists `/api/registry/tag-info` only; navigation is present on latest Dockhand | Probe tracking preferred over allowlist for live routes (fixed) |
+| low | `docs/api-matrix.md` | No matrix row for navigation settings (UI-only) | Defer provider resource until operator demand — tracked via probe only |
+| — | `scripts/api-drift-gate.py:26-52` | `/api/settings` prefix already in `RELEVANT_PREFIXES` | No change needed |
+
+### 2026-08-09 — Ops / SRE
+
+**Scope:** `.github/workflows/dockhand-release-watch.yml`, `.github/workflows/acceptance-full.yml`, `scripts/api-drift-gate.py`, `scripts/verify.sh`, `scripts/lens_sweep_gate.py`.
+
+**Summary:** Drift failure is isolated to a single newly discovered WebUI route; probe list update is sufficient for Release Watch and Acceptance Full gates. No harness, workflow, or timeout changes required.
+
+| Severity | Location | Finding | Suggested action |
+|----------|----------|---------|------------------|
+| med | `.github/workflows/dockhand-release-watch.yml` | Drift gate opens agent issue when `new_relevant_unallowlisted > 0` | Working as designed; this branch resolves #252 |
+| low | `scripts/verify.sh` | `--endpoint-probe` remains debug-only (Dockhand env required) | No local probe run needed; CI validates |
+| — | `scripts/lens_sweep_gate.py` | Requires `agent-review-log.md` update on agent branch | Satisfied by this log |
+
+### 2026-08-09 — Acceptance & regression
+
+**Scope:** `internal/provider/testdata/acceptance_manifest.json`, `internal/provider/testdata/acceptance_pr_ci.json`, `scripts/endpoint-probe.py`, `scripts/test_compat_reports_changed.py`, `scripts/test_release_watch_state.py`.
+
+**Summary:** No provider resource or acceptance test changes required — navigation settings are UI configuration without a Terraform surface. Probe-only coverage matches prior drift fixes (e.g. `/api/settings/scanner/cache` in v0.1.86).
+
+| Severity | Location | Finding | Suggested action |
+|----------|----------|---------|------------------|
+| low | `acceptance_manifest.json` | No `dockhand_settings_navigation` resource (not requested) | Track navigation via probe only; open enhancement issue if Terraform surface is needed |
+| — | `scripts/endpoint-probe.py` | Safe-mode GET probe for navigation | Fixed |
+| — | `scripts/test_compat_reports_changed.py` | Compat report normalization unchanged | Skim confirmed |
+
+### 2026-08-09 — Senior developer
+
+**Scope:** `scripts/endpoint-probe.py` (settings block), `scripts/api-drift-gate.py` (path extraction), `CHANGELOG.md`.
+
+**Summary:** Minimal one-line probe addition grouped with existing settings entries; no Go client changes. Matches repo convention for WebUI-only routes discovered by drift automation.
+
+| Severity | Location | Finding | Suggested action |
+|----------|----------|---------|------------------|
+| — | `scripts/endpoint-probe.py:20` | Single GET entry added after `settings/general` | Fixed |
+| — | `CHANGELOG.md` | Unreleased entry documents drift fix | Fixed |
+| low | `internal/provider/client_*.go` | No client method for navigation (UI-only) | Defer until provider resource is scoped |
+

@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Track `GET /api/settings/navigation` in `scripts/endpoint-probe.py` so API drift gate passes on Dockhand `latest` (#252).
+
 ## [0.1.89] - 2026-08-02
 
 ### Fixed
