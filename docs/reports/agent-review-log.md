@@ -2,7 +2,7 @@
 
 Append-only record of lens sweeps. See `docs/AGENT_REVIEW_LENSES.md`.
 
-**Next lens:** none — last release pass 2026-07-21 (v0.1.89). Re-run before next `v*` release.
+**Next lens:** none — last release pass 2026-08-10 (v0.1.91). Re-run before next `v*` release.
 
 ---
 
@@ -1090,4 +1090,74 @@ Append-only record of lens sweeps. See `docs/AGENT_REVIEW_LENSES.md`.
 - **Clear to tag:** yes
 - **Blocking findings:** none
 - **Deferred medium/low:** navigation settings Terraform resource; 15m watchdog delay when `workflow_run` does not see a completed merge yet; README version pin bump — carry forward, no high-severity product regressions
+
+## Release v0.1.91 — lens review
+
+- **Tier:** patch
+- **Started:** 2026-08-10
+- **Base commit:** `32702bceb7f8edad38fb14474dd3288e98e937a7`
+- **CI gates:** pass (`release_gate_check.py`)
+- **Status:** clear to tag
+
+### 2026-08-10 — API compatibility
+
+**Scope:** Unreleased commit since `v0.1.90` (`32702bc`), `scripts/endpoint-probe.py`, `docs/reports/endpoint-probe.md`, `docs/non-present-endpoints.md`, `docs/reports/dockhand-last-tested.json`.
+
+**Summary:** Patch contains no provider client or probe changes. Dockhand Release Watch validated against `fnsys/dockhand:latest` on 2026-08-10; endpoint probe baseline unchanged (139 present, 2 not-present backlog).
+
+| Severity | Location | Finding | Suggested action |
+|----------|----------|---------|------------------|
+| — | `32702bc` | CI-only Dependabot bump; no API surface change | No action |
+| low | `docs/api-matrix.md` | Navigation settings still has no Terraform resource | Defer (carried from v0.1.90) |
+
+### 2026-08-10 — Terraform schema & state
+
+**Scope:** `internal/provider/` (grep for changes since `v0.1.90`), `internal/provider/provider.go`.
+
+**Summary:** No provider resource, data source, or schema files changed in the unreleased window. State semantics and Plugin Framework behavior unchanged from v0.1.90.
+
+| Severity | Location | Finding | Suggested action |
+|----------|----------|---------|------------------|
+| — | `internal/provider/` | Zero diff since `v0.1.90` tag | No action |
+
+### 2026-08-10 — Acceptance & regression
+
+**Scope:** `internal/provider/testdata/acceptance_manifest.json`, `internal/provider/testdata/acceptance_pr_ci.json`, unreleased diff, CI gate output.
+
+**Summary:** No acceptance test, manifest, or PR CI subset changes. Release gate reports CI green; Acceptance Full and Release Watch validated on current `main`.
+
+| Severity | Location | Finding | Suggested action |
+|----------|----------|---------|------------------|
+| — | Manifest / PR CI | Unchanged since v0.1.90 | No action |
+| — | `release_gate_check.py` | `ci_gates_pass: true`, `unreleased_commits_on_main: 1` | Satisfied |
+
+### 2026-08-10 — Security engineer
+
+**Scope:** `.github/workflows/release-artifacts.yml` (attest bump), provider auth/client files (skim), `.github/workflows/*` (skim for secret exfil patterns).
+
+**Summary:** Dependabot bumps `actions/attest-build-provenance` v4.1.1 → v4.2.2 in the release artifact workflow only. Permissions remain scoped (`contents: write`, `id-token: write`, `attestations: write`); GPG signing and subject-path attestation unchanged. No provider secret-handling code touched.
+
+| Severity | Location | Finding | Suggested action |
+|----------|----------|---------|------------------|
+| — | `.github/workflows/release-artifacts.yml:134` | Attest action minor bump; same step inputs and OIDC permissions | Ship |
+| — | Provider auth/client | No diff since v0.1.90 | No action |
+| low | README | No pinned provider version example | Defer (carried from v0.1.90) |
+
+### 2026-08-10 — Release & upgrade
+
+**Scope:** `CHANGELOG.md` Unreleased, `scripts/release_gate_check.py`, `.github/workflows/agent-release-tag.yml`, Release Drafter draft for v0.1.91.
+
+**Summary:** Patch-tier dependency-only release. Gate script reports tier `patch`, one unreleased commit, no open `awaiting-release` issues, no blocking compatibility issues. CHANGELOG Unreleased documents v0.1.90 product fixes; v0.1.91 will add the attest bump via release housekeeping on tag.
+
+| Severity | Location | Finding | Suggested action |
+|----------|----------|---------|------------------|
+| — | `release_gate_check.py` | `ready_for_lens_dispatch: true`, `lens_verdict_clear: false` until this log merges | This section |
+| — | User impact | No Terraform operator action required beyond routine provider upgrade | Document in release notes on tag |
+| low | `CHANGELOG.md` | Unreleased still lists v0.1.90 fixes until Agent Release Tag cuts the section | Expected; housekeeping on tag |
+
+### Release v0.1.91 — verdict
+
+- **Clear to tag:** yes
+- **Blocking findings:** none
+- **Deferred medium/low:** navigation settings Terraform resource; README version pin example — carried forward from v0.1.90, no new medium/low items
 
