@@ -46,7 +46,7 @@ See `docs/AGENT_RUNBOOK.md` and `docs/AGENT_CODING_STANDARDS.md`.
 | **Signed tag + artifacts + housekeeping** | `agent-release-tag.yml` | When lens verdict clears on `main` |
 | **Automation health alert** | `automation-health-notify.yml` | Opens tracker issue when release gate blockers persist ≥24h |
 | **Agent stall watchdog** | `agent-stall-watchdog.yml` | Re-dispatches when Cloud Agent progress stalls ≥24h |
-| **Automated handoff watchdog** | `agent-autonomy-watchdog.yml` | Every 15m: unblock trusted agent/automation/Cursor PRs; dispatch eligible queued issues (CI, release, compatibility) |
+| **Automated handoff watchdog** | `agent-autonomy-watchdog.yml` | Every 15m: unblock trusted agent/automation/Cursor PRs; dispatch eligible queued issues (CI, release, compatibility); recover missed merge cleanup, Release Drafter drafts, and release lens/tag dispatches after `GITHUB_TOKEN` merges |
 | **Dependabot auto-merge** | `dependabot-auto-merge.yml` | Enables squash auto-merge for Dependabot PRs |
 | **Secret smoke** | `secret-smoke.yml` | Weekly: secrets, Actions settings, disable Bugbot via API |
 | Dependency vulnerabilities | `govulncheck.yml` | Weekly + PR |

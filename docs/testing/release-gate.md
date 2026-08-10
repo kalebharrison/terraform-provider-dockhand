@@ -25,7 +25,7 @@ Programmatic gate: `scripts/release_gate_check.py`
 
 Before **Agent Release Tag** publishes `vX.Y.Z`:
 
-1. No open `compatibility` issues for the current Dockhand release.
+1. No open `compatibility` issues for the current Dockhand release **without a merged fix PR** (issues already addressed on `main` but still open because merge cleanup was skipped do not block the gate).
 2. Required workflows green on `main` (Go CI, Govulncheck, Workflow Lint, Gitleaks, Dependency Review, Acceptance Full, Dockhand Release Watch).
 3. Release Drafter draft exists for `vX.Y.Z` and the tag is not published yet.
 4. At least one `awaiting-release` issue **or** commits on `main` since the latest published tag (dependency bumps, automation fixes, etc.).

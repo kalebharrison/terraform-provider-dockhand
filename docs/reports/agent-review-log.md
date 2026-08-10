@@ -1031,3 +1031,61 @@ Append-only record of lens sweeps. See `docs/AGENT_REVIEW_LENSES.md`.
 | — | `CHANGELOG.md` | Unreleased entry documents drift fix | Fixed |
 | low | `internal/provider/client_*.go` | No client method for navigation (UI-only) | Defer until provider resource is scoped |
 
+---
+
+## Issue #256 — Release loop stalls after GITHUB_TOKEN agent merges
+
+- **Branch:** `agent/issue-256-release-loop-stalls-after-github-token-agent-mer`
+- **Lenses:** API compatibility; Ops / SRE; Acceptance & regression; Senior developer
+- **Started:** 2026-08-10
+
+### 2026-08-10 — API compatibility
+
+**Scope:** `scripts/release_gate_check.py`, `scripts/endpoint-probe.py`, `docs/testing/release-gate.md`, open compatibility issue #252 (fix merged in #254).
+
+**Summary:** Release gate no longer treats open `compatibility` issues as blockers when a merged PR already closes/fixes them. Provider API surface unchanged; this unblocks tagging while **Agent Merge Cleanup** catches up on issue housekeeping.
+
+| Severity | Location | Finding | Suggested action |
+|----------|----------|---------|------------------|
+| high | `scripts/release_gate_check.py:154-177` | Open #252 blocked gate despite merged fix PR #254 | Filter issues with `merged_closing_pull_request()` (fixed) |
+| — | `scripts/endpoint-probe.py` | Navigation route tracked (#252) | No further API work in this branch |
+| low | `docs/reports/endpoint-probe.md` | Static report may lag live CI | **Compat Reports Sync** refreshes after green runs |
+
+### 2026-08-10 — Ops / SRE
+
+**Scope:** `.github/workflows/agent-pr-approve-ci.yml`, `.github/workflows/agent-autonomy-watchdog.yml`, `.github/workflows/agent-merge-cleanup.yml`, `.github/workflows/release-drafter.yml`, `.github/release-drafter.yml`, `scripts/agent_release_loop_watchdog.py`.
+
+**Summary:** `GITHUB_TOKEN` squash-merges do not trigger downstream `push` workflows. Agent merge now explicitly dispatches **Agent Merge Cleanup** and **Release Drafter**; the 15m autonomy watchdog runs `agent_release_loop_watchdog.py` to recover missed cleanup, drafts, and release orchestrate/tag dispatches. Release Drafter v7 `exclude-labels` removed (conflicts with `pre-exclude` category).
+
+| Severity | Location | Finding | Suggested action |
+|----------|----------|---------|------------------|
+| high | `.github/release-drafter.yml:46-48` | Deprecated `exclude-labels` breaks v7 when `pre-exclude` present | Remove `exclude-labels`; keep `pre-exclude` category (fixed) |
+| high | `.github/workflows/agent-pr-approve-ci.yml` | Squash merge did not dispatch follow-up workflows | Dispatch cleanup + Release Drafter after merge (fixed) |
+| high | `.github/workflows/agent-autonomy-watchdog.yml` | No recovery for skipped release-loop steps | Add `release-loop-recovery` job (fixed) |
+| med | `scripts/agent_release_loop_watchdog.py` | New recovery script; relies on gh search for merged PRs | Monitor watchdog logs; tune lookback if false negatives |
+| low | `.github/workflows/agent-merge-cleanup.yml` | `pull_request: closed` still primary path | Explicit dispatch is backup only |
+
+### 2026-08-10 — Acceptance & regression
+
+**Scope:** `scripts/test_release_gate_check.py`, `scripts/test_agent_release_loop_watchdog.py`, `scripts/test-agent-helpers.sh`, provider acceptance manifest (unchanged).
+
+**Summary:** CI-only change; no provider resource or acceptance test updates. Unit tests cover compatibility-issue filtering and merge-cleanup recovery dispatch.
+
+| Severity | Location | Finding | Suggested action |
+|----------|----------|---------|------------------|
+| — | `scripts/test_release_gate_check.py` | Tests for merged-fix compatibility filter | Added |
+| — | `scripts/test_agent_release_loop_watchdog.py` | Tests for recovery dispatch | Added |
+| low | `acceptance_manifest.json` | No Terraform surface changes | No manifest update needed |
+
+### 2026-08-10 — Senior developer
+
+**Scope:** `scripts/release_gate_check.py`, `scripts/agent_release_loop_watchdog.py`, workflow YAML edits.
+
+**Summary:** Reused the same close-issue regex semantics as **Agent Merge Cleanup** for consistency. Recovery script follows existing watchdog patterns (`agent_ci_intake_watchdog.py`, `agent_stuck_pr_watchdog.py`) with dry-run support and JSON output.
+
+| Severity | Location | Finding | Suggested action |
+|----------|----------|---------|------------------|
+| — | `scripts/release_gate_check.py` | `_linked_issue_numbers()` shared with watchdog | Fixed |
+| low | `scripts/release_gate_check.py` | `issue_has_merged_closing_pr()` may query gh search per open issue | Acceptable at current issue volume; batch API if scale grows |
+| — | `CHANGELOG.md` | Unreleased entry documents #256 fix | Fixed |
+

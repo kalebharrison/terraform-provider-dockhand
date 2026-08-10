@@ -30,6 +30,10 @@ REQUIRED_WORKFLOWS = (
 RELEASE_WATCH_WORKFLOW = "Dockhand Release Watch"
 RELEASE_WATCH_VALIDATE_JOB = "Validate Provider Against Dockhand Release"
 
+CLOSE_ISSUE_RE = (
+    r"\b(?:close[sd]?|fix(?:e[sd])?|resolve[sd]?)\s+#(\d+)\b"
+)
+
 
 @dataclass
 class GateResult:
@@ -151,7 +155,46 @@ def tag_exists(tag: str) -> bool:
     return proc.returncode == 0
 
 
-def open_compatibility_issues() -> list[int]:
+def _linked_issue_numbers(text: str) -> set[int]:
+    import re
+
+    numbers: set[int] = set()
+    for match in re.finditer(CLOSE_ISSUE_RE, text or "", flags=re.IGNORECASE):
+        numbers.add(int(match.group(1)))
+    return numbers
+
+
+def merged_closing_pull_request(issue_number: int) -> int | None:
+    """Return a merged PR number that closes/fixes the issue, if any."""
+    repo = _repo()
+    queries = [
+        f'repo:{repo} is:pr is:merged "fixes #{issue_number}"',
+        f'repo:{repo} is:pr is:merged "fix #{issue_number}"',
+        f'repo:{repo} is:pr is:merged "closes #{issue_number}"',
+        f'repo:{repo} is:pr is:merged "resolved #{issue_number}"',
+    ]
+    seen: set[int] = set()
+    for query in queries:
+        data = _gh_json(["search", "issues", query, "--json", "number,body,title", "--limit", "5"])
+        if not isinstance(data, list):
+            continue
+        for item in data:
+            number = int(item["number"])
+            if number in seen:
+                continue
+            seen.add(number)
+            body = str(item.get("body", ""))
+            title = str(item.get("title", ""))
+            if issue_number in _linked_issue_numbers(f"{title}\n{body}"):
+                return number
+    return None
+
+
+def issue_has_merged_closing_pr(issue_number: int) -> bool:
+    return merged_closing_pull_request(issue_number) is not None
+
+
+def open_compatibility_issues(*, include_resolved: bool = False) -> list[int]:
     data = _gh_json(
         [
             "issue",
@@ -173,7 +216,10 @@ def open_compatibility_issues() -> list[int]:
         title = str(item.get("title", "")).lower()
         if title.startswith("release:"):
             continue
-        numbers.append(int(item["number"]))
+        number = int(item["number"])
+        if not include_resolved and issue_has_merged_closing_pr(number):
+            continue
+        numbers.append(number)
     return numbers
 
 

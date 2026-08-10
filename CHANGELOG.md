@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - Track `GET /api/settings/navigation` in `scripts/endpoint-probe.py` so API drift gate passes on Dockhand `latest` (#252).
+- Release loop no longer stalls after `GITHUB_TOKEN` agent merges: skip release-gate blockers for compatibility issues with merged fix PRs, dispatch **Agent Merge Cleanup** and **Release Drafter** after agent squash-merge, recover missed steps via **Agent Autonomy Watchdog**, and remove deprecated Release Drafter `exclude-labels` (#256).
 
 ## [0.1.89] - 2026-08-02
 

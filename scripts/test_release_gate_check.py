@@ -83,6 +83,47 @@ class GateResultTest(unittest.TestCase):
         self.assertEqual(result.release_trigger, "awaiting_release_issues")
 
 
+class CompatibilityIssueFilterTest(unittest.TestCase):
+    def test_linked_issue_numbers_parses_fixes_clause(self) -> None:
+        text = "Fixes #252\n\nAlso closes #99"
+        self.assertEqual(gate._linked_issue_numbers(text), {252, 99})
+
+    def test_issue_has_merged_closing_pr_true(self) -> None:
+        with mock.patch.object(
+            gate,
+            "_gh_json",
+            return_value=[{"number": 254, "body": "Fixes #252", "title": "fix(probe): navigation"}],
+        ):
+            self.assertTrue(gate.issue_has_merged_closing_pr(252))
+            self.assertEqual(gate.merged_closing_pull_request(252), 254)
+
+    def test_issue_has_merged_closing_pr_false_when_unrelated(self) -> None:
+        with mock.patch.object(
+            gate,
+            "_gh_json",
+            return_value=[{"number": 300, "body": "Fixes #999", "title": "unrelated"}],
+        ):
+            self.assertFalse(gate.issue_has_merged_closing_pr(252))
+
+    def test_open_compatibility_issues_skips_merged_fix(self) -> None:
+        with mock.patch.object(
+            gate,
+            "_gh_json",
+            return_value=[{"number": 252, "title": "API drift detected"}],
+        ):
+            with mock.patch.object(gate, "issue_has_merged_closing_pr", return_value=True):
+                self.assertEqual(gate.open_compatibility_issues(), [])
+
+    def test_open_compatibility_issues_keeps_unresolved(self) -> None:
+        with mock.patch.object(
+            gate,
+            "_gh_json",
+            return_value=[{"number": 252, "title": "API drift detected"}],
+        ):
+            with mock.patch.object(gate, "issue_has_merged_closing_pr", return_value=False):
+                self.assertEqual(gate.open_compatibility_issues(), [252])
+
+
 class CutChangelogTest(unittest.TestCase):
     def test_cut_changelog_inserts_version_section(self) -> None:
         from release_housekeeping import cut_changelog

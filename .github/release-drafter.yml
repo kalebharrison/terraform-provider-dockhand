@@ -42,10 +42,5 @@ categories:
   - type: version-resolver
     semver-increment: patch
 
-# Docs-only CI baseline refreshes must not flood release notes.
-exclude-labels:
-  - "compat-reports-sync"
-  - "skip-changelog"
-
 change-template: "- $TITLE (#$NUMBER) @$AUTHOR"
 no-changes-template: "- No user-facing changes in this release."

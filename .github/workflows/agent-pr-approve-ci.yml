@@ -288,3 +288,28 @@ jobs:
               }
               throw error;
             }
+
+            const dispatchFollowUp = async (workflowFile, inputs = {}) => {
+              await github.rest.actions.createWorkflowDispatch({
+                owner,
+                repo,
+                workflow_id: workflowFile,
+                ref: "main",
+                inputs,
+              });
+              core.info(`Dispatched ${workflowFile}`);
+            };
+
+            try {
+              await dispatchFollowUp("agent-merge-cleanup.yml", {
+                pull_number: String(pullNumber),
+              });
+            } catch (error) {
+              core.warning(`Merge cleanup dispatch failed for PR #${pullNumber}: ${error.message}`);
+            }
+
+            try {
+              await dispatchFollowUp("release-drafter.yml");
+            } catch (error) {
+              core.warning(`Release Drafter dispatch failed after PR #${pullNumber}: ${error.message}`);
+            }

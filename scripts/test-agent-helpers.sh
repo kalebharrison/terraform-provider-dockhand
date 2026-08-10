@@ -37,6 +37,8 @@ run /usr/bin/python3 -m unittest scripts/test_release_watch_state.py
 run /usr/bin/python3 -m unittest scripts/test_compat_reports_changed.py
 run /usr/bin/python3 -m unittest scripts/test_automation_health_gate.py
 run /usr/bin/python3 -m unittest scripts/test_agent_stall_watchdog.py
+run /usr/bin/python3 -m unittest scripts/test_agent_autonomy_watchdog.py
+run /usr/bin/python3 -m unittest scripts/test_agent_release_loop_watchdog.py
 run /usr/bin/python3 -m unittest scripts/test_agent_approve_pr_ci.py
 run /usr/bin/python3 -m unittest scripts/test_repo_hygiene.py
 run /usr/bin/python3 -m unittest scripts/test_check_automation_settings.py
