@@ -1,0 +1,130 @@
+name: Agent Merge Followup
+
+# GITHUB_TOKEN merges do not trigger push workflows on main. After Agent PR Approve CI
+# squash-merges an agent PR, explicitly dispatch merge cleanup and Release Drafter.
+on:
+  workflow_run:
+    workflows:
+      - Agent PR Approve CI
+    types:
+      - completed
+  workflow_dispatch:
+    inputs:
+      pull_number:
+        description: "Merged agent PR number (optional recovery)"
+        required: false
+        type: string
+
+permissions:
+  actions: write
+  contents: read
+  pull-requests: read
+
+jobs:
+  dispatch-followup:
+    name: Dispatch merge cleanup and Release Drafter
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (
+        github.event_name == 'workflow_run' &&
+        github.event.workflow_run.conclusion == 'success' &&
+        (
+          startsWith(github.event.workflow_run.head_branch, 'agent/') ||
+          startsWith(github.event.workflow_run.head_branch, 'automation/') ||
+          startsWith(github.event.workflow_run.head_branch, 'cursor/')
+        )
+      )
+    runs-on: ubuntu-latest
+    steps:
+      - name: Resolve merged agent pull request
+        id: pr
+        uses: actions/github-script@v9
+        env:
+          INPUT_PULL: ${{ inputs.pull_number }}
+        with:
+          script: |
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+            let pullNumber = Number(process.env.INPUT_PULL || "");
+            let headSha = "";
+
+            if (!pullNumber && context.eventName === "workflow_run") {
+              headSha = context.payload.workflow_run.head_sha || "";
+            }
+
+            if (!pullNumber && headSha) {
+              const { data } = await github.rest.search.issuesAndPullRequests({
+                q: `repo:${owner}/${repo} is:pr head:${headSha}`,
+              });
+              if (data.items.length > 0) {
+                pullNumber = data.items[0].number;
+              }
+            }
+
+            if (!pullNumber) {
+              core.info("No pull request resolved for follow-up dispatch.");
+              core.setOutput("pull_number", "");
+              return;
+            }
+
+            const { data: pr } = await github.rest.pulls.get({
+              owner,
+              repo,
+              pull_number: pullNumber,
+            });
+
+            const headRef = pr.head?.ref || "";
+            const isAgentBranch = headRef.startsWith("agent/");
+            const isAutomationBranch = headRef.startsWith("automation/");
+            const isTrustedCursorBranch =
+              headRef.startsWith("cursor/") &&
+              pr.user?.login === "cursor[bot]" &&
+              pr.head?.repo?.full_name === `${owner}/${repo}`;
+
+            if (!isAgentBranch && !isAutomationBranch && !isTrustedCursorBranch) {
+              core.info(`Skipping follow-up for non-automated PR #${pullNumber}.`);
+              core.setOutput("pull_number", "");
+              return;
+            }
+
+            if (!pr.merged_at) {
+              core.info(`PR #${pullNumber} is not merged yet; skipping follow-up.`);
+              core.setOutput("pull_number", "");
+              return;
+            }
+
+            core.setOutput("pull_number", String(pullNumber));
+
+      - name: Dispatch merge cleanup and Release Drafter
+        if: steps.pr.outputs.pull_number != ''
+        uses: actions/github-script@v9
+        env:
+          PULL_NUMBER: ${{ steps.pr.outputs.pull_number }}
+        with:
+          script: |
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+            const pullNumber = process.env.PULL_NUMBER;
+
+            const dispatch = async (workflowFile, inputs = {}) => {
+              await github.rest.actions.createWorkflowDispatch({
+                owner,
+                repo,
+                workflow_id: workflowFile,
+                ref: "main",
+                inputs,
+              });
+              core.info(`Dispatched ${workflowFile}`);
+            };
+
+            try {
+              await dispatch("agent-merge-cleanup.yml", { pull_number: pullNumber });
+            } catch (error) {
+              core.warning(`Merge cleanup dispatch failed for PR #${pullNumber}: ${error.message}`);
+            }
+
+            try {
+              await dispatch("release-drafter.yml");
+            } catch (error) {
+              core.warning(`Release Drafter dispatch failed after PR #${pullNumber}: ${error.message}`);
+            }

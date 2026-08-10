@@ -1053,14 +1053,14 @@ Append-only record of lens sweeps. See `docs/AGENT_REVIEW_LENSES.md`.
 
 ### 2026-08-10 — Ops / SRE
 
-**Scope:** `.github/workflows/agent-pr-approve-ci.yml`, `.github/workflows/agent-autonomy-watchdog.yml`, `.github/workflows/agent-merge-cleanup.yml`, `.github/workflows/release-drafter.yml`, `.github/release-drafter.yml`, `scripts/agent_release_loop_watchdog.py`.
+**Scope:** `.github/workflows/agent-merge-followup.yml`, `.github/workflows/agent-autonomy-watchdog.yml`, `.github/workflows/agent-merge-cleanup.yml`, `.github/workflows/release-drafter.yml`, `.github/release-drafter.yml`, `scripts/agent_release_loop_watchdog.py`.
 
-**Summary:** `GITHUB_TOKEN` squash-merges do not trigger downstream `push` workflows. Agent merge now explicitly dispatches **Agent Merge Cleanup** and **Release Drafter**; the 15m autonomy watchdog runs `agent_release_loop_watchdog.py` to recover missed cleanup, drafts, and release orchestrate/tag dispatches. Release Drafter v7 `exclude-labels` removed (conflicts with `pre-exclude` category).
+**Summary:** `GITHUB_TOKEN` squash-merges do not trigger downstream `push` workflows. New **Agent Merge Followup** listens for successful **Agent PR Approve CI** runs on agent branches and dispatches **Agent Merge Cleanup** plus **Release Drafter**; the 15m autonomy watchdog runs `agent_release_loop_watchdog.py` to recover missed cleanup, drafts, and release orchestrate/tag dispatches. Release Drafter v7 `exclude-labels` removed (conflicts with `pre-exclude` category).
 
 | Severity | Location | Finding | Suggested action |
 |----------|----------|---------|------------------|
 | high | `.github/release-drafter.yml:46-48` | Deprecated `exclude-labels` breaks v7 when `pre-exclude` present | Remove `exclude-labels`; keep `pre-exclude` category (fixed) |
-| high | `.github/workflows/agent-pr-approve-ci.yml` | Squash merge did not dispatch follow-up workflows | Dispatch cleanup + Release Drafter after merge (fixed) |
+| high | `.github/workflows/agent-merge-followup.yml` | Squash merge did not dispatch follow-up workflows | New workflow on **Agent PR Approve CI** `workflow_run` (fixed) |
 | high | `.github/workflows/agent-autonomy-watchdog.yml` | No recovery for skipped release-loop steps | Add `release-loop-recovery` job (fixed) |
 | med | `scripts/agent_release_loop_watchdog.py` | New recovery script; relies on gh search for merged PRs | Monitor watchdog logs; tune lookback if false negatives |
 | low | `.github/workflows/agent-merge-cleanup.yml` | `pull_request: closed` still primary path | Explicit dispatch is backup only |
