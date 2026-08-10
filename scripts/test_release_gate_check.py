@@ -72,6 +72,25 @@ class GateResultTest(unittest.TestCase):
         result = gate.GateResult(ci_gates_pass=True, version="0.1.87", tag="v0.1.87")
         self.assertFalse(result.ready_for_lens_dispatch)
 
+    def test_merged_compat_fix_is_not_a_blocker(self) -> None:
+        result = gate.GateResult()
+        with mock.patch.object(gate, "open_compatibility_issues", return_value=[252, 999]):
+            with mock.patch.object(
+                gate,
+                "merged_closing_pull_requests",
+                side_effect=lambda n: [254] if n == 252 else [],
+            ):
+                with mock.patch.object(gate, "workflow_is_green", return_value=True):
+                    with mock.patch.object(gate, "awaiting_release_issues", return_value=[]):
+                        with mock.patch.object(gate, "commits_ahead_of_latest_release", return_value=2):
+                            with mock.patch.object(gate, "draft_release_tag", return_value=None):
+                                evaluated = gate.evaluate_gate()
+        self.assertIn("open compatibility issue #999", evaluated.blockers)
+        self.assertNotIn("open compatibility issue #252", evaluated.blockers)
+        self.assertEqual(evaluated.compatibility_issues_with_merged_fix, [252])
+        self.assertEqual(evaluated.unreleased_commits_on_main, 2)
+        self.assertIn("no draft release from Release Drafter", evaluated.blockers)
+
     def test_awaiting_release_takes_precedence(self) -> None:
         result = gate.GateResult(
             ci_gates_pass=True,

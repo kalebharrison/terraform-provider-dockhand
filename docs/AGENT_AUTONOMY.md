@@ -46,7 +46,7 @@ See `docs/AGENT_RUNBOOK.md` and `docs/AGENT_CODING_STANDARDS.md`.
 | **Signed tag + artifacts + housekeeping** | `agent-release-tag.yml` | When lens verdict clears on `main` |
 | **Automation health alert** | `automation-health-notify.yml` | Opens tracker issue when release gate blockers persist ≥24h |
 | **Agent stall watchdog** | `agent-stall-watchdog.yml` | Re-dispatches when Cloud Agent progress stalls ≥24h |
-| **Automated handoff watchdog** | `agent-autonomy-watchdog.yml` | Every 15m: unblock trusted agent/automation/Cursor PRs; dispatch eligible queued issues (CI, release, compatibility) |
+| **Automated handoff watchdog** | `agent-autonomy-watchdog.yml` | Every 15m: unblock trusted PRs; dispatch queued issues; recover missed merge cleanup; dispatch Release Drafter / Orchestrate / Tag when the gate is ready |
 | **Dependabot auto-merge** | `dependabot-auto-merge.yml` | Enables squash auto-merge for Dependabot PRs |
 | **Secret smoke** | `secret-smoke.yml` | Weekly: secrets, Actions settings, disable Bugbot via API |
 | Dependency vulnerabilities | `govulncheck.yml` | Weekly + PR |
@@ -65,8 +65,8 @@ No manual merge or workflow approval is required for routine report refresh.
 
 ## Automated release path
 
-1. Fixes merge to `main`; **Agent Merge Cleanup** (agent PRs) or **Issue Resolution Notify** (human PRs) labels linked issues `awaiting-release`.
-2. **Release Drafter** maintains the next draft version on each `main` push.
+1. Fixes merge to `main`; **Agent Merge Cleanup** (agent PRs, including `workflow_run` after **Agent PR Approve CI**) or **Issue Resolution Notify** (human PRs) labels linked issues `awaiting-release`. If a `GITHUB_TOKEN` merge skipped those events, the 15m watchdog redispatches cleanup.
+2. **Release Drafter** maintains the next draft version on each `main` push, and the watchdog redispatches it when unreleased commits exist without a draft.
 3. **Agent Release Orchestrate** opens `release: prepare vX.Y.Z` when `scripts/release_gate_check.py --mode lens` passes (validated **Dockhand Release Watch** on `main`, or manual dispatch). Release work includes `awaiting-release` issues **or** any commits on `main` since the latest published tag.
 4. **Issue Agent Intake** dispatches a Cloud Agent with the release-tier lens set.
 5. Agent appends lens sweeps + `### Release vX.Y.Z — verdict` with **Clear to tag: yes** to `docs/reports/agent-review-log.md` and merges via the normal agent PR loop.

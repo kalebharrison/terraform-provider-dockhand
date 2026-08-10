@@ -42,6 +42,7 @@ class GateResult:
     unreleased_commits_on_main: int = 0
     lens_verdict_clear: bool = False
     open_release_issue: int | None = None
+    compatibility_issues_with_merged_fix: list[int] = field(default_factory=list)
 
     @property
     def has_release_work(self) -> bool:
@@ -84,6 +85,7 @@ class GateResult:
             "release_trigger": self.release_trigger,
             "lens_verdict_clear": self.lens_verdict_clear,
             "open_release_issue": self.open_release_issue,
+            "compatibility_issues_with_merged_fix": self.compatibility_issues_with_merged_fix,
         }
 
 
@@ -174,6 +176,39 @@ def open_compatibility_issues() -> list[int]:
         if title.startswith("release:"):
             continue
         numbers.append(int(item["number"]))
+    return numbers
+
+
+def merged_closing_pull_requests(issue_number: int) -> list[int]:
+    """Return merged PR numbers whose body/title close ``issue_number``.
+
+    Used so an already-landed drift/compat fix cannot block tagging when
+    Agent Merge Cleanup failed to close the issue (GITHUB_TOKEN merges do
+    not trigger follow-up workflows).
+    """
+    query = f'repo:{_repo()} is:pr is:merged ("Fixes #{issue_number}" OR "Fix #{issue_number}" OR "Closes #{issue_number}" OR "Close #{issue_number}" OR "Resolves #{issue_number}" OR "Resolve #{issue_number}")'
+    try:
+        data = _gh_json(
+            [
+                "search",
+                "prs",
+                query,
+                "--json",
+                "number",
+                "--limit",
+                "10",
+            ]
+        )
+    except RuntimeError:
+        return []
+    if not isinstance(data, list):
+        return []
+    numbers: list[int] = []
+    for item in data:
+        try:
+            numbers.append(int(item["number"]))
+        except (KeyError, TypeError, ValueError):
+            continue
     return numbers
 
 
@@ -362,6 +397,10 @@ def evaluate_gate(*, release_watch_mode: str = "strict") -> GateResult:
     result = GateResult()
 
     for issue_number in open_compatibility_issues():
+        merged_prs = merged_closing_pull_requests(issue_number)
+        if merged_prs:
+            result.compatibility_issues_with_merged_fix.append(issue_number)
+            continue
         result.blockers.append(f"open compatibility issue #{issue_number}")
 
     workflow_failures = [
@@ -372,21 +411,24 @@ def evaluate_gate(*, release_watch_mode: str = "strict") -> GateResult:
     for name in workflow_failures:
         result.blockers.append(f"workflow not green on main: {name}")
 
+    result.awaiting_release_issues = awaiting_release_issues()
+    result.unreleased_commits_on_main = commits_ahead_of_latest_release()
+
     draft = draft_release_tag()
     if draft is None:
         result.blockers.append("no draft release from Release Drafter")
+        result.ci_gates_pass = not result.blockers
         return result
 
     if tag_exists(draft.tag()):
         result.blockers.append(f"tag already published: {draft.tag()}")
+        result.ci_gates_pass = not result.blockers
         return result
 
     previous = latest_release_tag()
     result.version = str(draft)
     result.tag = draft.tag()
     result.tier = release_tier(previous, draft)
-    result.awaiting_release_issues = awaiting_release_issues()
-    result.unreleased_commits_on_main = commits_ahead_of_latest_release()
     result.open_release_issue = find_open_release_issue(result.version)
 
     review_log = ROOT / "docs/reports/agent-review-log.md"

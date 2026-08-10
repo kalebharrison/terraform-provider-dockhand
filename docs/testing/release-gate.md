@@ -25,7 +25,7 @@ Programmatic gate: `scripts/release_gate_check.py`
 
 Before **Agent Release Tag** publishes `vX.Y.Z`:
 
-1. No open `compatibility` issues for the current Dockhand release.
+1. No **unresolved** open `compatibility` issues for the current Dockhand release. Issues that already have a merged `Fixes #N` / `Closes #N` PR do not block (recovery path when **Agent Merge Cleanup** missed a `GITHUB_TOKEN` squash-merge).
 2. Required workflows green on `main` (Go CI, Govulncheck, Workflow Lint, Gitleaks, Dependency Review, Acceptance Full, Dockhand Release Watch).
 3. Release Drafter draft exists for `vX.Y.Z` and the tag is not published yet.
 4. At least one `awaiting-release` issue **or** commits on `main` since the latest published tag (dependency bumps, automation fixes, etc.).
@@ -65,5 +65,7 @@ When a compatibility run fails on new API drift:
 2. Integrate new routes into provider/probe coverage where appropriate.
 3. For accepted backlog gaps, add them to `docs/non-present-endpoints.md`.
 4. After a green **Acceptance Full** or **Release Watch** run, **Compat Reports Sync** updates `docs/reports/` baselines on `main` (or auto-merges a fallback PR when branch rules block direct push).
+
+Bot squash-merges use `GITHUB_TOKEN` and do **not** trigger `push` / `pull_request` workflows. **Agent Merge Cleanup** also listens for **Agent PR Approve CI** `workflow_run` completion, and **Agent Autonomy Watchdog** (every 15m) redispatches cleanup plus Release Drafter / Orchestrate / Tag when the gate is ready.
 
 Manual local harness runs are debug-only; see `docs/AGENT_AUTONOMY.md`.
