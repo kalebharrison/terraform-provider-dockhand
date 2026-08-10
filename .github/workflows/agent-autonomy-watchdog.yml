@@ -47,3 +47,37 @@ jobs:
           count="$(jq '.count' /tmp/ci-intake.json)"
           failures="$(jq '.dispatch_failures // 0' /tmp/ci-intake.json)"
           echo "Re-dispatched intake for ${count} eligible agent issue(s); ${failures} dispatch failure(s)."
+
+  missed-merge-cleanup:
+    name: Recover missed agent merge cleanup
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Dispatch merge cleanup for landed agent PRs
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -uo pipefail
+          /usr/bin/python3 scripts/agent_merge_cleanup_watchdog.py --json | tee /tmp/merge-cleanup.json
+          count="$(jq '.count' /tmp/merge-cleanup.json)"
+          echo "Dispatched merge cleanup for ${count} merged agent PR(s)."
+
+  release-loop:
+    name: Recover draft, lens, and tag dispatches
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Dispatch release drafter / orchestrate / tag when ready
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -uo pipefail
+          /usr/bin/python3 scripts/agent_release_loop_watchdog.py --json | tee /tmp/release-loop.json
+          count="$(jq '.count' /tmp/release-loop.json)"
+          echo "Dispatched ${count} release-loop workflow(s)."

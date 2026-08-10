@@ -1031,3 +1031,63 @@ Append-only record of lens sweeps. See `docs/AGENT_REVIEW_LENSES.md`.
 | — | `CHANGELOG.md` | Unreleased entry documents drift fix | Fixed |
 | low | `internal/provider/client_*.go` | No client method for navigation (UI-only) | Defer until provider resource is scoped |
 
+---
+
+## Release v0.1.90 — lens review
+
+- **Lenses:** Release engineering; Ops / SRE; API compatibility; Senior developer
+- **Started:** 2026-08-09
+
+### 2026-08-09 — Release engineering
+
+**Scope:** `scripts/release_gate_check.py`, `.github/workflows/agent-merge-cleanup.yml`, `.github/workflows/agent-autonomy-watchdog.yml`, `scripts/agent_merge_cleanup_watchdog.py`, `scripts/agent_release_loop_watchdog.py`, `CHANGELOG.md`.
+
+**Summary:** v0.1.90 is a patch over v0.1.89: probe coverage for `GET /api/settings/navigation` (#252 / #254) plus release-loop recovery so bot squash-merges cannot leave compatibility issues open and stall tagging. No Terraform provider schema or client behavior change.
+
+| Severity | Location | Finding | Suggested action |
+|----------|----------|---------|------------------|
+| high | `scripts/release_gate_check.py` | Open `compatibility` issues blocked tagging even after `Fixes #N` merged | Skip issues with a merged closing PR (fixed) |
+| high | `.github/workflows/agent-merge-cleanup.yml` | `GITHUB_TOKEN` merge skipped `push`/`pull_request` triggers | Add `workflow_run` after Agent PR Approve CI + 15m watchdog dispatch (fixed) |
+| high | `.github/release-drafter.yml` | `exclude-labels` + `pre-exclude` category made Release Drafter v7 fail; no `v0.1.90` draft | Remove deprecated `exclude-labels` (fixed) |
+| med | Release Drafter | Bot pushes never ran drafter after v0.1.89 | Watchdog dispatches `release-drafter.yml` when commits exist without a draft (fixed) |
+| — | `docs/reports/agent-review-log.md` | Verdict recorded for tag workflow path filter | This section |
+
+### 2026-08-09 — Ops / SRE
+
+**Scope:** `docs/AGENT_AUTONOMY.md`, `docs/testing/release-gate.md`, `.github/workflows/agent-autonomy-watchdog.yml`.
+
+**Summary:** Documented the token chicken-egg and hooked recovery into the existing 15m autonomy watchdog rather than a new cron.
+
+| Severity | Location | Finding | Suggested action |
+|----------|----------|---------|------------------|
+| — | `docs/testing/release-gate.md` | Gate checklist now excludes merged-but-open compat issues | Fixed |
+| low | Watchdog cadence | Up to 15m delay before recovery | Acceptable; `workflow_run` covers the common Approve-CI merge path immediately |
+
+### 2026-08-09 — API compatibility
+
+**Scope:** `scripts/endpoint-probe.py`, issue #252, PR #254.
+
+**Summary:** Navigation settings route is tracked in the safe probe list. No provider resource. Drift gate should pass on the next Release Watch / Acceptance Full against Dockhand `latest`.
+
+| Severity | Location | Finding | Suggested action |
+|----------|----------|---------|------------------|
+| — | `scripts/endpoint-probe.py:20` | `GET /api/settings/navigation` present on `main` | Satisfied |
+| low | `docs/api-matrix.md` | No Terraform surface for navigation | Defer |
+
+### 2026-08-09 — Senior developer
+
+**Scope:** Unreleased commits since `v0.1.89`, unit tests for gate + watchdogs.
+
+**Summary:** Patch-tier release. Tests cover merged-fix skip, missing-draft commit counting, cleanup target filters, and lens/tag dispatch decisions.
+
+| Severity | Location | Finding | Suggested action |
+|----------|----------|---------|------------------|
+| — | `scripts/test_release_gate_check.py` | Merged #252 is not a blocker; missing draft still records unreleased commits | Fixed |
+| — | Required CI workflows | Latest scheduled Acceptance Full / Release Watch green; Go CI on this PR | Validate before tag |
+
+### Release v0.1.90 — verdict
+
+- **Clear to tag:** yes
+- **Blocking findings:** none
+- **Deferred medium/low:** navigation settings Terraform resource; 15m watchdog delay when `workflow_run` does not see a completed merge yet; README version pin bump — carry forward, no high-severity product regressions
+

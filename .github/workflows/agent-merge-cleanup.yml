@@ -7,6 +7,11 @@ on:
   pull_request:
     types:
       - closed
+  workflow_run:
+    workflows:
+      - Agent PR Approve CI
+    types:
+      - completed
   workflow_dispatch:
     inputs:
       pull_number:
@@ -22,6 +27,7 @@ permissions:
 jobs:
   cleanup:
     name: Close linked issues after agent merge
+    if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-latest
     steps:
       - name: Close linked issues and delete agent branch
@@ -36,6 +42,20 @@ jobs:
               const pullNumber = Number(context.payload.inputs.pull_number);
               const { data } = await github.rest.pulls.get({ owner, repo, pull_number: pullNumber });
               pr = data;
+            }
+
+            if (!pr && context.eventName === "workflow_run") {
+              const headBranch = context.payload.workflow_run?.head_branch || "";
+              if (headBranch) {
+                const { data: pulls } = await github.rest.pulls.list({
+                  owner,
+                  repo,
+                  state: "closed",
+                  head: `${owner}:${headBranch}`,
+                  per_page: 10,
+                });
+                pr = pulls.find((item) => item.merged_at) || null;
+              }
             }
 
             if (!pr && context.eventName === "push") {
