@@ -5,6 +5,7 @@ GET,/api/auth/tokens,200,present,
 POST,/api/auth/tokens,405,present,Safe mode: options probe (mutation skipped)
 GET,/api/settings/general,200,present,
 POST,/api/settings/general,405,present,Safe mode: options probe (mutation skipped)
+GET,/api/settings/navigation,200,present,
 GET,/api/auth/settings,200,present,
 PUT,/api/auth/settings,405,present,Safe mode: options probe (mutation skipped)
 GET,/api/auth/providers,200,present,
