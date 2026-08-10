@@ -29,6 +29,7 @@
 /api/hawser/connect
 /api/health
 /api/images
+/api/images/load
 /api/images/pull
 /api/images/push
 /api/images/scan
