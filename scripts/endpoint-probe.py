@@ -143,6 +143,7 @@ ENDPOINTS: List[Dict[str, Any]] = [
     {"method": "DELETE", "path": "/api/images/{id}", "with_env": True, "query": {"force": "true"}},
     {"method": "POST", "path": "/api/images/push", "with_env": True},
     {"method": "POST", "path": "/api/images/scan", "with_env": True},
+    {"method": "POST", "path": "/api/images/load", "with_env": True},
     {"method": "GET", "path": "/api/containers", "with_env": True},
     {"method": "POST", "path": "/api/containers", "with_env": True},
     {"method": "GET", "path": "/api/containers/{id}", "with_env": True},

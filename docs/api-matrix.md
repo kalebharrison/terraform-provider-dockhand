@@ -156,7 +156,7 @@ Live verification artifacts:
 | --- | --- | --- |
 | `/api/environments` | additional environment data sources | partial |
 | `/api/schedules` | schedule details/advanced actions (`run`, executions history/stream/settings) | partial |
-| `/api/images` | image actions (`scan`, `push`) | partial |
+| `/api/images` | image actions (`scan`, `push`, `load`) | partial |
 | `/api/containers` | exec websocket, upload/download streams, and advanced create/update options coverage | partial |
 | `/api/git/repositories/test` | git repository connectivity test action | implemented |
 | `/api/git/preview-env` | git preview env data source | implemented |

@@ -1161,3 +1161,61 @@ Append-only record of lens sweeps. See `docs/AGENT_REVIEW_LENSES.md`.
 - **Blocking findings:** none
 - **Deferred medium/low:** navigation settings Terraform resource; README version pin example — carried forward from v0.1.90, no new medium/low items
 
+---
+
+## Issue #262 — API drift detected: dockhand latest
+
+- **Branch:** `agent/issue-262-api-drift-detected-dockhand-latest`
+- **Lenses:** API compatibility; Ops / SRE; Acceptance & regression; Senior developer
+- **Started:** 2026-08-10
+
+### 2026-08-10 — API compatibility
+
+**Scope:** `scripts/endpoint-probe.py`, `scripts/api-drift-gate.py`, `docs/api-matrix.md`, `docs/non-present-endpoints.md`, `docs/reports/endpoint-probe.md`, `docs/reports/webui-api-endpoints.txt`, `internal/provider/client_image.go`.
+
+**Summary:** Release Watch on Dockhand `latest` discovered `POST /api/images/load` in the WebUI crawl; the route was relevant under `/api/images` but absent from probe coverage. Added a safe OPTIONS probe entry alongside existing image mutation routes so the drift gate treats the path as tracked.
+
+| Severity | Location | Finding | Suggested action |
+|----------|----------|---------|------------------|
+| high | `scripts/endpoint-probe.py:144-145` | `/api/images/load` missing from `ENDPOINTS`; caused `new_relevant_unallowlisted=1` on Release Watch | Add `POST /api/images/load` (fixed) |
+| med | `docs/reports/endpoint-probe.md` | Static probe report predates load route | **Compat Reports Sync** refreshes after green Acceptance Full / Release Watch |
+| low | `docs/api-matrix.md:159` | Matrix listed scan/push only for image actions | Include `load` in candidate surface note (fixed) |
+| low | `internal/provider/client_image.go` | No client method for image load (tar upload) | Defer Terraform action resource until operator demand — probe tracking sufficient for drift |
+| — | `scripts/api-drift-gate.py:38` | `/api/images` prefix already in `RELEVANT_PREFIXES` | No change needed |
+
+### 2026-08-10 — Ops / SRE
+
+**Scope:** `.github/workflows/dockhand-release-watch.yml`, `.github/workflows/acceptance-full.yml`, `scripts/api-drift-gate.py`, `scripts/verify.sh`, `scripts/lens_sweep_gate.py`.
+
+**Summary:** Drift failure is isolated to a single newly discovered WebUI route; probe list update is sufficient for Release Watch and Acceptance Full gates. No harness, workflow, or timeout changes required.
+
+| Severity | Location | Finding | Suggested action |
+|----------|----------|---------|------------------|
+| med | `.github/workflows/dockhand-release-watch.yml` | Drift gate opens agent issue when `new_relevant_unallowlisted > 0` | Working as designed; this branch resolves #262 |
+| low | `scripts/verify.sh` | `--endpoint-probe` remains debug-only (Dockhand env required) | No local probe run needed; CI validates |
+| — | `scripts/lens_sweep_gate.py` | Requires `agent-review-log.md` update on agent branch | Satisfied by this log |
+
+### 2026-08-10 — Acceptance & regression
+
+**Scope:** `internal/provider/testdata/acceptance_manifest.json`, `internal/provider/testdata/acceptance_pr_ci.json`, `scripts/endpoint-probe.py`, `scripts/test_compat_reports_changed.py`, `scripts/test_release_watch_state.py`.
+
+**Summary:** No provider resource or acceptance test changes required — image load is a tar-upload action without a Terraform surface yet. Probe-only coverage matches prior drift fixes (e.g. `/api/settings/navigation` in #252).
+
+| Severity | Location | Finding | Suggested action |
+|----------|----------|---------|------------------|
+| low | `acceptance_manifest.json` | No `dockhand_image_load_action` resource (not requested) | Track load via probe only; open enhancement issue if Terraform surface is needed |
+| — | `scripts/endpoint-probe.py` | Safe-mode OPTIONS probe for `/api/images/load` | Fixed |
+| — | `scripts/test_compat_reports_changed.py` | Compat report normalization unchanged | Skim confirmed |
+
+### 2026-08-10 — Senior developer
+
+**Scope:** `scripts/endpoint-probe.py` (images block), `scripts/api-drift-gate.py` (path extraction), `CHANGELOG.md`.
+
+**Summary:** Minimal one-line probe addition grouped with existing image entries; no Go client changes. Matches repo convention for WebUI-discovered routes tracked before provider implementation.
+
+| Severity | Location | Finding | Suggested action |
+|----------|----------|---------|------------------|
+| — | `scripts/endpoint-probe.py:146` | Single POST entry added after `images/scan` | Fixed |
+| — | `CHANGELOG.md` | Unreleased entry documents drift fix | Fixed |
+| low | `internal/provider/client_image.go` | No client method for load (multipart tar upload) | Defer until provider resource is scoped |
+

@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Track `POST /api/images/load` in `scripts/endpoint-probe.py` so API drift gate passes on Dockhand `latest` (#262).
 - Track `GET /api/settings/navigation` in `scripts/endpoint-probe.py` so API drift gate passes on Dockhand `latest` (#252).
 - Release gate no longer blocks on open `compatibility` issues that already have a merged fixing PR; autonomy watchdog recovers missed merge cleanup, Release Drafter drafts, and lens/tag dispatches after `GITHUB_TOKEN` bot merges.
 - Release Drafter: drop deprecated `exclude-labels` so it no longer conflicts with the `pre-exclude` category (drafts were failing, which blocked tagging).
