@@ -24,6 +24,7 @@
 /api/backup/destinations
 /api/backup/destinations/
 /api/backup/destinations/test
+/api/backup/instance
 /api/backup/restore
 /api/backup/restore/preview
 /api/backup/snapshots
@@ -64,6 +65,7 @@
 /api/host
 /api/images
 /api/images/
+/api/images/load
 /api/images/pull
 /api/images/push
 /api/images/scan
@@ -107,6 +109,9 @@
 /api/schedules/settings
 /api/schedules/stream
 /api/schedules/system/
+/api/secret-providers
+/api/secret-providers/
+/api/secret-providers/test
 /api/self-update
 /api/self-update/check
 /api/self-update/progress
