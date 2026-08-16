@@ -22,6 +22,8 @@
 /api/containers/check-updates
 /api/containers/pending-updates
 /api/dashboard/stats
+/api/docs
+/api/docs/ui
 /api/environments
 /api/git/stacks
 /api/git/stacks/42/webhook
