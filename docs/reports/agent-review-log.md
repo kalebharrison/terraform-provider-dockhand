@@ -1161,3 +1161,30 @@ Append-only record of lens sweeps. See `docs/AGENT_REVIEW_LENSES.md`.
 - **Blocking findings:** none
 - **Deferred medium/low:** navigation settings Terraform resource; README version pin example — carried forward from v0.1.90, no new medium/low items
 
+## Issue #267 — [Bug]: Can't use a `dockhand_git_repository` with existing repo, but new branch
+
+### 2026-08-19 — Acceptance & regression
+
+**Scope:** `internal/provider/resource_git_stack.go`, `internal/provider/resource_git_stack_test.go`, `internal/provider/resource_git_stack_tf_acc_test.go`, `internal/provider/testdata/acceptance_manifest.json`, `internal/provider/testdata/acceptance_pr_ci.json`
+
+**Summary:** Root cause was a schema default (`branch = "main"`) on `dockhand_git_stack` that planned `main` even when only `repository_id` was set, then failed apply with inconsistent result when Dockhand returned the linked repository branch. Fix removes the default, adds unit tests for repository-id payload/state mapping, and adds `TestAccGitStackRepositoryIDInheritsBranchTerraform` acceptance coverage.
+
+| Severity | Location | Finding | Suggested action |
+|----------|----------|---------|------------------|
+| high | `resource_git_stack.go:120-124` | `branch` schema default `main` caused inconsistent result after apply when `repository_id` references a non-main branch | Fixed: remove default; branch computed from linked repo |
+| — | `resource_git_stack_test.go` | Added unit tests for repository-id branch inheritance and URL default | Fixed in this branch |
+| — | `resource_git_stack_tf_acc_test.go` | Added acceptance test for repository_id without explicit branch | Fixed in this branch |
+| low | `acceptance_pr_ci.json` | New acceptance test not in PR CI subset (runs on full acceptance only) | Defer — existing git stack destroy test remains in PR CI |
+
+### 2026-08-19 — Senior developer
+
+**Scope:** `internal/provider/resource_git_stack.go` (schema, `buildGitStackPayload`, `mergeGitStackState`, `modelFromGitStackResponse`), `docs/resources/git_stack.md`
+
+**Summary:** Bug was localized to Plugin Framework schema defaults conflicting with computed API-derived attributes. URL-based creation still defaults branch to `main` in payload builder; repository-id path correctly omits branch from POST body. No broader client or lookup-by-URL conflation found.
+
+| Severity | Location | Finding | Suggested action |
+|----------|----------|---------|------------------|
+| — | `resource_git_stack.go` | URL-mode branch default correctly handled in `buildGitStackPayload` | No action |
+| — | `mergeGitStackState` | Remote branch already wins when API returns nested repository | No action |
+| low | `resource_git_stack.go` | `url`/`repo_name`/`credential_id` also computed when using `repository_id`; same class of issue if defaults added later | Document only (done in git_stack.md) |
+

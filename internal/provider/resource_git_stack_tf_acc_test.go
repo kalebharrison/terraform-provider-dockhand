@@ -12,6 +12,67 @@ import (
 	"github.com/hashicorp/terraform-plugin-testing/terraform"
 )
 
+func TestAccGitStackRepositoryIDInheritsBranchTerraform(t *testing.T) {
+	endpoint, username, password := testAccEnv(t)
+	defaultEnv := testAccDefaultEnv()
+	repoURL := strings.TrimSpace(os.Getenv("DOCKHAND_TEST_GIT_STACK_REPO_URL"))
+	composePath := strings.TrimSpace(os.Getenv("DOCKHAND_TEST_GIT_STACK_COMPOSE_PATH"))
+	if repoURL == "" || composePath == "" {
+		t.Skip("acceptance test requires DOCKHAND_TEST_GIT_STACK_REPO_URL and DOCKHAND_TEST_GIT_STACK_COMPOSE_PATH")
+	}
+
+	branch := strings.TrimSpace(os.Getenv("DOCKHAND_TEST_GIT_STACK_BRANCH"))
+	if branch == "" {
+		branch = "main"
+	}
+
+	t.Setenv("DOCKHAND_ENDPOINT", endpoint)
+	t.Setenv("DOCKHAND_USERNAME", username)
+	t.Setenv("DOCKHAND_PASSWORD", password)
+	t.Setenv("DOCKHAND_DEFAULT_ENV", defaultEnv)
+
+	stackName := "tf-acc-git-stack-repo-id-" + strings.ToLower(time.Now().UTC().Format("20060102150405"))
+	repoName := "tf-acc-git-stack-repo-" + strings.ToLower(time.Now().UTC().Format("20060102150405"))
+	resourceName := "dockhand_git_stack.test"
+
+	resource.Test(t, resource.TestCase{
+		ProtoV6ProviderFactories: testAccProviderFactories(),
+		CheckDestroy:             testAccCheckGitStackDestroyed(endpoint, username, password),
+		Steps: []resource.TestStep{
+			{
+				Config: testAccGitStackRepositoryIDConfig(defaultEnv, stackName, repoName, repoURL, branch, composePath),
+				Check: resource.ComposeTestCheckFunc(
+					resource.TestCheckResourceAttrPair(resourceName, "repository_id", "dockhand_git_repository.src", "id"),
+					resource.TestCheckResourceAttr(resourceName, "branch", branch),
+					resource.TestCheckResourceAttr(resourceName, "repository_branch", branch),
+					resource.TestCheckResourceAttr(resourceName, "stack_name", stackName),
+					resource.TestCheckResourceAttrSet(resourceName, "id"),
+				),
+			},
+		},
+	})
+}
+
+func testAccGitStackRepositoryIDConfig(env string, stackName string, repoName string, repoURL string, branch string, composePath string) string {
+	return fmt.Sprintf(`
+provider "dockhand" {}
+
+resource "dockhand_git_repository" "src" {
+  name   = %q
+  url    = %q
+  branch = %q
+}
+
+resource "dockhand_git_stack" "test" {
+  env           = %q
+  stack_name    = %q
+  repository_id = dockhand_git_repository.src.id
+  compose_path  = %q
+  deploy_now    = true
+}
+`, repoName, repoURL, branch, env, stackName, composePath)
+}
+
 func TestAccGitStackResourceDestroyRemovesRuntimeTerraform(t *testing.T) {
 	endpoint, username, password := testAccEnv(t)
 	defaultEnv := testAccDefaultEnv()
