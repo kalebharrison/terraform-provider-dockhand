@@ -1,8 +1,8 @@
 {
   "image": "fnsys/dockhand:latest",
   "tag": "latest",
-  "digest": "sha256:04ff443f6304f67736018258f4150ff4a6de953d56f5968f1ef16c6bd03f3c4c",
-  "updated_at": "2026-08-16T13:02:39Z",
-  "source_run": "https://github.com/kalebharrison/terraform-provider-dockhand/actions/runs/31948431754",
+  "digest": "sha256:47dc2da286467e1b3a44cb77899db7a4014a32170e7ee22680a0e10561700371",
+  "updated_at": "2026-08-20T13:13:19Z",
+  "source_run": "https://github.com/kalebharrison/terraform-provider-dockhand/actions/runs/32372485272",
   "workflow": "Dockhand Release Watch"
 }

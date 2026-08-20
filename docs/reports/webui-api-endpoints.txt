@@ -46,6 +46,8 @@
 /api/dashboard/stats
 /api/dashboard/stats/stream
 /api/dependencies
+/api/docs
+/api/docs/ui
 /api/environments
 /api/environments/
 /api/environments/detect-socket
@@ -119,6 +121,7 @@
 /api/settings/navigation
 /api/settings/scanner
 /api/settings/scanner/cache
+/api/settings/semver
 /api/settings/theme
 /api/stacks
 /api/stacks/
