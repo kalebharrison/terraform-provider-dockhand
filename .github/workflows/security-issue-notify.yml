@@ -1,13 +1,9 @@
 name: Security Issue Notify
 
+# Disabled manually. workflow_run removed so CodeQL/Govulncheck/Gitleaks
+# completions do not enqueue skipped notify runs.
 on:
-  workflow_run:
-    workflows:
-      - CodeQL
-      - Govulncheck
-      - Gitleaks
-    types:
-      - completed
+  workflow_dispatch:
 
 permissions:
   actions: read

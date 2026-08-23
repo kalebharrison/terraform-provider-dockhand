@@ -1,17 +1,8 @@
 name: Agent Merge Cleanup
 
+# Recovery only. Push/workflow_run listeners were removed so main commits
+# do not enqueue no-op or skipped cleanup runs.
 on:
-  push:
-    branches:
-      - main
-  pull_request:
-    types:
-      - closed
-  workflow_run:
-    workflows:
-      - Agent PR Approve CI
-    types:
-      - completed
   workflow_dispatch:
     inputs:
       pull_number:

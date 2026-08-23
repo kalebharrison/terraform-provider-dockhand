@@ -1,11 +1,8 @@
 name: Agent Release Orchestrate
 
+# Recovery only. Do not re-attach workflow_run on Dockhand Release Watch:
+# skip-success of the watch was opening (or attempting) release-lens issues.
 on:
-  workflow_run:
-    workflows:
-      - Dockhand Release Watch
-    types:
-      - completed
   workflow_dispatch:
 
 permissions:

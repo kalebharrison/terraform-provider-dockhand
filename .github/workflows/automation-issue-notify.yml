@@ -1,18 +1,9 @@
 name: Automation Issue Notify
 
+# Disabled manually. workflow_run removed so Go CI / lint completions do not
+# enqueue skipped notify runs on every push.
 on:
-  workflow_run:
-    workflows:
-      - Go CI
-      - Workflow Lint
-      - Shell Lint
-      - Gitleaks
-      - Acceptance Full
-      - Dockhand Release Watch
-      - Release Artifacts
-      - Agent Validate
-    types:
-      - completed
+  workflow_dispatch:
 
 permissions:
   actions: read

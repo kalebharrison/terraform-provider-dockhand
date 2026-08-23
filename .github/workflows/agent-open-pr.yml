@@ -1,11 +1,9 @@
 name: Agent Open PR
 
+# Disabled manually. workflow_run removed so GitHub does not enqueue skipped
+# runs when Agent Validate completes.
 on:
-  workflow_run:
-    workflows:
-      - Agent Validate
-    types:
-      - completed
+  workflow_dispatch:
 
 permissions:
   actions: write

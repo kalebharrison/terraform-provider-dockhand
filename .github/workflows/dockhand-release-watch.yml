@@ -15,9 +15,11 @@ on:
         default: false
 
 permissions:
-  actions: write
   contents: read
-  issues: write
+
+concurrency:
+  group: dockhand-release-watch
+  cancel-in-progress: false
 
 jobs:
   discover:
@@ -277,91 +279,6 @@ jobs:
           set -euo pipefail
           /usr/bin/python3 scripts/api-drift-gate.py
 
-      - name: Open issue when API drift is detected
-        uses: actions/github-script@v9
-        env:
-          DRIFT_JSON_FILE: ${{ github.workspace }}/.compat-reports/api-drift-gate.json
-          IMAGE_REF: ${{ needs.discover.outputs.image }}
-          IMAGE_TAG: ${{ needs.discover.outputs.tag }}
-        with:
-          script: |
-            const fs = require("fs");
-            const path = process.env.DRIFT_JSON_FILE;
-            if (!fs.existsSync(path)) {
-              core.warning(`drift json file not found: ${path}`);
-              return;
-            }
-
-            const drift = JSON.parse(fs.readFileSync(path, "utf8"));
-            const endpoints = drift.unknown_relevant_unallowlisted || [];
-            if (endpoints.length === 0) {
-              core.info("No new unallowlisted relevant API drift.");
-              return;
-            }
-
-            const owner = context.repo.owner;
-            const repo = context.repo.repo;
-            const title = `API drift detected: dockhand ${process.env.IMAGE_TAG}`;
-            const runUrl = `${context.serverUrl}/${owner}/${repo}/actions/runs/${context.runId}`;
-            const endpointLines = endpoints.slice(0, 100).map((e) => `- \`${e}\``).join("\n");
-            const body = [
-              `## Problem`,
-              `Detected new Dockhand API routes not currently tracked by provider probe coverage.`,
-              ``,
-              `## Done when`,
-              `- New routes are covered in provider/probe/tests **or** explicitly allowlisted in \`docs/non-present-endpoints.md\``,
-              `- API drift gate passes on a subsequent compatibility run`,
-              ``,
-              `## Context`,
-              `- Image: \`${process.env.IMAGE_REF}\``,
-              `- Run: ${runUrl}`,
-              `- Count: \`${endpoints.length}\``,
-              ``,
-              `## Endpoints`,
-              endpointLines || "- None",
-            ].join("\n");
-
-            const ensureLabel = async (name, color, description) => {
-              try {
-                await github.rest.issues.getLabel({ owner, repo, name });
-              } catch (error) {
-                if (error.status === 404) {
-                  await github.rest.issues.createLabel({ owner, repo, name, color, description });
-                } else {
-                  throw error;
-                }
-              }
-            };
-
-            await ensureLabel("compatibility", "5319E7", "Dockhand compatibility validation and drift tracking");
-            await ensureLabel("api-drift", "D93F0B", "New Dockhand API drift detected by scheduled audits");
-            await ensureLabel("agent", "0E8A16", "Automated agent-authored work");
-
-            const search = await github.rest.search.issuesAndPullRequests({
-              q: `repo:${owner}/${repo} is:issue is:open in:title "${title}"`,
-            });
-
-            if (search.data.total_count > 0) {
-              const issue = search.data.items[0];
-              await github.rest.issues.createComment({
-                owner,
-                repo,
-                issue_number: issue.number,
-                body,
-              });
-              core.info(`Updated existing issue #${issue.number}`);
-              return;
-            }
-
-            const created = await github.rest.issues.create({
-              owner,
-              repo,
-              title,
-              body,
-              labels: ["bug", "compatibility", "api-drift", "agent"],
-            });
-            core.info(`Created issue #${created.data.number}`);
-
       - name: Stage compat reports for repository sync
         if: success()
         shell: bash
@@ -445,6 +362,9 @@ jobs:
     if: needs.discover.outputs.should_run == 'true' && needs.discover.outputs.reason != 'manual_override' && needs.validate.result == 'success'
     needs: [discover, validate]
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: write
     steps:
       - name: Checkout
         uses: actions/checkout@v7
@@ -496,6 +416,8 @@ jobs:
     if: always() && needs.discover.outputs.should_run == 'true' && needs.validate.result == 'failure'
     needs: [discover, validate]
     runs-on: ubuntu-latest
+    permissions:
+      issues: write
     steps:
       - name: Create issue for failed compatibility run
         uses: actions/github-script@v9

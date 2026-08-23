@@ -15,6 +15,8 @@ Start here for AI agents working in this repo.
 
 ## Autonomous agent loop
 
+The Cloud Agent circus is **disabled on purpose** in GitHub Actions (`disabled_manually`). Do not re-enable Agent Auto Merge, Agent Autonomy Watchdog, Agent Open PR, Agent Stall Watchdog, Automation Health Notify, Automation Issue Notify, Dependabot Auto Merge, Issue Agent Intake, Issue Regression Intake, Issue Resolution Notify, or Release Issue Notify. YAML is kept for recovery; `workflow_run` triggers were removed from disabled notifiers so they do not enqueue skipped runs on every push.
+
 Agents owning this repo should start with:
 
 - `docs/AGENT_RUNBOOK.md` — branch naming, validation, CI map

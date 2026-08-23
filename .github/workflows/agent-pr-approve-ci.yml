@@ -1,23 +1,8 @@
 name: Agent PR Approve CI
 
+# Disabled-adjacent: recovery only. Do not re-attach check_suite/workflow_run
+# (those enqueue skipped runs on every main push / Go CI completion).
 on:
-  pull_request:
-    types:
-      - opened
-      - synchronize
-      - reopened
-      - ready_for_review
-  check_suite:
-    types:
-      - completed
-  workflow_run:
-    workflows:
-      - Agent Validate
-      - Agent Open PR
-      - Go CI
-      - Acceptance CI
-    types:
-      - completed
   workflow_dispatch:
     inputs:
       head_sha:
