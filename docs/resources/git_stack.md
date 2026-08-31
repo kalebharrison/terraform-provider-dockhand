@@ -47,7 +47,7 @@ Set `context_dir` to widen Dockhand's compose working directory (relative to the
 - `repository_id` (String)
 - `repo_name` (String)
 - `url` (String)
-- `branch` (String, default: `main`)
+- `branch` (String) Git branch when creating via `url` (defaults to `main` in the API payload). When `repository_id` is set, branch is computed from the linked repository.
 - `credential_id` (String)
 - `context_dir` (String) Repository-relative working directory for Docker Compose. Use `.` for the repo root when shared files live outside the compose file directory.
 - `env_file_path` (String)
@@ -64,6 +64,8 @@ Set `context_dir` to widen Dockhand's compose working directory (relative to the
 
 `repository_id` is preferred when you already manage the repository with `dockhand_git_repository`.
 If `repository_id` is not set, `url` must be set (and optional `repo_name`, `branch`, `credential_id`).
+
+When using `repository_id`, omit `branch`/`url`/`repo_name` — they are populated from the linked repository after apply. Multiple `dockhand_git_repository` resources may share the same clone URL with different branches.
 
 ### Read-Only
 

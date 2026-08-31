@@ -9,6 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- `dockhand_git_stack`: do not default `branch` to `main` when linking via `repository_id`, so stacks can use a non-`main` branch from a same-URL repository without an inconsistent-result apply error (#267).
+
+## [0.1.90] - 2026-08-10
+
+### Fixed
+
 - Track `GET /api/settings/navigation` in `scripts/endpoint-probe.py` so API drift gate passes on Dockhand `latest` (#252).
 - Release gate no longer blocks on open `compatibility` issues that already have a merged fixing PR; autonomy watchdog recovers missed merge cleanup, Release Drafter drafts, and lens/tag dispatches after `GITHUB_TOKEN` bot merges.
 - Release Drafter: drop deprecated `exclude-labels` so it no longer conflicts with the `pre-exclude` category (drafts were failing, which blocked tagging).

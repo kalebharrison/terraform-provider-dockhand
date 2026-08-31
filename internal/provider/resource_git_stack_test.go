@@ -38,6 +38,96 @@ func (f *fakeGitStackDestroyClient) DeleteGitStack(_ context.Context, env string
 	return f.deleteGitStackStatus, f.deleteGitStackErr
 }
 
+func TestModelFromGitStackResponseMapsRepositoryBranchToBranch(t *testing.T) {
+	branch := "feature/observability"
+	resp := &gitStackResponse{
+		ID:         1,
+		StackName:  "observability",
+		AutoUpdate: false,
+		Repository: &gitStackRepositoryResponse{
+			Name:   "stacks_observability",
+			URL:    "ssh://git@example.com/stacks.git",
+			Branch: &branch,
+		},
+	}
+
+	model := modelFromGitStackResponse(resp)
+	if model.Branch.IsNull() || model.Branch.ValueString() != branch {
+		t.Fatalf("expected branch %q from linked repository, got null=%v value=%q", branch, model.Branch.IsNull(), model.Branch.ValueString())
+	}
+	if model.RepositoryBranch.IsNull() || model.RepositoryBranch.ValueString() != branch {
+		t.Fatalf("expected repository_branch %q, got null=%v value=%q", branch, model.RepositoryBranch.IsNull(), model.RepositoryBranch.ValueString())
+	}
+}
+
+func TestMergeGitStackStateRepositoryIDUsesRemoteBranch(t *testing.T) {
+	preferred := gitStackModel{
+		RepositoryID: types.StringValue("2"),
+		Branch:       types.StringNull(),
+	}
+	remote := gitStackModel{
+		RepositoryID: types.StringValue("2"),
+		Branch:       types.StringValue("feature/observability"),
+	}
+
+	merged := mergeGitStackState(preferred, remote)
+	if merged.Branch.IsNull() || merged.Branch.ValueString() != "feature/observability" {
+		t.Fatalf("expected linked repository branch in state, got null=%v value=%q", merged.Branch.IsNull(), merged.Branch.ValueString())
+	}
+}
+
+func TestBuildGitStackPayloadRepositoryIDOmitsBranch(t *testing.T) {
+	repoID := int64(2)
+	plan := gitStackModel{
+		StackName:                 types.StringValue("observability"),
+		ComposePath:               types.StringValue("stacks/observability/compose.yml"),
+		RepositoryID:              types.StringValue("2"),
+		Branch:                    types.StringNull(),
+		WebhookEnabled:            types.BoolValue(false),
+		WebhookSecretAutoGenerate: types.BoolValue(false),
+		WebhookSecret:             types.StringNull(),
+		AutoUpdateEnabled:         types.BoolValue(false),
+		AutoUpdateCron:            types.StringValue("0 3 * * *"),
+		DeployNow:                 types.BoolValue(false),
+		EnvVarsJSON:               types.StringValue("[]"),
+	}
+
+	payload, err := buildGitStackPayload(plan, gitStackDeployTriggers{})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if payload.RepositoryID == nil || *payload.RepositoryID != repoID {
+		t.Fatalf("expected repository_id 2 in payload, got %#v", payload.RepositoryID)
+	}
+	if payload.Branch != nil {
+		t.Fatalf("expected branch omitted when repository_id is set, got %#v", payload.Branch)
+	}
+}
+
+func TestBuildGitStackPayloadURLDefaultsBranchToMain(t *testing.T) {
+	plan := gitStackModel{
+		StackName:                 types.StringValue("test-stack"),
+		ComposePath:               types.StringValue("docker-compose.yml"),
+		URL:                       types.StringValue("https://example.com/repo.git"),
+		Branch:                    types.StringNull(),
+		WebhookEnabled:            types.BoolValue(false),
+		WebhookSecretAutoGenerate: types.BoolValue(false),
+		WebhookSecret:             types.StringNull(),
+		AutoUpdateEnabled:         types.BoolValue(false),
+		AutoUpdateCron:            types.StringValue("0 3 * * *"),
+		DeployNow:                 types.BoolValue(false),
+		EnvVarsJSON:               types.StringValue("[]"),
+	}
+
+	payload, err := buildGitStackPayload(plan, gitStackDeployTriggers{})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if payload.Branch == nil || *payload.Branch != "main" {
+		t.Fatalf("expected branch main for URL-based creation, got %#v", payload.Branch)
+	}
+}
+
 func TestBuildGitStackPayloadHonorsDeployTriggers(t *testing.T) {
 	plan := gitStackModel{
 		StackName:                 types.StringValue("test-stack"),

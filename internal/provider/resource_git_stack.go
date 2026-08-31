@@ -118,9 +118,12 @@ func (r *gitStackResource) Schema(_ context.Context, _ resource.SchemaRequest, r
 				Computed: true,
 			},
 			"branch": schema.StringAttribute{
-				Optional: true,
-				Computed: true,
-				Default:  stringdefault.StaticString("main"),
+				MarkdownDescription: "Git branch when creating via `url`. When `repository_id` is set, branch is read from the linked repository. Defaults to `main` only for URL-based creation.",
+				Optional:            true,
+				Computed:            true,
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
+				},
 			},
 			"credential_id": schema.StringAttribute{
 				Optional: true,
