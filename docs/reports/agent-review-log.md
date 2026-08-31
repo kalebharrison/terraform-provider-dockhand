@@ -1161,6 +1161,18 @@ Append-only record of lens sweeps. See `docs/AGENT_REVIEW_LENSES.md`.
 - **Blocking findings:** none
 - **Deferred medium/low:** navigation settings Terraform resource; README version pin example — carried forward from v0.1.90, no new medium/low items
 
+### 2026-08-31 — Release v0.1.91 scope update
+
+**Scope:** `#271` (`dockhand_git_stack` repository_id branch inheritance), `scripts/endpoint-probe.py` (`GET /api/git/branches`), Acceptance Full drift failure.
+
+**Summary:** v0.1.91 now also includes the user-facing #267 fix and probe coverage for `/api/git/branches` so Acceptance Full / Release Watch drift gate can go green before tag.
+
+| Severity | Location | Finding | Suggested action |
+|----------|----------|---------|------------------|
+| — | `internal/provider/resource_git_stack.go` | Removed schema default `branch=main` when using `repository_id` (#267 / #271) | Ship |
+| — | `scripts/endpoint-probe.py` | Track `GET /api/git/branches` | Ship |
+| — | Prior v0.1.91 verdict | Still **Clear to tag: yes**; no new highs | Reconfirmed |
+
 ## Issue #267 — [Bug]: Can't use a `dockhand_git_repository` with existing repo, but new branch
 
 ### 2026-08-19 — Acceptance & regression

@@ -90,6 +90,7 @@ ENDPOINTS: List[Dict[str, Any]] = [
     {"method": "DELETE", "path": "/api/git/repositories/{id}"},
     {"method": "POST", "path": "/api/git/repositories/test"},
     {"method": "POST", "path": "/api/git/preview-env"},
+    {"method": "GET", "path": "/api/git/branches"},
     {"method": "GET", "path": "/api/git/stacks", "with_env": True},
     {"method": "POST", "path": "/api/git/stacks", "with_env": True},
     {"method": "GET", "path": "/api/git/stacks/{id}", "with_env": True},

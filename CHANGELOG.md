@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - `dockhand_git_stack`: do not default `branch` to `main` when linking via `repository_id`, so stacks can use a non-`main` branch from a same-URL repository without an inconsistent-result apply error (#267).
+- Track `GET /api/git/branches` in `scripts/endpoint-probe.py` so API drift gate passes on Dockhand `latest`.
 
 ## [0.1.90] - 2026-08-10
 
