@@ -160,6 +160,7 @@ Live verification artifacts:
 | `/api/containers` | exec websocket, upload/download streams, and advanced create/update options coverage | partial |
 | `/api/git/repositories/test` | git repository connectivity test action | implemented |
 | `/api/git/preview-env` | git preview env data source | implemented |
+| `/api/git/branches` | Dockhand UI branch listing; tracked in endpoint probe (no Terraform surface yet) | probe-only |
 | `/api/stacks/{name}/env` | broader non-secret env var editing semantics | partial |
 | `/api/stacks/base-path` + `/api/stacks/default-path` | stack path helper data sources | implemented |
 | `/api/volumes` | advanced volume operations (`clone`, `browse`, import/export) | partial |
