@@ -1,28 +1,37 @@
 ---
-description: Agent-managed workflow for terraform-provider-dockhand
+description: Two-loop CI model for terraform-provider-dockhand
 globs:
-  - "**/*"
+alwaysApply: true
 ---
 
-# Agent workflow
+# CI / agent workflow
 
-When working on `agent/**` branches or issues labeled `agent`:
+Read `AGENTS.md` and `docs/CI_AND_RELEASE.md` first.
 
-1. Read `docs/AGENT_RUNBOOK.md`, `docs/AGENT_CODING_STANDARDS.md`, `docs/AGENT_ISSUE_RESPONSE.md`, and `docs/AGENT_IDENTITY.md` first.
-2. Branch: `agent/issue-<number>-<short-slug>`.
-3. Every commit must include:
-   `Co-authored-by: Cursor Agent <noreply@cursor.com>`
-   Use `./scripts/agent-commit-msg.sh` or `source ./scripts/agent-git-env.sh && agent_commit`.
-4. Validate before push: `./scripts/verify.sh --quality`
-5. Push only; do not open PRs manually — **Agent Open PR** creates them.
-6. Before merge: fill PR **What was fixed** and **User impact** (required for auto-merge). See `docs/AGENT_ISSUE_RESPONSE.md`.
-7. Provider surface changes: follow `docs/AGENT_CODING_STANDARDS.md` (manifest, docs, examples, acceptance tests).
-8. Do not merge, tag releases, or commit secrets. Pick up `regression`-labeled reopened issues like new work.
+## Model
 
-## Focused review lenses
+- Cursor IDE helps implement fixes. GitHub Actions owns Dockhand watch, validation, and release.
+- No Cloud Agent intake, auto-merge factory, or lens-log release gate.
 
-**Every agent issue:** intake selects lenses automatically; Cloud Agent must append sweeps to `docs/reports/agent-review-log.md`. **Agent Validate** enforces the log update.
+## Branching
 
-**Every release:** **Agent Release Orchestrate** → intake with release-tier lenses → **Agent Release Tag** when verdict clears (`docs/testing/release-lens-review.md`).
+- Prefer `agent/issue-<number>-<slug>` or a clear feature branch.
+- Optional: `./scripts/agent-commit-msg.sh "type: summary"` for `Co-authored-by: Cursor Agent <noreply@cursor.com>`.
 
-Human branches (`codex/*`, etc.) follow `CONTRIBUTING.md` and `docs/MAINTENANCE_PLAYBOOK.md`.
+## Validation
+
+```bash
+./scripts/verify.sh --quality
+```
+
+Push and rely on **Go CI** + **Acceptance CI** + **Security**. Full inventory is **Dockhand Compat**.
+
+## Release
+
+When work is on `main` and the gate is green:
+
+```bash
+gh workflow run release.yml --ref main
+```
+
+Do not recreate deleted agent-circus workflows.

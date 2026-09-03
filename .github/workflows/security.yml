@@ -1,0 +1,136 @@
+name: Security
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+  schedule:
+    - cron: "11 3 * * 1"
+
+permissions:
+  contents: read
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+
+jobs:
+  scan:
+    name: Secret Scan
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Run gitleaks
+        uses: gitleaks/gitleaks-action@v3
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITLEAKS_ENABLE_UPLOAD_ARTIFACT: true
+          GITLEAKS_ENABLE_COMMENTS: false
+
+  analyze:
+    name: Analyze (Go)
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
+      contents: read
+      security-events: write
+    strategy:
+      fail-fast: false
+      matrix:
+        language: ["go"]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v4
+        with:
+          languages: ${{ matrix.language }}
+
+      - name: Autobuild
+        uses: github/codeql-action/autobuild@v4
+
+      - name: Analyze
+        uses: github/codeql-action/analyze@v4
+
+  govulncheck:
+    name: Go Vulnerability Check
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Skip docs-only compatibility report refresh PRs
+        id: scope
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          HEAD_REF: ${{ github.head_ref }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ "${EVENT_NAME}" == "pull_request" ]] && [[ "${HEAD_REF}" == automation/compat-reports-sync* ]]; then
+            echo "skip=true" >> "${GITHUB_OUTPUT}"
+            echo "Skipping govulncheck for docs-only compat reports sync PR."
+          else
+            echo "skip=false" >> "${GITHUB_OUTPUT}"
+          fi
+
+      - name: Setup Go
+        if: steps.scope.outputs.skip != 'true'
+        uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+          check-latest: true
+          cache: true
+
+      - name: Run govulncheck
+        if: steps.scope.outputs.skip != 'true'
+        run: |
+          go install golang.org/x/vuln/cmd/govulncheck@latest
+          "$(go env GOPATH)/bin/govulncheck" -C . -format text ./...
+
+  dependency-review:
+    name: dependency-review
+    if: github.event_name != 'schedule'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Resolve dependency review refs
+        if: github.event_name == 'push'
+        id: refs
+        shell: bash
+        run: |
+          set -euo pipefail
+          before="${{ github.event.before }}"
+          if [[ "${before}" == "0000000000000000000000000000000000000000" ]]; then
+            before="$(git rev-parse HEAD~1)"
+          fi
+          {
+            echo "base=${before}"
+            echo "head=${{ github.sha }}"
+          } >> "${GITHUB_OUTPUT}"
+
+      - name: Dependency review (pull request)
+        if: github.event_name == 'pull_request'
+        uses: actions/dependency-review-action@v5
+
+      - name: Dependency review (main push)
+        if: github.event_name == 'push'
+        uses: actions/dependency-review-action@v5
+        with:
+          base-ref: ${{ steps.refs.outputs.base }}
+          head-ref: ${{ steps.refs.outputs.head }}

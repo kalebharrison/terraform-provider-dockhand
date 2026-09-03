@@ -4,12 +4,9 @@ Verifies Dockhand API endpoint presence against a live instance without mutating
 
 ## Default execution path (CI)
 
-The probe runs automatically inside the acceptance harness on GitHub Actions:
+The probe runs automatically inside the acceptance harness on GitHub Actions via **Dockhand Compat** (every 6h on new images; nightly full inventory).
 
-- **Acceptance Full** (nightly + `workflow_dispatch`)
-- **Dockhand Release Watch** (every 6h when a new image is detected)
-
-Reports are written to `docs/reports/` and synced to `main` by **Compat Reports Sync** (`.github/workflows/compat-reports-sync.yml`). Agents and maintainers do **not** need local `DOCKHAND_*` credentials for routine work. See `docs/AGENT_AUTONOMY.md`.
+Reports are written to `docs/reports/` and synced to `main` by **Compat Reports Sync**. Maintainers do **not** need local `DOCKHAND_*` credentials for routine work. See `docs/CI_AND_RELEASE.md`.
 
 ## Debug-only local run
 

@@ -142,7 +142,7 @@ Requirements for optional local work:
 - Go 1.25+
 - Terraform CLI or OpenTofu
 
-**Routine validation runs in GitHub Actions** (ephemeral Dockhand + DinD). See `docs/AGENT_AUTONOMY.md`.
+**Routine validation runs in GitHub Actions** (ephemeral Dockhand + DinD). See `docs/CI_AND_RELEASE.md`.
 
 Standard local gate (no Dockhand):
 
@@ -203,13 +203,11 @@ Environment variable fallbacks:
 - `SUPPORT.md`
 - `CODE_OF_CONDUCT.md`
 
-## Agent-managed workflow
+## Cursor-assisted workflow
 
-Some changes land through an automated agent loop (Cursor Cloud Agent + GitHub Actions):
+Optional when using Cursor IDE:
 
-- Docs: `docs/AGENT_RUNBOOK.md`, `docs/AGENT_CODING_STANDARDS.md`, `docs/AGENT_IDENTITY.md`, `docs/AGENT_INTAKE.md`
+- Docs: `AGENTS.md`, `docs/CI_AND_RELEASE.md`, `docs/AGENT_CODING_STANDARDS.md`
 - Branches: `agent/issue-<number>-<slug>`
-- Commits include `Co-authored-by: Cursor Agent <noreply@cursor.com>`
-- PRs are opened by GitHub Actions as `github-actions[bot]` with the `agent` label
-
-One-time setup after enabling agent CI: `docs/AGENT_DEPLOYMENT.md`.
+- Commits may include `Co-authored-by: Cursor Agent <noreply@cursor.com>`
+- Releases: **Actions → Release → Run workflow**

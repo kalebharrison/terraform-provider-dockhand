@@ -2,7 +2,7 @@
 
 Canonical engineering practices for humans and autonomous agents working on `terraform-provider-dockhand`.
 
-**Read first:** `docs/AGENT_RUNBOOK.md` (workflow) and this document (how to write code).
+**Read first:** `docs/CI_AND_RELEASE.md` (workflow) and this document (how to write code).
 
 ## Principles
 
@@ -101,7 +101,7 @@ resource.Test(t, resource.TestCase{
 | New/changed resource | `docs/resources/<name>.md` + `examples/` |
 | New/changed data source | `docs/data-sources/<name>.md` |
 | Import support | `## Import` section with exact ID format |
-| API route added/changed | `scripts/endpoint-probe.py`, `docs/api-matrix.md`; CI refreshes reports (see `docs/AGENT_AUTONOMY.md`) |
+| API route added/changed | `scripts/endpoint-probe.py`, `docs/api-matrix.md`; CI refreshes reports (see `docs/CI_AND_RELEASE.md`) |
 | User-visible behavior | `CHANGELOG.md` Unreleased section |
 | Agent/process change | relevant `docs/AGENT_*.md` |
 
@@ -113,13 +113,13 @@ After client route changes:
 
 1. Add endpoint to `scripts/endpoint-probe.py` `ENDPOINTS`.
 2. Ensure `scripts/api-drift-gate.py` prefixes cover the path family.
-3. Merge via CI — **Acceptance Full** / **Release Watch** regenerate reports; **Compat Reports Sync** opens a baseline PR.
+3. Merge via CI — **Dockhand Compat** regenerates reports; **Compat Reports Sync** commits baselines.
 
 Do not require a local `./scripts/verify.sh --endpoint-probe` run.
 
 ## Quality gates
 
-**Routine (agents):** push → CI.
+**Routine:** push → CI.
 
 **Optional local (no Dockhand):**
 
@@ -127,9 +127,9 @@ Do not require a local `./scripts/verify.sh --endpoint-probe` run.
 ./scripts/verify.sh --quality
 ```
 
-**CI must pass:** `Lint, Test, Build`, `Dockhand + DinD Acceptance Tests`, `dependency-review`, and agent workflows for `agent/**`.
+**CI must pass:** `Lint, Test, Build`, `Dockhand + DinD Acceptance Tests`, `dependency-review`, and the other required checks in `.github/settings.yml`.
 
-**Dockhand-dependent checks** (endpoint probe, full acceptance, drift audits) run only on GitHub runners — see `docs/AGENT_AUTONOMY.md`.
+**Dockhand-dependent checks** (endpoint probe, full acceptance, drift audits) run only on GitHub runners — see `docs/CI_AND_RELEASE.md`.
 
 Debug-only local commands (not merge gates):
 
@@ -140,11 +140,10 @@ Debug-only local commands (not merge gates):
 
 ## Commits and pull requests
 
-- **Agent commits** must include `Co-authored-by: Cursor Agent <noreply@cursor.com>` (use `./scripts/agent-commit-msg.sh`).
+- Optional agent-assisted commits: `Co-authored-by: Cursor Agent <noreply@cursor.com>` via `./scripts/agent-commit-msg.sh`.
 - **Conventional commits** — `fix(provider):`, `feat:`, `docs:`, `test:`, `chore:`.
-- **PRs** — opened by Agent Open PR for `agent/**`; humans use normal PR flow with `Fixes #N`.
-- **Issue responses** — follow `docs/AGENT_ISSUE_RESPONSE.md`; fill PR resolution sections before merge.
-- **Do not** merge, tag releases, or push secrets manually — **Agent Auto Merge** and **Agent Release Tag** handle routine merge and release publish
+- **PRs** — include `Fixes #N` and fill what changed / user impact.
+- **Releases** — dispatch **Release** when the gate is green (`docs/CI_AND_RELEASE.md`). Do not push secrets.
 
 ## Anti-patterns (never)
 
@@ -156,15 +155,11 @@ Debug-only local commands (not merge gates):
 - Skipping manifest/docs/examples updates when adding provider surface
 - Broad refactors mixed into issue-scoped fixes
 - Amending pushed commits or force-pushing `main`
+- Recreating deleted Cloud Agent circus workflows
 
 ## Related docs
 
-- `docs/AGENT_RUNBOOK.md` — branch/CI loop
-- `docs/AGENT_IDENTITY.md` — attribution model
-- `docs/AGENT_INTAKE.md` — how work enters the agent queue
-- `docs/AGENT_AUTONOMY.md` — CI-first model (no maintainer machine)
-- `docs/AGENT_ISSUE_RESPONSE.md` — issue comments, release notices, regression handling
-- `docs/AGENT_DEPLOYMENT.md` — one-time rollout checklist
-- `docs/AGENT_SWEEP.md` — readiness tracker
-- `docs/MAINTENANCE_PLAYBOOK.md` — releases and harness
+- `docs/CI_AND_RELEASE.md` — workflows and release gate
+- `docs/MAINTENANCE_PLAYBOOK.md` — maintainer ops
+- `AGENTS.md` — short agent entry point
 - `CONTRIBUTING.md` — human contributor entry point

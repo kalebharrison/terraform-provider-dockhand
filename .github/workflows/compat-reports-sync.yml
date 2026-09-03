@@ -3,8 +3,7 @@ name: Compat Reports Sync
 on:
   workflow_run:
     workflows:
-      - Acceptance Full
-      - Dockhand Release Watch
+      - Dockhand Compat
     types:
       - completed
 
@@ -38,26 +37,13 @@ jobs:
         run: |
           set -euo pipefail
           should_sync=false
-          case "${SOURCE_WORKFLOW}" in
-            "Acceptance Full")
-              conclusion="$(/usr/bin/python3 scripts/workflow_run_job_conclusion.py \
-                --run-id "${SOURCE_RUN_ID}" \
-                --job-name "Full Recursive Acceptance" \
-                --json | jq -r '.conclusion // empty')"
-              if [[ "${conclusion}" == "success" ]]; then
-                should_sync=true
-              fi
-              ;;
-            "Dockhand Release Watch")
-              conclusion="$(/usr/bin/python3 scripts/workflow_run_job_conclusion.py \
-                --run-id "${SOURCE_RUN_ID}" \
-                --job-name "Validate Provider Against Dockhand Release" \
-                --json | jq -r '.conclusion // empty')"
-              if [[ "${conclusion}" == "success" ]]; then
-                should_sync=true
-              fi
-              ;;
-          esac
+          conclusion="$(/usr/bin/python3 scripts/workflow_run_job_conclusion.py \
+            --run-id "${SOURCE_RUN_ID}" \
+            --job-name "Validate Provider Against Dockhand Release" \
+            --json | jq -r '.conclusion // empty')"
+          if [[ "${conclusion}" == "success" ]]; then
+            should_sync=true
+          fi
           echo "should_sync=${should_sync}" >> "${GITHUB_OUTPUT}"
           echo "Source ${SOURCE_WORKFLOW} run ${SOURCE_RUN_ID}: should_sync=${should_sync} (job conclusion=${conclusion:-none})"
 
@@ -108,8 +94,6 @@ jobs:
             exit 0
           fi
 
-          # Skip timestamp/source_run/Date-only churn — that loop opens a PR every
-          # Release Watch cycle and floods watching maintainer email.
           if ! /usr/bin/python3 scripts/compat_reports_changed.py --check-working-tree; then
             echo "Compatibility reports have no substantive changes (volatile metadata only)."
             echo "changed=false" >> "${GITHUB_OUTPUT}"
@@ -202,7 +186,7 @@ jobs:
               owner,
               repo,
               issue_number: pullNumber,
-              labels: ["maintenance", "compat-reports-sync", "skip-changelog", "agent-auto-merge"],
+              labels: ["maintenance", "compat-reports-sync", "skip-changelog"],
             });
             const { data: pr } = await github.rest.pulls.get({
               owner,
@@ -212,16 +196,7 @@ jobs:
             core.setOutput("head_sha", pr.head.sha);
             core.setOutput("pull_number", String(pullNumber));
 
-      - name: Approve blocked PR checks
-        if: steps.publish.outputs.changed == 'true' && steps.direct.outputs.pushed != 'true'
-        env:
-          HEAD_SHA: ${{ steps.pr.outputs.head_sha }}
-        shell: bash
-        run: |
-          set -uo pipefail
-          /usr/bin/python3 scripts/agent_approve_pr_ci.py --head-sha "${HEAD_SHA}" --json || true
-
-      - name: Dispatch PR approve and merge
+      - name: Approve blocked PR checks and enable auto-merge
         if: steps.publish.outputs.changed == 'true' && steps.direct.outputs.pushed != 'true'
         env:
           GH_TOKEN: ${{ github.token }}
@@ -229,11 +204,9 @@ jobs:
           PULL_NUMBER: ${{ steps.pr.outputs.pull_number }}
         shell: bash
         run: |
-          set -euo pipefail
-          gh workflow run agent-pr-approve-ci.yml \
-            --repo "${GITHUB_REPOSITORY}" \
-            -f "head_sha=${HEAD_SHA}" \
-            -f "pull_number=${PULL_NUMBER}"
+          set -uo pipefail
+          /usr/bin/python3 scripts/agent_approve_pr_ci.py --head-sha "${HEAD_SHA}" --json || true
+          gh pr merge "${PULL_NUMBER}" --repo "${GITHUB_REPOSITORY}" --squash --auto || true
 
       - name: Close obsolete compatibility report PRs
         if: steps.publish.outputs.changed == 'true'

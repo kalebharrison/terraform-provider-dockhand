@@ -42,13 +42,18 @@ date = sys.argv[2]
 text = path.read_text(encoding="utf-8")
 text, count = re.subn(
     r"(?m)^- Date: .*$",
-    f"- Date: {date} (CI Acceptance Full / Release Watch)",
+    f"- Date: {date} (CI Dockhand Compat)",
     text,
     count=1,
 )
 text = text.replace(
     "- Re-run the probe after Dockhand upgrades and update this file when status changes.",
+    "- Compatibility reports refresh via **Compat Reports Sync** on green Dockhand Compat runs.",
+    1,
+)
+text = text.replace(
     "- Compatibility reports refresh via **Compat Reports Sync** on green Acceptance Full / Release Watch runs.",
+    "- Compatibility reports refresh via **Compat Reports Sync** on green Dockhand Compat runs.",
     1,
 )
 if count:

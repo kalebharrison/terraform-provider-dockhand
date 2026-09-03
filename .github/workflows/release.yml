@@ -1,27 +1,40 @@
-name: Agent Release Tag
+name: Release
 
 on:
   push:
     branches:
       - main
-    paths:
-      - docs/reports/agent-review-log.md
   workflow_dispatch:
 
 permissions:
   contents: write
   issues: write
   actions: write
+  pull-requests: write
 
 jobs:
-  prepare-release-watch:
-    name: Ensure Release Watch green on main
+  update_release_draft:
+    name: Update release draft
+    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - name: Draft release notes
+        uses: release-drafter/release-drafter@v7
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  prepare-compat:
+    name: Ensure Dockhand Compat green on main
+    if: github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v7
 
-      - name: Ensure Dockhand Release Watch succeeded on main
+      - name: Ensure Dockhand Compat succeeded on main
         env:
           GH_TOKEN: ${{ github.token }}
         shell: bash
@@ -30,8 +43,9 @@ jobs:
           /usr/bin/python3 scripts/ensure_release_watch_green.py --retries 1 --json
 
   evaluate-release:
-    name: Evaluate release gate when lens verdict clears
-    needs: prepare-release-watch
+    name: Evaluate release gate
+    needs: prepare-compat
+    if: github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     outputs:
       ready: ${{ steps.gate.outputs.ready }}
@@ -62,7 +76,7 @@ jobs:
   publish-artifacts:
     name: Build and publish release artifacts
     needs: evaluate-release
-    if: needs.evaluate-release.outputs.ready == 'true'
+    if: github.event_name == 'workflow_dispatch' && needs.evaluate-release.outputs.ready == 'true'
     permissions:
       contents: write
       id-token: write
@@ -73,9 +87,9 @@ jobs:
     secrets: inherit
 
   housekeeping:
-    name: Close lens issue, label released issues, cut CHANGELOG
+    name: Label released issues and cut CHANGELOG
     needs: [evaluate-release, publish-artifacts]
-    if: needs.evaluate-release.outputs.ready == 'true'
+    if: github.event_name == 'workflow_dispatch' && needs.evaluate-release.outputs.ready == 'true'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -94,50 +108,6 @@ jobs:
           set -euo pipefail
           url="$(gh release view "${TAG}" --repo "${GITHUB_REPOSITORY}" --json url -q .url)"
           echo "url=${url}" >> "${GITHUB_OUTPUT}"
-
-      - name: Close release lens issue
-        uses: actions/github-script@v9
-        env:
-          VERSION: ${{ needs.evaluate-release.outputs.version }}
-          TAG: ${{ needs.evaluate-release.outputs.tag }}
-          RELEASE_URL: ${{ steps.release.outputs.url }}
-        with:
-          script: |
-            const owner = context.repo.owner;
-            const repo = context.repo.repo;
-            const version = process.env.VERSION;
-            const tag = process.env.TAG;
-            const releaseUrl = process.env.RELEASE_URL || "";
-            const search = await github.rest.search.issuesAndPullRequests({
-              q: `repo:${owner}/${repo} is:issue is:open in:title "release: prepare v${version}"`,
-            });
-            if (search.data.total_count === 0) {
-              core.info("No open release lens issue to close.");
-              return;
-            }
-            const issue = search.data.items[0];
-            await github.rest.issues.createComment({
-              owner,
-              repo,
-              issue_number: issue.number,
-              body: [
-                "## Released automatically",
-                "",
-                `GitHub release \`${tag}\` was published by **Agent Release Tag**.`,
-                releaseUrl ? `Release: ${releaseUrl}` : "",
-                "",
-                "Artifacts are GPG-signed for Terraform Registry; build provenance is attached via GitHub artifact attestations.",
-                "",
-                "---",
-                "_Posted by Agent Release Tag._",
-              ].filter(Boolean).join("\n"),
-            });
-            await github.rest.issues.update({
-              owner,
-              repo,
-              issue_number: issue.number,
-              state: "closed",
-            });
 
       - name: Label awaiting-release issues and cut CHANGELOG
         env:

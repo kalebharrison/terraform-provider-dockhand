@@ -7,15 +7,13 @@
 <!-- Required for bugfix/feature work. Example: Fixes #123 -->
 Fixes #
 
-<!-- Agent-managed PRs: opened automatically from agent/** branches; see docs/AGENT_RUNBOOK.md -->
-
 ## What was fixed
 
-<!-- Problem, cause, and code change. Required for agent PRs before auto-merge. -->
+<!-- Problem, cause, and code change. -->
 
 ## User impact
 
-<!-- Who is affected, upgrade steps, workarounds until release. Required for agent PRs before auto-merge. -->
+<!-- Who is affected, upgrade steps, workarounds until release. -->
 
 ## Validation
 
@@ -36,4 +34,4 @@ Fixes #
 
 ## Issue follow-up
 
-After merge, **Issue Resolution Notify** comments on linked issues. After release, **Release Issue Notify** adds the version. See `docs/AGENT_ISSUE_RESPONSE.md`.
+After merge, linked issues get `awaiting-release`. After you run **Release**, comments and `released` labels are applied (`docs/CI_AND_RELEASE.md`).

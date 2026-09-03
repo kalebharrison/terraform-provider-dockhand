@@ -1,4 +1,4 @@
-name: PR Issue Link
+name: PR Policy
 
 on:
   pull_request:
@@ -105,7 +105,6 @@ jobs:
               return;
             }
 
-            // Ensure "in-progress" label exists once.
             await ensureLabel("in-progress", "1D76DB", "Issue is linked to an open pull request");
 
             for (const issueNumber of linked) {
@@ -115,4 +114,43 @@ jobs:
                 issue_number: issueNumber,
                 labels: ["in-progress"],
               });
+            }
+
+  title:
+    name: Conventional PR title
+    if: github.event.action != 'closed'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Validate PR title format
+        uses: actions/github-script@v9
+        with:
+          script: |
+            const pr = context.payload.pull_request;
+            const actor = context.payload.sender?.login || "";
+            const author = pr?.user?.login || "";
+            const authorType = pr?.user?.type || "";
+            const headRef = pr?.head?.ref || "";
+            const title = (pr?.title || "").trim();
+
+            if (headRef.startsWith("agent/")) {
+              core.info("Skipping title convention check for agent branch.");
+              return;
+            }
+
+            if (
+              authorType === "Bot" ||
+              actor === "dependabot[bot]" ||
+              actor === "app/dependabot" ||
+              author === "dependabot[bot]" ||
+              author === "app/dependabot"
+            ) {
+              core.info("Skipping title convention check for bot-authored PR.");
+              return;
+            }
+
+            const regex = /^(feat|fix|docs|chore|refactor|test|ci|build|perf|revert)(\([a-z0-9._\/-]+\))?(!)?:\s.+$/i;
+            if (!regex.test(title)) {
+              core.setFailed(
+                "PR title must follow Conventional Commits style, e.g. `fix(environment): preserve agent token for agent-standard`."
+              );
             }

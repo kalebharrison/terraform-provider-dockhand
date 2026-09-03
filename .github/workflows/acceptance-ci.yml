@@ -115,4 +115,4 @@ jobs:
     steps:
       - name: Skip upstream-validated compat reports refresh
         run: |
-          echo "Compat reports PR; acceptance already passed in Release Watch / Acceptance Full."
+          echo "Compat reports PR; acceptance already passed in Dockhand Compat."

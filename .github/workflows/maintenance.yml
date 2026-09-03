@@ -1,19 +1,137 @@
-name: Secret Smoke
+name: Maintenance
 
 on:
   schedule:
+    - cron: "5 6 * * *"
+    - cron: "30 7 * * 0"
     - cron: "0 6 * * 1"
   workflow_dispatch:
+    inputs:
+      apply:
+        description: "Actually delete branches/issues/runs (default dry-run only)"
+        required: false
+        type: boolean
+        default: false
+      delete_closed_issues:
+        description: "Also delete closed automation/smoke tracker issues"
+        required: false
+        type: boolean
+        default: false
+      workflow_runs:
+        description: "Prune old workflow runs (14d retain, keep 1 per workflow)"
+        required: false
+        type: boolean
+        default: true
 
 permissions:
   contents: read
-  issues: write
-  actions: read
 
 jobs:
-  verify:
-    name: Verify automation secrets
+  stale:
+    name: Mark and close stale issues/PRs
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event_name == 'schedule' && github.event.schedule == '5 6 * * *')
     runs-on: ubuntu-latest
+    permissions:
+      issues: write
+      pull-requests: write
+    steps:
+      - name: Process stale issues and pull requests
+        uses: actions/stale@v11
+        with:
+          stale-issue-message: >
+            This issue has been automatically marked stale due to inactivity.
+            If it is still relevant, add a comment or update.
+          close-issue-message: >
+            Closing this issue due to extended inactivity.
+            Reopen with new context if the problem still exists.
+          stale-pr-message: >
+            This pull request has been automatically marked stale due to inactivity.
+            Please update to keep it active.
+          close-pr-message: >
+            Closing this pull request due to extended inactivity.
+            Reopen or create a new PR when ready.
+          days-before-issue-stale: 30
+          days-before-issue-close: 14
+          days-before-pr-stale: 21
+          days-before-pr-close: 14
+          stale-issue-label: stale
+          stale-pr-label: stale
+          exempt-issue-labels: "security,pinned,in-progress,awaiting-release,released,status: needs-info"
+          exempt-pr-labels: security,pinned,agent,in-progress
+          operations-per-run: 200
+
+  needs-info:
+    name: Auto-close needs-info after 30 days
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event_name == 'schedule' && github.event.schedule == '5 6 * * *')
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+      pull-requests: write
+    steps:
+      - name: Close inactive needs-info issues
+        uses: actions/stale@v11
+        with:
+          any-of-labels: "status: needs-info"
+          stale-issue-message: >
+            No update for 30 days while this issue was labeled `status: needs-info`
+            (waiting on reporter retest/feedback). Marking stale and closing.
+          close-issue-message: >
+            Closing after 30 days with no retest/feedback on `status: needs-info`.
+            Reopen and comment if the problem still exists.
+          days-before-issue-stale: 30
+          days-before-issue-close: 0
+          days-before-pr-stale: -1
+          days-before-pr-close: -1
+          stale-issue-label: stale
+          exempt-issue-labels: security,pinned
+          operations-per-run: 100
+
+  hygiene:
+    name: Prune stale agent/automation branches and trackers
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event_name == 'schedule' && github.event.schedule == '30 7 * * 0')
+    runs-on: ubuntu-latest
+    permissions:
+      actions: write
+      contents: write
+      issues: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Run repo hygiene
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          args=(--branches --json)
+          if [[ "${{ github.event_name }}" == "schedule" || "${{ inputs.apply }}" == "true" ]]; then
+            args+=(--apply)
+          fi
+          if [[ "${{ github.event_name }}" == "schedule" || "${{ inputs.workflow_runs }}" == "true" ]]; then
+            args+=(--workflow-runs --retain-days 14 --keep-minimum-runs 1)
+          fi
+          if [[ "${{ inputs.delete_closed_issues }}" == "true" ]]; then
+            args+=(--delete-closed-issues)
+          fi
+          /usr/bin/python3 scripts/repo_hygiene.py "${args[@]}"
+
+  secret-smoke:
+    name: Verify release secrets and Actions settings
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event_name == 'schedule' && github.event.schedule == '0 6 * * 1')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: write
+      actions: read
     steps:
       - name: Checkout
         uses: actions/checkout@v7
@@ -21,15 +139,11 @@ jobs:
       - name: Check required repository secrets
         id: check
         env:
-          CURSOR_API_KEY: ${{ secrets.CURSOR_API_KEY }}
           GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
         shell: bash
         run: |
           set -euo pipefail
           missing=()
-          if [[ -z "${CURSOR_API_KEY:-}" ]]; then
-            missing+=("CURSOR_API_KEY")
-          fi
           if [[ -z "${GPG_PRIVATE_KEY:-}" ]]; then
             missing+=("GPG_PRIVATE_KEY")
           fi
@@ -56,52 +170,6 @@ jobs:
             jq -r '.blockers[]?' /tmp/automation-settings.json >&2 || true
           fi
 
-      - name: Verify Cursor Cloud Agents API key
-        id: cursor_auth
-        if: steps.check.outputs.missing == 'false'
-        env:
-          CURSOR_API_KEY: ${{ secrets.CURSOR_API_KEY }}
-        shell: bash
-        run: |
-          set +e
-          /usr/bin/python3 scripts/cursor_cloud_agents_auth.py --json \
-            > /tmp/cursor-cloud-agents-auth.json \
-            2> /tmp/cursor-cloud-agents-auth.err
-          status=$?
-          set -euo pipefail
-          if [[ "${status}" -eq 0 ]]; then
-            echo "ok=true" >> "${GITHUB_OUTPUT}"
-            exit 0
-          fi
-          echo "ok=false" >> "${GITHUB_OUTPUT}"
-          if [[ -s /tmp/cursor-cloud-agents-auth.err ]]; then
-            sed 's/^/Cloud Agents API key check failed: /' /tmp/cursor-cloud-agents-auth.err >&2
-          fi
-
-      - name: Disable Cursor Bugbot for this repository (best-effort)
-        id: bugbot
-        if: steps.check.outputs.missing == 'false'
-        env:
-          CURSOR_API_KEY: ${{ secrets.CURSOR_API_KEY }}
-        shell: bash
-        run: |
-          # Bugbot admin API is Team/Enterprise-only. Solo / Pro+ user keys used for
-          # Cloud Agents intake commonly get "Invalid Team API Key" — that must not
-          # fail Secret Smoke or keep the secret health issue open.
-          set +e
-          /usr/bin/python3 scripts/cursor_bugbot_settings.py --disable --best-effort --json \
-            > /tmp/bugbot-settings.json \
-            2> /tmp/bugbot-settings.err
-          status=$?
-          set -euo pipefail
-          echo "ok=true" >> "${GITHUB_OUTPUT}"
-          if [[ -s /tmp/bugbot-settings.err ]]; then
-            sed 's/^/Bugbot settings (best-effort): /' /tmp/bugbot-settings.err >&2
-          fi
-          if [[ "${status}" -ne 0 ]]; then
-            echo "Bugbot helper exited ${status}; ignoring (best-effort)" >&2
-          fi
-
       - name: Open or close secret health issue
         if: always() && steps.check.conclusion != 'skipped'
         uses: actions/github-script@v9
@@ -112,21 +180,10 @@ jobs:
             const repo = context.repo.repo;
             const title = "[Automation] Secret configuration required";
             const missing = "${{ steps.check.outputs.missing }}" === "true";
-            const authChecked = "${{ steps.cursor_auth.conclusion }}" !== "skipped";
-            const authOk = !authChecked || "${{ steps.cursor_auth.outputs.ok }}" === "true";
             const missingSecrets = fs.existsSync("/tmp/missing-secrets.txt")
               ? fs.readFileSync("/tmp/missing-secrets.txt", "utf8").trim().split("\n").filter(Boolean)
               : [];
-            const authError = fs.existsSync("/tmp/cursor-cloud-agents-auth.err")
-              ? fs.readFileSync("/tmp/cursor-cloud-agents-auth.err", "utf8").trim()
-              : "";
-            const problems = [
-              ...missingSecrets.map((name) => `- \`${name}\` is missing`),
-            ];
-            if (!authOk) {
-              const detail = authError ? `: ${authError}` : "";
-              problems.push(`- \`CURSOR_API_KEY\` failed Cursor Cloud Agents API verification (GET /v1/me)${detail}`);
-            }
+            const problems = missingSecrets.map((name) => `- \`${name}\` is missing`);
 
             const ensureLabel = async (name, color, description) => {
               try {
@@ -136,7 +193,6 @@ jobs:
                 await github.rest.issues.createLabel({ owner, repo, name, color, description });
               }
             };
-            await ensureLabel("no-agent", "ededed", "Automation tracker — do not dispatch Cloud Agent");
             await ensureLabel("maintenance", "c5def5", "Refactors, cleanup, or repo hygiene");
 
             const issues = await github.paginate(github.rest.issues.listForRepo, {
@@ -149,22 +205,17 @@ jobs:
               .filter((issue) => !issue.pull_request && issue.title === title)
               .sort((a, b) => b.number - a.number)[0];
 
-            if (missing || !authOk) {
+            if (missing) {
               const body = [
                 "## Problem",
-                "Automation secrets required for hands-off agent intake and signed releases are missing or invalid.",
+                "Release signing secret is missing.",
                 "",
                 "## Done when",
-                "- Repository secrets are configured in GitHub Settings → Secrets and variables → Actions",
-                "- `CURSOR_API_KEY` authenticates to the Cloud Agents API (`GET https://api.cursor.com/v1/me`)",
-                "- **Secret Smoke** workflow succeeds on the next scheduled run",
+                "- Repository secret `GPG_PRIVATE_KEY` is configured",
+                "- **Maintenance** secret-smoke job succeeds",
                 "",
                 "## Problems",
                 ...problems,
-                "",
-                "Bugbot admin API access is optional (Team/Enterprise). Secret Smoke does not fail when Bugbot disable is unavailable for a user API key.",
-                "",
-                "This issue is managed automatically and closes when secrets verify successfully.",
               ].join("\n");
 
               if (existing) {
@@ -182,7 +233,7 @@ jobs:
                   repo,
                   title,
                   body,
-                  labels: ["no-agent", "maintenance"],
+                  labels: ["maintenance"],
                 });
               }
               core.setFailed(`Secret configuration failed: ${problems.join("; ")}`);
@@ -227,7 +278,6 @@ jobs:
                 await github.rest.issues.createLabel({ owner, repo, name, color, description });
               }
             };
-            await ensureLabel("no-agent", "ededed", "Automation tracker — do not dispatch Cloud Agent");
             await ensureLabel("maintenance", "c5def5", "Refactors, cleanup, or repo hygiene");
 
             const issues = await github.paginate(github.rest.issues.listForRepo, {
@@ -243,17 +293,15 @@ jobs:
             if (!settingsOk) {
               const body = [
                 "## Problem",
-                "GitHub Actions settings required for hands-off agent automation are misconfigured.",
+                "GitHub Actions settings required for release automation are misconfigured.",
                 "",
                 "## Done when",
                 "- Settings → Actions → General → Workflow permissions: **Read and write**",
                 "- **Allow GitHub Actions to create and approve pull requests** is enabled",
-                "- **Secret Smoke** workflow succeeds on the next scheduled run",
+                "- **Maintenance** secret-smoke job succeeds",
                 "",
                 "## Blockers",
                 ...blockers.map((item) => `- ${item}`),
-                "",
-                "This issue is managed automatically and closes when settings verify successfully.",
               ].join("\n");
 
               if (existing) {
@@ -271,7 +319,7 @@ jobs:
                   repo,
                   title,
                   body,
-                  labels: ["no-agent", "maintenance"],
+                  labels: ["maintenance"],
                 });
               }
               core.setFailed(`Automation settings check failed (${blockers.join("; ")})`);

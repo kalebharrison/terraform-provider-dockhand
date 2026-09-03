@@ -19,16 +19,13 @@ from release_verdict import is_cleared_for_version
 
 REQUIRED_WORKFLOWS = (
     "Go CI",
-    "Govulncheck",
-    "Workflow Lint",
-    "Gitleaks",
-    "Dependency Review",
-    "Acceptance Full",
-    "Dockhand Release Watch",
+    "Security",
+    "Dockhand Compat",
 )
 
-RELEASE_WATCH_WORKFLOW = "Dockhand Release Watch"
+RELEASE_WATCH_WORKFLOW = "Dockhand Compat"
 RELEASE_WATCH_VALIDATE_JOB = "Validate Provider Against Dockhand Release"
+RELEASE_WATCH_WORKFLOW_FILE = "dockhand-compat.yml"
 
 
 @dataclass
@@ -58,17 +55,16 @@ class GateResult:
 
     @property
     def ready_for_lens_dispatch(self) -> bool:
-        return (
-            self.ci_gates_pass
-            and not self.lens_verdict_clear
-            and self.open_release_issue is None
-            and bool(self.version)
-            and self.has_release_work
-        )
+        """Deprecated alias for ready_to_tag (lens dispatch removed)."""
+        return self.ready_to_tag
 
     @property
     def ready_to_tag(self) -> bool:
-        return self.ci_gates_pass and self.lens_verdict_clear and bool(self.tag)
+        return (
+            self.ci_gates_pass
+            and bool(self.tag)
+            and self.has_release_work
+        )
 
     def as_json(self) -> dict:
         return {
@@ -466,7 +462,7 @@ def dispatch_release_watch(*, force: bool | None = None) -> int:
         "gh",
         "workflow",
         "run",
-        "dockhand-release-watch.yml",
+        "dockhand-compat.yml",
         "--repo",
         _repo(),
         "--ref",
@@ -567,7 +563,7 @@ def main(argv: list[str] | None = None) -> int:
         "--mode",
         choices=("lens", "tag", "status"),
         default="status",
-        help="lens=ready to open release issue; tag=ready to publish tag",
+        help="lens=deprecated alias of tag readiness; tag=ready to publish; status=CI gates only",
     )
     args = parser.parse_args(argv)
 

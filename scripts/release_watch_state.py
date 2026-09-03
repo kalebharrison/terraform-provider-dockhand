@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Helpers for Dockhand Release Watch skip/cache state."""
+"""Helpers for Dockhand Compat skip/cache state."""
 
 from __future__ import annotations
 

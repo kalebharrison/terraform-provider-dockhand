@@ -58,19 +58,19 @@ class WorkflowGreenTest(unittest.TestCase):
 
 
 class GateResultTest(unittest.TestCase):
-    def test_ready_for_lens_with_unreleased_commits(self) -> None:
+    def test_ready_to_tag_with_unreleased_commits(self) -> None:
         result = gate.GateResult(
             ci_gates_pass=True,
             version="0.1.87",
             tag="v0.1.87",
             unreleased_commits_on_main=3,
         )
-        self.assertTrue(result.ready_for_lens_dispatch)
+        self.assertTrue(result.ready_to_tag)
         self.assertEqual(result.release_trigger, "unreleased_main_commits")
 
-    def test_ready_for_lens_without_release_work(self) -> None:
+    def test_ready_to_tag_without_release_work(self) -> None:
         result = gate.GateResult(ci_gates_pass=True, version="0.1.87", tag="v0.1.87")
-        self.assertFalse(result.ready_for_lens_dispatch)
+        self.assertFalse(result.ready_to_tag)
 
     def test_merged_compat_fix_is_not_a_blocker(self) -> None:
         result = gate.GateResult()
