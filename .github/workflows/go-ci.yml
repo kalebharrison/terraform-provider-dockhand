@@ -54,7 +54,7 @@ jobs:
       - name: Validate acceptance PR CI manifest
         run: /usr/bin/python3 scripts/acceptance-pr-ci-regex.py >/dev/null
 
-      - name: Verify agent helper scripts
+      - name: Verify helper scripts
         run: ./scripts/test-agent-helpers.sh
 
       - name: Go vet
@@ -87,3 +87,13 @@ jobs:
 
       - name: Go build
         run: go build ./...
+
+  actionlint:
+    name: actionlint
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Run actionlint
+        uses: raven-actions/actionlint@v2

@@ -27,20 +27,11 @@ case "${regex}" in
     ;;
 esac
 
-echo "agent helper smoke tests passed"
-run /usr/bin/python3 -m unittest scripts/test_issue_agent_intake.py
-run /usr/bin/python3 -m unittest scripts/test_issue_agent_intake_eligibility.py
-run /usr/bin/python3 -m unittest scripts/test_issue_agent_intake_lenses.py
+echo "helper smoke tests passed"
 run /usr/bin/python3 -m unittest scripts/test_release_verdict.py
 run /usr/bin/python3 -m unittest scripts/test_release_gate_check.py
-run /usr/bin/python3 -m unittest scripts/test_agent_merge_cleanup_watchdog.py
-run /usr/bin/python3 -m unittest scripts/test_agent_release_loop_watchdog.py
 run /usr/bin/python3 -m unittest scripts/test_release_watch_state.py
 run /usr/bin/python3 -m unittest scripts/test_compat_reports_changed.py
-run /usr/bin/python3 -m unittest scripts/test_automation_health_gate.py
-run /usr/bin/python3 -m unittest scripts/test_agent_stall_watchdog.py
 run /usr/bin/python3 -m unittest scripts/test_agent_approve_pr_ci.py
 run /usr/bin/python3 -m unittest scripts/test_repo_hygiene.py
 run /usr/bin/python3 -m unittest scripts/test_check_automation_settings.py
-run /usr/bin/python3 -m unittest scripts/test_cursor_cloud_agents_auth.py
-run /usr/bin/python3 -m unittest scripts/test_cursor_bugbot_settings.py

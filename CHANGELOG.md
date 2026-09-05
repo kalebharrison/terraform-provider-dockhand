@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Consolidated GitHub Actions to nine workflows (Go CI, Acceptance CI, Dockhand Compat, Compat Reports Sync, Security, PR Policy, Release, Release Artifacts, Maintenance). Removed Cloud Agent intake/auto-merge/watchdog circus. Release is manual `workflow_dispatch` of **Release**; tagging no longer requires `agent-review-log` lens verdicts.
+
 ### Fixed
 
 - `dockhand_git_stack`: do not default `branch` to `main` when linking via `repository_id`, so stacks can use a non-`main` branch from a same-URL repository without an inconsistent-result apply error (#267).

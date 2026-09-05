@@ -1,6 +1,6 @@
 # Agent context
 
-Start here for AI agents working in this repo.
+Start here for AI agents (IDE chat) working in this repo.
 
 ## Repository
 
@@ -13,285 +13,51 @@ Start here for AI agents working in this repo.
 - **Rules:** `.cursor/rules/repo-basics.mdc`
 - **Ignore:** `.cursorignore` — excludes build artifacts, Terraform cache, secrets from indexing
 
-## Autonomous agent loop
+## Operating model (two loops)
 
-The Cloud Agent circus is **disabled on purpose** in GitHub Actions (`disabled_manually`). Do not re-enable Agent Auto Merge, Agent Autonomy Watchdog, Agent Open PR, Agent Stall Watchdog, Automation Health Notify, Automation Issue Notify, Dependabot Auto Merge, Issue Agent Intake, Issue Regression Intake, Issue Resolution Notify, or Release Issue Notify. YAML is kept for recovery; `workflow_run` triggers were removed from disabled notifiers so they do not enqueue skipped runs on every push.
+Cursor IDE chat helps write code. **GitHub Actions** owns detection, validation, and release.
 
-Agents owning this repo should start with:
+1. **Dockhand Compat** — watch Dockhand versions; full API inventory; open issues when drift/compat fails
+2. **People issues** — fix in a PR (you or Cursor), link `Fixes #N`
+3. **Validate** — Go CI + Acceptance CI on PRs; Dockhand Compat for full inventory
+4. **Release** — when green and there is release work: `gh workflow run release.yml` (manual dispatch)
 
-- `docs/AGENT_RUNBOOK.md` — branch naming, validation, CI map
-- `docs/AGENT_ISSUE_RESPONSE.md` — issue comments, release notices, regression reopen
-- `docs/AGENT_CODING_STANDARDS.md` — how to write provider code, tests, and docs
-- `docs/AGENT_IDENTITY.md` — transparency and `Co-authored-by` requirements
-- `docs/AGENT_INTAKE.md` — how issues enter the agent queue
-- `docs/AGENT_DEPLOYMENT.md` — one-time agent CI rollout (maintainers)
-- `docs/AGENT_SWEEP.md` — readiness checklist tracker
+There is **no** Cloud Agent intake, auto-merge factory, or lens-log release gate.
 
-Quick loop:
+### Active workflows (9)
 
-1. Branch `agent/issue-<n>-<slug>`
-2. Commit with `Co-authored-by: Cursor Agent <noreply@cursor.com>`
-3. Push → **Agent Validate**
-4. Green → **Agent Open PR** → **Agent Auto Merge** when checks pass
+| Workflow | Role |
+|----------|------|
+| Go CI | Lint, unit, build, shellcheck, actionlint |
+| Acceptance CI | PR Dockhand+DinD subset |
+| Dockhand Compat | Watch Dockhand + full TestAcc + API probe/drift |
+| Compat Reports Sync | Commit probe baselines after green Compat |
+| Security | Gitleaks, CodeQL, govulncheck, dependency-review |
+| PR Policy | Conventional title + linked issue |
+| Release | Drafter on `main` push; tag/publish on `workflow_dispatch` |
+| Release Artifacts | Signed zips (called by Release) |
+| Maintenance | Stale, hygiene, GPG/settings smoke |
 
-Focused review lenses (automated per agent issue): `docs/AGENT_REVIEW_LENSES.md` — mapping in `scripts/issue_agent_intake_lenses.py`; log: `docs/reports/agent-review-log.md`; CI gate: `scripts/lens_sweep_gate.py`.
+### Quick loop
 
-**Before every release:** automated release-tier lens review + **Agent Release Tag** — `docs/testing/release-lens-review.md`.
+1. Branch `agent/issue-<n>-<slug>` or a normal feature branch
+2. Implement + `./scripts/verify.sh --quality`
+3. Open PR with `Fixes #<n>`
+4. Green CI → merge
+5. When ready: **Actions → Release → Run workflow**
 
-## Purpose
+Optional: `Co-authored-by: Cursor Agent <noreply@cursor.com>` on agent-assisted commits (`./scripts/agent-commit-msg.sh`).
 
-Repository guidance for coding agents working on `terraform-provider-dockhand`.
+## Docs
 
-## Project Context
+- `docs/CI_AND_RELEASE.md` — workflows and release gate
+- `docs/AGENT_CODING_STANDARDS.md` — how to write provider code
+- `docs/MAINTENANCE_PLAYBOOK.md` — maintainer ops
 
-- This repo builds a Terraform provider for Dockhand using the Terraform Plugin Framework.
-- Current implemented surface:
-  - Provider: `dockhand`
-  - Resource: `dockhand_stack`
-  - Resource: `dockhand_stack_action`
-  - Resource: `dockhand_user`
-  - Resource: `dockhand_notification`
-  - Resource: `dockhand_settings_general`
-  - Resource: `dockhand_auth_settings`
-  - Resource: `dockhand_license`
-  - Resource: `dockhand_registry`
-  - Resource: `dockhand_registry_image_delete_action`
-  - Resource: `dockhand_git_credential`
-  - Resource: `dockhand_git_repository`
-  - Resource: `dockhand_git_repository_test_action`
-  - Resource: `dockhand_git_stack`
-  - Resource: `dockhand_git_stack_webhook_action`
-  - Resource: `dockhand_git_stack_deploy_action`
-  - Resource: `dockhand_git_stack_env_file`
-  - Resource: `dockhand_config_set`
-  - Resource: `dockhand_environment`
-  - Resource: `dockhand_notification_test_action`
-  - Resource: `dockhand_environment_test_action`
-  - Resource: `dockhand_environment_scanner_action`
-  - Resource: `dockhand_network`
-  - Resource: `dockhand_network_connection_action`
-  - Resource: `dockhand_volume`
-  - Resource: `dockhand_volume_clone_action`
-  - Resource: `dockhand_image`
-  - Resource: `dockhand_image_push_action`
-  - Resource: `dockhand_image_scan_action`
-  - Resource: `dockhand_container`
-  - Resource: `dockhand_container_file`
-  - Resource: `dockhand_container_action`
-  - Resource: `dockhand_container_rename_action`
-  - Resource: `dockhand_container_update_action`
-  - Resource: `dockhand_container_check_updates_action`
-  - Resource: `dockhand_schedule`
-  - Resource: `dockhand_schedule_settings`
-  - Resource: `dockhand_schedule_run_action`
-  - Resource: `dockhand_prune_action`
-  - Resource: `dockhand_batch_action`
-  - Resource: `dockhand_stack_adopt_action`
-  - Resource: `dockhand_stack_env`
-  - Data source: `dockhand_health`
-  - Data source: `dockhand_activity`
-  - Data source: `dockhand_hawser_status`
-  - Data source: `dockhand_stacks`
-  - Data source: `dockhand_stack_sources`
-  - Data source: `dockhand_stack_base_path`
-  - Data source: `dockhand_stack_default_path`
-  - Data source: `dockhand_containers`
-  - Data source: `dockhand_container_stats`
-  - Data source: `dockhand_container_pending_updates`
-  - Data source: `dockhand_container_shells`
-  - Resource: `dockhand_stack_scan_action`
-  - Data source: `dockhand_container_logs`
-  - Data source: `dockhand_container_inspect`
-  - Data source: `dockhand_container_processes`
-  - Data source: `dockhand_auth_providers`
-  - Data source: `dockhand_users`
-  - Data source: `dockhand_registries`
-  - Data source: `dockhand_registry_search`
-  - Data source: `dockhand_registry_tags`
-  - Data source: `dockhand_registry_catalog`
-  - Data source: `dockhand_git_credentials`
-  - Data source: `dockhand_git_preview_env`
-  - Data source: `dockhand_git_repositories`
-  - Data source: `dockhand_notifications`
-  - Data source: `dockhand_config_sets`
-  - Data source: `dockhand_environments`
-  - Data source: `dockhand_environment_detect_socket`
-  - Data source: `dockhand_networks`
-  - Data source: `dockhand_volumes`
-  - Data source: `dockhand_images`
-  - Data source: `dockhand_schedules`
-  - Data source: `dockhand_schedule_settings`
-  - Data source: `dockhand_schedule_stream`
-  - Data source: `dockhand_schedules_executions`
-  - Data source: `dockhand_system`
-  - Data source: `dockhand_system_disk`
-  - Data source: `dockhand_system_files`
-  - Data source: `dockhand_system_file_content`
-  - Data source: `dockhand_job`
-
-## Working Rules
-
-- Keep changes focused and incremental.
-- Prefer updating existing files over introducing new abstractions too early.
-- Preserve backward compatibility for provider schema where practical.
-- Do not commit secrets, tokens, or local override files.
-
-## Code Standards
-
-- Language: Go (module in `go.mod`).
-- Keep code `gofmt` clean.
-- Favor explicit error handling and actionable diagnostic messages.
-- Keep provider/resource/data source schema docs aligned with behavior.
-
-## Validation Commands
-
-**Agents:** push and rely on CI (`docs/AGENT_AUTONOMY.md`). Optional local gate with no Dockhand:
+## Validation
 
 ```bash
 ./scripts/verify.sh --quality
 ```
 
-Dockhand-dependent validation (acceptance, endpoint probe, drift audits) runs on GitHub Actions only.
-
-## Operational Breadcrumbs
-
-- Primary maintainer runbook: `docs/MAINTENANCE_PLAYBOOK.md`
-- Docs/examples parity check: `scripts/check-doc-example-coverage.py`
-- Standard local gate: `scripts/verify.sh`
-- Make targets:
-  - `make verify`
-  - `make verify-quality`
-  - `make verify-docs`
-
-## Release-First Workflow
-
-Release validation uses CI artifacts, not a maintainer laptop:
-
-- **Agent Release Tag** → **Release Artifacts** publishes GPG-signed checksums and zips (`GPG_*` secrets) plus GitHub artifact attestations.
-- **Acceptance Full** and **Dockhand Release Watch** validate against ephemeral Dockhand on GitHub runners.
-- **Compat Reports Sync** keeps `docs/reports/` current.
-
-Optional: download release zips into `./terraform/dockhand/mirror` for local Terraform testing (`docs/LOCAL_DEV.md`). Not required for agent maintenance.
-
-## Terraform Provider Notes
-
-- Provider address is `registry.terraform.io/kalebharrison/dockhand` (see `main.go`). For private local development, use a Terraform CLI `dev_overrides` block and run Terraform via `scripts/tf-dev.sh` (skipping `terraform init`).
-- Local dev workflow doc: `docs/LOCAL_DEV.md`.
-- Provider config supports:
-  - `endpoint`
-  - `username`
-  - `password` (sensitive)
-  - `mfa_token` (optional sensitive)
-  - `auth_provider` (optional, default `local`)
-  - `default_env`
-  - `insecure`
-  - `allow_unauthenticated` (optional, for first-install bootstrap flows)
-- Environment variable fallbacks:
-  - `DOCKHAND_ENDPOINT`
-  - `DOCKHAND_USERNAME`
-  - `DOCKHAND_PASSWORD`
-  - `DOCKHAND_MFA_TOKEN`
-  - `DOCKHAND_AUTH_PROVIDER`
-  - `DOCKHAND_DEFAULT_ENV`
-  - `DOCKHAND_ALLOW_UNAUTHENTICATED`
-
-## API Integration Notes
-
-- Current client assumes:
-  - `POST /api/auth/login`
-  - `GET /api/auth/session`
-  - `GET /api/stacks`
-  - `POST /api/stacks`
-  - `POST /api/stacks/{name}/start`
-  - `POST /api/stacks/{name}/stop`
-  - `DELETE /api/stacks/{name}?force=true`
-  - `GET /api/dashboard/stats`
-  - `GET/POST/DELETE /api/networks`
-  - `POST /api/networks/{id}/connect`
-  - `POST /api/networks/{id}/disconnect`
-  - `GET/POST/DELETE /api/volumes`
-  - `POST /api/volumes/{name}/clone`
-  - `GET/POST/DELETE /api/images`
-  - `POST /api/images/push`
-  - `POST /api/images/scan`
-  - `GET /api/registry/search`
-  - `GET /api/registry/tags`
-  - `GET /api/registry/catalog`
-  - `DELETE /api/registry/image`
-  - `GET/POST/DELETE /api/containers`
-  - `POST /api/containers/{id}/start`
-  - `POST /api/containers/{id}/stop`
-  - `POST /api/containers/{id}/restart`
-  - `POST /api/containers/{id}/pause`
-  - `POST /api/containers/{id}/unpause`
-  - `POST /api/containers/{id}/rename`
-  - `POST /api/containers/{id}/update`
-  - `GET /api/containers/stats`
-  - `POST /api/containers/check-updates`
-  - `GET /api/containers/pending-updates`
-  - `GET /api/containers/{id}/shells`
-  - `GET /api/containers/{id}/logs`
-  - `GET /api/containers/{id}/top`
-  - `POST /api/containers/{id}/files/create`
-  - `GET/PUT /api/containers/{id}/files/content`
-  - `DELETE /api/containers/{id}/files/delete`
-  - `GET /api/activity`
-  - `GET /api/hawser/connect`
-  - `POST /api/notifications/test`
-  - `POST /api/hawser/tokens`
-  - `GET/POST /api/environments`
-  - `GET/PUT/DELETE /api/environments/{id}`
-  - `GET /api/environments/detect-socket`
-  - `POST /api/environments/test`
-  - `POST /api/git/repositories/test`
-  - `POST /api/git/preview-env`
-  - `POST /api/git/stacks/{id}/webhook`
-  - `POST /api/git/stacks/{id}/deploy-stream`
-  - `GET /api/git/stacks/{id}/env-files`
-  - `POST /api/git/stacks/{id}/env-files`
-  - `GET /api/schedules`
-  - `GET /api/schedules/settings`
-  - `PUT /api/schedules/settings`
-  - `GET /api/schedules/stream`
-  - `GET /api/schedules/executions`
-  - `GET /api/system`
-  - `GET /api/system/disk`
-  - `GET /api/system/files`
-  - `GET /api/system/files/content`
-  - `POST /api/schedules/{type}/{id}/run`
-  - `POST /api/stacks/scan`
-  - `POST /api/stacks/adopt`
-  - `GET /api/stacks/{name}/env`
-  - `PUT /api/stacks/{name}/env`
-  - `GET /api/stacks/{name}/env/raw`
-  - `PUT /api/stacks/{name}/env/raw`
-  - `GET /api/stacks/base-path`
-  - `GET /api/stacks/default-path`
-  - `GET /api/stacks/sources`
-  - `POST /api/schedules/system/{id}/toggle`
-  - `POST /api/schedules/{type}/{id}/toggle`
-  - `POST /api/prune/all`
-  - `POST /api/prune/containers`
-  - `POST /api/prune/images`
-  - `POST /api/prune/networks`
-  - `POST /api/prune/volumes`
-  - `POST /api/batch`
-  - `GET /api/jobs/{id}`
-- Verify response payload shapes against live Dockhand responses before release.
-- Endpoint presence is tracked by `scripts/endpoint-probe.py` on CI; review `docs/reports/endpoint-probe.md` (refreshed by **Compat Reports Sync**).
-  - `docs/non-present-endpoints.md`
-
-## CI Expectations
-
-- GitHub Actions workflow: `.github/workflows/go-ci.yml`
-- CI should pass:
-  - format checks
-  - `go mod tidy` consistency
-  - tests
-  - build
-
-## Suggested Next Milestones
-
-1. Add acceptance tests using `terraform-plugin-testing`.
-2. Add release automation (private registry or public Terraform Registry artifacts).
-3. Expand resource/data source coverage once API contracts are finalized.
+Dockhand-dependent acceptance and endpoint probes run on GitHub Actions.

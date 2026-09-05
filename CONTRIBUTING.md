@@ -13,20 +13,19 @@ Thanks for contributing to `terraform-provider-dockhand`.
 6. Merge to `main`.
 7. Cut a release tag (`vX.Y.Z`) when changes are ready for distribution.
 
-Operational details and repeatable release flow: `docs/MAINTENANCE_PLAYBOOK.md`.
+Operational details and release flow: `docs/MAINTENANCE_PLAYBOOK.md` and `docs/CI_AND_RELEASE.md`.
 
-Autonomous agent loop: `docs/AGENT_RUNBOOK.md` (coding standards: `docs/AGENT_CODING_STANDARDS.md`; deploy: `docs/AGENT_DEPLOYMENT.md`; intake: `docs/AGENT_INTAKE.md`).
+Coding standards for provider changes: `docs/AGENT_CODING_STANDARDS.md`.
 
-## Agent-managed changes
+## Cursor-assisted changes
 
-This repository uses a transparent agent workflow for some fixes:
+Optional when using Cursor:
 
 - Branches: `agent/issue-<number>-<slug>`
-- Validation: **Agent Validate** (GitHub Actions)
-- Pull requests: opened by **Agent Open PR** as `github-actions[bot]` with the `agent` label
-- Commits: include `Co-authored-by: Cursor Agent <noreply@cursor.com>`
+- Commits may include `Co-authored-by: Cursor Agent <noreply@cursor.com>` (`./scripts/agent-commit-msg.sh`)
+- Validation is normal PR CI (Go CI, Acceptance CI, Security)
 
-Details: `docs/AGENT_IDENTITY.md`.
+Details: `AGENTS.md`.
 
 ## First-time setup
 
@@ -38,7 +37,7 @@ cd terraform-provider-dockhand
 
 Requires Go 1.25+ (see `go.mod`). For acceptance tests you also need Docker and Terraform; see `docs/LOCAL_DEV.md` and `docs/MAINTENANCE_PLAYBOOK.md`.
 
-Human branches: `codex/<short-description>`. Agent branches: `agent/issue-<number>-<slug>` (see `docs/AGENT_RUNBOOK.md`).
+Human branches: `codex/<short-description>`. Optional Cursor-assisted branches: `agent/issue-<number>-<slug>` (see `AGENTS.md`).
 
 ## Glossary
 
@@ -58,7 +57,7 @@ Human branches: `codex/<short-description>`. Agent branches: `agent/issue-<numbe
 
 ## Local validation (optional)
 
-Routine work does not require a local Dockhand. See `docs/AGENT_AUTONOMY.md`.
+Routine work does not require a local Dockhand. See `docs/CI_AND_RELEASE.md`.
 
 ```bash
 ./scripts/verify.sh --quality
@@ -78,7 +77,7 @@ When a GitHub Actions job fails:
 1. Open the failed workflow run and read the job log (for acceptance, download `*-logs-*` artifacts when present).
 2. Re-run via `workflow_dispatch` when appropriate.
 3. Local reproduction is optional — not required before merge when CI passes on retry.
-4. Agent-managed branches: see failure handling in `docs/AGENT_RUNBOOK.md`.
+4. Re-open a PR with a fix, or re-run the failed workflow when flaky.
 
 List PR checks from the CLI: `gh pr checks <number>`.
 

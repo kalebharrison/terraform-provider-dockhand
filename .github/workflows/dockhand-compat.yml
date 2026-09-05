@@ -1,8 +1,11 @@
-name: Dockhand Release Watch
+name: Dockhand Compat
 
 on:
   schedule:
+    # Watch for new Dockhand images (skip when unchanged).
     - cron: "10 */6 * * *"
+    # Nightly full inventory with strict API drift (absorbs former Acceptance Full).
+    - cron: "43 2 * * *"
   workflow_dispatch:
     inputs:
       image_tag:
@@ -13,12 +16,17 @@ on:
         required: false
         type: boolean
         default: false
+      strict_drift:
+        description: "Fail when new relevant API endpoints are discovered."
+        required: false
+        type: boolean
+        default: false
 
 permissions:
   contents: read
 
 concurrency:
-  group: dockhand-release-watch
+  group: dockhand-compat
   cancel-in-progress: false
 
 jobs:
@@ -33,6 +41,7 @@ jobs:
       last_digest: ${{ steps.state.outputs.last_digest }}
       should_run: ${{ steps.state.outputs.should_run }}
       reason: ${{ steps.state.outputs.reason }}
+      strict_drift: ${{ steps.state.outputs.strict_drift }}
     steps:
       - name: Checkout
         uses: actions/checkout@v7
@@ -117,13 +126,22 @@ jobs:
         run: |
           set -euo pipefail
           main_sha="$(gh api "repos/${GITHUB_REPOSITORY}/commits/main" --jq '.sha')"
+          nightly=false
+          strict_drift=false
+          if [[ "${{ github.event_name }}" == "schedule" && "${{ github.event.schedule }}" == "43 2 * * *" ]]; then
+            nightly=true
+            strict_drift=true
+          fi
+          if [[ "${{ inputs.strict_drift }}" == "true" ]]; then
+            strict_drift=true
+          fi
           decide_args=(
             --tag "${{ steps.pick.outputs.tag }}"
             --digest "${{ steps.pick.outputs.digest }}"
             --event-name "${{ github.event_name }}"
             --main-sha "${main_sha}"
           )
-          if [[ "${{ inputs.force_validate }}" == "true" ]]; then
+          if [[ "${{ inputs.force_validate }}" == "true" || "${nightly}" == "true" ]]; then
             decide_args+=(--force-validate)
           fi
           if [[ -n "${{ inputs.image_tag }}" ]]; then
@@ -136,6 +154,7 @@ jobs:
             echo "last_digest=$(jq -r '.last_digest' <<< "${decision}")"
             echo "should_run=$(jq -r '.should_run' <<< "${decision}")"
             echo "reason=$(jq -r '.reason' <<< "${decision}")"
+            echo "strict_drift=${strict_drift}"
           } >> "${GITHUB_OUTPUT}"
 
       - name: Seed watch state cache
@@ -181,7 +200,7 @@ jobs:
       RUN_WEBUI_AUDIT: "true"
       RUN_DOCS_REFERENCE_AUDIT: "true"
       RUN_PRIVATE_ENDPOINT_PROBE: "true"
-      API_DRIFT_FAIL_ON_NEW: "false"
+      API_DRIFT_FAIL_ON_NEW: ${{ needs.discover.outputs.strict_drift }}
       WEBUI_AUDIT_OUT_DIR: ${{ github.workspace }}/.compat-reports
       DOCS_AUDIT_OUT_DIR: ${{ github.workspace }}/.compat-reports
       PRIVATE_PROBE_OUT_DIR: ${{ github.workspace }}/.compat-reports
@@ -198,48 +217,8 @@ jobs:
           check-latest: true
           cache: true
 
-      - name: Ensure Terraform CLI
-        shell: bash
-        run: |
-          set -euo pipefail
-
-          if command -v terraform >/dev/null 2>&1; then
-            terraform_path="$(command -v terraform)"
-            echo "TF_ACC_TERRAFORM_PATH=${terraform_path}" >> "${GITHUB_ENV}"
-            "${terraform_path}" version
-            exit 0
-          fi
-
-          version="1.14.8"
-          arch="$(uname -m)"
-          case "${arch}" in
-            x86_64) arch="amd64" ;;
-            arm64|aarch64) arch="arm64" ;;
-            *)
-              echo "unsupported architecture for Terraform download: ${arch}" >&2
-              exit 1
-              ;;
-          esac
-
-          install_dir="${RUNNER_TEMP}/terraform-${version}"
-          mkdir -p "${install_dir}"
-
-          curl -fsSL \
-            "https://releases.hashicorp.com/terraform/${version}/terraform_${version}_linux_${arch}.zip" \
-            -o "${RUNNER_TEMP}/terraform_${version}_linux_${arch}.zip"
-          curl -fsSL \
-            "https://releases.hashicorp.com/terraform/${version}/terraform_${version}_SHA256SUMS" \
-            -o "${RUNNER_TEMP}/terraform_SHA256SUMS"
-
-          (
-            cd "${RUNNER_TEMP}"
-            grep "terraform_${version}_linux_${arch}.zip" terraform_SHA256SUMS | sha256sum --check --status
-          )
-          unzip -q "${RUNNER_TEMP}/terraform_${version}_linux_${arch}.zip" -d "${install_dir}"
-
-          terraform_path="${install_dir}/terraform"
-          echo "TF_ACC_TERRAFORM_PATH=${terraform_path}" >> "${GITHUB_ENV}"
-          "${terraform_path}" version
+      - name: Setup Terraform
+        uses: ./.github/actions/setup-terraform
 
       - name: Validate acceptance manifest parity
         shell: bash
@@ -298,7 +277,7 @@ jobs:
             --arg digest "${DOCKHAND_DIGEST}" \
             --arg updated_at "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
             --arg source_run "https://github.com/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}" \
-            --arg workflow "Dockhand Release Watch" \
+            --arg workflow "Dockhand Compat" \
             '{
               image: $image,
               tag: $tag,
@@ -433,7 +412,7 @@ jobs:
               `Investigate failing acceptance tests, endpoint probes, or provider drift against this Dockhand image.`,
               ``,
               `## Done when`,
-              `- **Dockhand Release Watch** validate job passes for \`${process.env.IMAGE_REF}\``,
+              `- **Dockhand Compat** validate job passes for \`${process.env.IMAGE_REF}\``,
               `- Root cause addressed in provider code, tests, harness, or documented allowlists as appropriate`,
               `- \`./scripts/verify.sh --quality\` passes and relevant acceptance coverage is updated if behavior changed`,
               ``,
@@ -476,14 +455,13 @@ jobs:
             };
 
             await ensureLabel("compatibility", "5319E7", "Dockhand compatibility validation and drift tracking");
-            await ensureLabel("agent", "0E8A16", "Automated agent-authored work");
 
             await github.rest.issues.create({
               owner,
               repo,
               title,
               body,
-              labels: ["bug", "compatibility", "agent"],
+              labels: ["bug", "compatibility"],
             });
         env:
           IMAGE_REF: ${{ needs.discover.outputs.image }}

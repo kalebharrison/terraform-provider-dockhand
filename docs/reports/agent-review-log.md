@@ -1,8 +1,8 @@
 # Agent Review Log
 
-Append-only record of lens sweeps. See `docs/AGENT_REVIEW_LENSES.md`.
+Historical lens-sweep archive. **Not a release gate.**
 
-**Next lens:** none — last release pass 2026-08-10 (v0.1.91). Re-run before next `v*` release.
+Current CI/release model: `docs/CI_AND_RELEASE.md`.
 
 ---
 

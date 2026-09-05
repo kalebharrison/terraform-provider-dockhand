@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Ensure Dockhand Release Watch validated on the current main SHA."""
+"""Ensure Dockhand Compat validated on the current main SHA."""
 
 from __future__ import annotations
 
