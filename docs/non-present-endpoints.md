@@ -4,7 +4,7 @@ This file tracks API endpoints that are not currently available on the tested Do
 
 ## Last Verified
 
-- Date: August 20, 2026 (CI Acceptance Full / Release Watch)
+- Date: September 5, 2026 (CI Dockhand Compat)
 - Probe: `scripts/endpoint-probe.py` (safe mode)
 - Report: `docs/reports/endpoint-probe.md`
 
@@ -20,5 +20,5 @@ This file tracks API endpoints that are not currently available on the tested Do
 ## Notes
 
 - These are documented as backlog candidates only; no provider resources/data sources should depend on them until the API is present and stable.
-- Compatibility reports refresh via **Compat Reports Sync** on green Acceptance Full / Release Watch runs.
+- Compatibility reports refresh via **Compat Reports Sync** on green Dockhand Compat runs.
 - Paths listed above also serve as the API drift allowlist consumed by `scripts/api-drift-gate.py`.
