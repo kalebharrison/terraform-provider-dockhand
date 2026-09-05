@@ -2,11 +2,13 @@
 
 Lists files/directories for a path via `GET /api/system/files?path=<dir>`.
 
+Protected host trees (`/etc`, `/proc`, `/root`, Dockhand secrets) are denied or hidden by Dockhand.
+
 ## Example Usage
 
 ```hcl
-data "dockhand_system_files" "root" {
-  path = "/"
+data "dockhand_system_files" "tmp" {
+  path = "/tmp"
 }
 ```
 

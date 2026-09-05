@@ -193,6 +193,12 @@ for _ in $(seq 1 60); do
   sleep 2
 done
 
+# Dockhand blocks /etc, /proc, /root (and secrets under DATA_DIR) via isProtectedPath.
+# Seed a readable fixture outside those trees for system file-content acceptance/probe.
+DOCKHAND_TEST_SYSTEM_FILE_PATH="${DOCKHAND_TEST_SYSTEM_FILE_PATH:-/tmp/tf-acc-system-file.txt}"
+docker exec "${DOCKHAND_CONTAINER}" sh -c "printf 'tf-acc-system-file\\n' > '${DOCKHAND_TEST_SYSTEM_FILE_PATH}'"
+export DOCKHAND_TEST_SYSTEM_FILE_PATH
+
 if ! login; then
   echo "Bootstrapping first admin"
   user_payload="$(jq -nc --arg u "${DOCKHAND_TEST_USERNAME}" --arg p "${DOCKHAND_TEST_PASSWORD}" \

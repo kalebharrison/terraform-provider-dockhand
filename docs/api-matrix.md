@@ -141,7 +141,7 @@ Live verification artifacts:
 | `dockhand_system` | `GET /api/system` | Exposes full system summary payload plus extracted runtime/database/stats sections as JSON. | implemented |
 | `dockhand_system_disk` | `GET /api/system/disk?env={env_id}` | Exposes environment-scoped Docker disk usage payload (`diskUsage`). | implemented |
 | `dockhand_system_files` | `GET /api/system/files?path=<dir>` | Reads directory entries for host/container file-browser paths. | implemented |
-| `dockhand_system_file_content` | `GET /api/system/files/content?path=<file>` | Reads file content and metadata (`size`,`mtime`) for a selected path. | implemented |
+| `dockhand_system_file_content` | `GET /api/system/files/content?path=<file>` | Reads file content and metadata (`size`,`mtime`) for a selected path. Dockhand returns 403 for protected paths (`/etc`, `/proc`, `/root`, DB/key, `.ssh`/`.git`). | implemented |
 | `dockhand_stack_base_path` | `GET /api/stacks/base-path` | Reads global base path used for Dockhand-managed stack directories. | implemented |
 | `dockhand_stack_default_path` | `GET /api/stacks/default-path?name=<stack>` | Resolves default directory/compose/env paths for a stack name. | implemented |
 | `dockhand_stacks` | `GET /api/stacks?env={env_id}` | Exposes stack list with runtime status and container count. | implemented |

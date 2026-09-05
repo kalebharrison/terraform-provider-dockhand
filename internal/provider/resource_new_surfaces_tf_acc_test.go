@@ -705,6 +705,10 @@ func TestAccStackDefaultPathDataSourceTerraform(t *testing.T) {
 func TestAccSystemDataSourcesTerraform(t *testing.T) {
 	endpoint, username, password := testAccEnv(t)
 	defaultEnv := testAccDefaultEnv()
+	systemFilePath := strings.TrimSpace(os.Getenv("DOCKHAND_TEST_SYSTEM_FILE_PATH"))
+	if systemFilePath == "" {
+		systemFilePath = "/tmp/tf-acc-system-file.txt"
+	}
 
 	t.Setenv("DOCKHAND_ENDPOINT", endpoint)
 	t.Setenv("DOCKHAND_USERNAME", username)
@@ -715,7 +719,7 @@ func TestAccSystemDataSourcesTerraform(t *testing.T) {
 		ProtoV6ProviderFactories: testAccProviderFactories(),
 		Steps: []resource.TestStep{
 			{
-				Config: testAccSystemDataSourcesConfig(defaultEnv, "/", "/etc/hostname"),
+				Config: testAccSystemDataSourcesConfig(defaultEnv, "/tmp", systemFilePath),
 				Check: resource.ComposeTestCheckFunc(
 					resource.TestCheckResourceAttrSet("data.dockhand_system.test", "id"),
 					resource.TestCheckResourceAttrSet("data.dockhand_system.test", "system_json"),
@@ -724,10 +728,10 @@ func TestAccSystemDataSourcesTerraform(t *testing.T) {
 					resource.TestCheckResourceAttr("data.dockhand_system_disk.test", "env", defaultEnv),
 					resource.TestCheckResourceAttrSet("data.dockhand_system_disk.test", "disk_usage_json"),
 					resource.TestCheckResourceAttrSet("data.dockhand_system_files.test", "id"),
-					resource.TestCheckResourceAttr("data.dockhand_system_files.test", "path", "/"),
+					resource.TestCheckResourceAttr("data.dockhand_system_files.test", "path", "/tmp"),
 					resource.TestCheckResourceAttrSet("data.dockhand_system_files.test", "entries_json"),
 					resource.TestCheckResourceAttrSet("data.dockhand_system_file_content.test", "id"),
-					resource.TestCheckResourceAttr("data.dockhand_system_file_content.test", "path", "/etc/hostname"),
+					resource.TestCheckResourceAttr("data.dockhand_system_file_content.test", "path", systemFilePath),
 					resource.TestCheckResourceAttrSet("data.dockhand_system_file_content.test", "content"),
 				),
 			},

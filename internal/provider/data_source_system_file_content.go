@@ -39,7 +39,7 @@ func (d *systemFileContentDataSource) Metadata(_ context.Context, req datasource
 
 func (d *systemFileContentDataSource) Schema(_ context.Context, _ datasource.SchemaRequest, resp *datasource.SchemaResponse) {
 	resp.Schema = schema.Schema{
-		MarkdownDescription: "Reads system file content via `GET /api/system/files/content?path=<file>`.",
+		MarkdownDescription: "Reads system file content via `GET /api/system/files/content?path=<file>`. Dockhand returns 403 for protected paths (`/etc`, `/proc`, `/root`, DB/key, `.ssh`/`.git`).",
 		Attributes: map[string]schema.Attribute{
 			"id": schema.StringAttribute{
 				Computed: true,
