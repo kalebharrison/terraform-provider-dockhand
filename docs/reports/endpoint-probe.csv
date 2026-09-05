@@ -78,6 +78,7 @@ PUT,/api/git/repositories/{id},400,present,Safe mode: placeholder probe
 DELETE,/api/git/repositories/{id},400,present,Safe mode: placeholder probe
 POST,/api/git/repositories/test,405,present,Safe mode: options probe (mutation skipped)
 POST,/api/git/preview-env,405,present,Safe mode: options probe (mutation skipped)
+GET,/api/git/branches,405,present,
 GET,/api/git/stacks,200,present,
 POST,/api/git/stacks,405,present,Safe mode: options probe (mutation skipped)
 GET,/api/git/stacks/{id},200,present,
@@ -100,7 +101,7 @@ POST,/api/stacks/{name}/start,200,present,Safe mode: placeholder probe
 POST,/api/stacks/{name}/stop,200,present,Safe mode: placeholder probe
 POST,/api/stacks/{name}/restart,200,present,Safe mode: placeholder probe
 POST,/api/stacks/{name}/down,200,present,Safe mode: placeholder probe
-DELETE,/api/stacks/{name},200,present,Safe mode: placeholder probe
+DELETE,/api/stacks/{name},400,present,Safe mode: placeholder probe
 GET,/api/stacks/{name}/env,200,present,
 PUT,/api/stacks/{name}/env,400,present,Safe mode: placeholder probe
 GET,/api/stacks/{name}/env/raw,200,present,

@@ -36,6 +36,8 @@
 /api/changelog
 /api/config-sets
 /api/config-sets/
+/api/container-icons
+/api/container-icons/
 /api/containers
 /api/containers/
 /api/containers/batch-update-stream
@@ -53,6 +55,7 @@
 /api/environments/detect-socket
 /api/environments/test
 /api/events
+/api/git/branches
 /api/git/credentials
 /api/git/credentials/
 /api/git/preview-env
@@ -65,6 +68,8 @@
 /api/hawser/tokens
 /api/health
 /api/host
+/api/icons/selfhst-manifest
+/api/icons/selfhst/batch
 /api/images
 /api/images/
 /api/images/load
