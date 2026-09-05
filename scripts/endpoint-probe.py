@@ -480,9 +480,10 @@ def main() -> int:
         if raw_path == "/api/stacks/default-path":
             query = {"name": "probe-stack"}
         if raw_path == "/api/system/files":
-            query = {"path": "/"}
+            query = {"path": "/tmp"}
         if raw_path == "/api/system/files/content":
-            query = {"path": "/etc/hostname"}
+            # Dockhand blocks /etc, /proc, /root via isProtectedPath. Harness seeds this fixture.
+            query = {"path": os.environ.get("DOCKHAND_TEST_SYSTEM_FILE_PATH", "/tmp/tf-acc-system-file.txt")}
         payload = None
         if method in ("POST", "PUT"):
             payload = {}
