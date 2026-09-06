@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- _Nothing yet._
+
+## [0.1.92] - 2026-09-06
+
 ### Changed
 
 - Consolidated GitHub Actions to nine workflows (Go CI, Acceptance CI, Dockhand Compat, Compat Reports Sync, Security, PR Policy, Release, Release Artifacts, Maintenance). Removed Cloud Agent intake/auto-merge/watchdog circus. Release is manual `workflow_dispatch` of **Release**; tagging no longer requires `agent-review-log` lens verdicts.
