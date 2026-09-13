@@ -10,6 +10,7 @@
 /api/backup/restore/preview
 /api/backup/restore/stop
 /api/backup/snapshots
+/api/backup/snapshots/batch-delete
 /api/backup/snapshots/diff
 /api/backup/snapshots/{id}
 /api/backup/snapshots/{id}/metadata
