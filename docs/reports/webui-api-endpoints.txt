@@ -29,6 +29,7 @@
 /api/backup/restore/preview
 /api/backup/snapshots
 /api/backup/snapshots/
+/api/backup/snapshots/batch-delete
 /api/backup/snapshots/diff
 /api/backup/stack-dir-listing
 /api/backup/stack-path
