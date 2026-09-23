@@ -5,6 +5,7 @@
 /api/audit/events
 /api/audit/export
 /api/audit/users
+/api/auth/
 /api/auth/ldap
 /api/auth/ldap/
 /api/auth/login
@@ -39,6 +40,8 @@
 /api/config-sets/
 /api/container-icons
 /api/container-icons/
+/api/container-tags
+/api/container-tags/
 /api/containers
 /api/containers/
 /api/containers/batch-update-stream
@@ -129,6 +132,7 @@
 /api/settings/scanner/cache
 /api/settings/semver
 /api/settings/theme
+/api/stack-tags
 /api/stacks
 /api/stacks/
 /api/stacks/adopt
@@ -140,6 +144,8 @@
 /api/system/disk
 /api/system/files
 /api/system/files/content
+/api/tags
+/api/tags/
 /api/templates
 /api/templates/compose
 /api/templates/sources
