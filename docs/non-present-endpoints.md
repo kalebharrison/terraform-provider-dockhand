@@ -4,7 +4,7 @@ This file tracks API endpoints that are not currently available on the tested Do
 
 ## Last Verified
 
-- Date: September 23, 2026 (CI Dockhand Compat)
+- Date: September 30, 2026 (CI Dockhand Compat)
 - Probe: `scripts/endpoint-probe.py` (safe mode)
 - Report: `docs/reports/endpoint-probe.md`
 
