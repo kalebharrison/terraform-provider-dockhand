@@ -122,6 +122,7 @@
 /api/schedules/system/
 /api/secret-providers
 /api/secret-providers/
+/api/secret-providers/default
 /api/secret-providers/test
 /api/self-update
 /api/self-update/check
