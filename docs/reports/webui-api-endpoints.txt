@@ -91,10 +91,12 @@
 /api/notifications
 /api/notifications/
 /api/notifications/test
+/api/preferences/environment-order
 /api/preferences/favorite-groups
 /api/preferences/favorites
 /api/preferences/grid
 /api/preferences/sidebar
+/api/preferences/tag-order
 /api/profile
 /api/profile/avatar
 /api/profile/preferences
