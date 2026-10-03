@@ -28,6 +28,7 @@
 /api/docs
 /api/docs/ui
 /api/environments
+/api/environments/report
 /api/git/stacks
 /api/git/stacks/42/webhook
 /api/git/stacks/{id}/webhook
