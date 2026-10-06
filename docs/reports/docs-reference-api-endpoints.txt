@@ -24,6 +24,7 @@
 /api/containers/batch-update
 /api/containers/check-updates
 /api/containers/pending-updates
+/api/containers/stats
 /api/dashboard/stats
 /api/docs
 /api/docs/ui
@@ -52,6 +53,7 @@
 /api/registry/tag-info
 /api/registry/tags
 /api/schedules
+/api/stack-stats
 /api/stack-tags
 /api/stacks
 /api/stacks/mystack/deploy
