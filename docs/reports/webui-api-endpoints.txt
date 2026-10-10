@@ -13,6 +13,10 @@
 /api/auth/oidc
 /api/auth/oidc/
 /api/auth/oidc/callback
+/api/auth/passkeys/login/options
+/api/auth/passkeys/login/verify
+/api/auth/passkeys/register/options
+/api/auth/passkeys/register/verify
 /api/auth/providers
 /api/auth/session
 /api/auth/settings
@@ -57,6 +61,7 @@
 /api/environments
 /api/environments/
 /api/environments/detect-socket
+/api/environments/report
 /api/environments/test
 /api/events
 /api/git/branches
@@ -99,6 +104,8 @@
 /api/preferences/tag-order
 /api/profile
 /api/profile/avatar
+/api/profile/passkeys
+/api/profile/passkeys/
 /api/profile/preferences
 /api/prune/all
 /api/prune/containers
@@ -130,6 +137,7 @@
 /api/self-update/check
 /api/self-update/progress
 /api/settings/general
+/api/settings/minimum-release-age
 /api/settings/navigation
 /api/settings/scanner
 /api/settings/scanner/cache
@@ -141,6 +149,7 @@
 /api/stacks/adopt
 /api/stacks/base-path
 /api/stacks/default-path
+/api/stacks/path-hints
 /api/stacks/scan
 /api/stacks/sources
 /api/system
