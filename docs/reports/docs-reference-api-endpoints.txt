@@ -53,6 +53,7 @@
 /api/registry/search
 /api/registry/tag-info
 /api/registry/tags
+/api/scheduled-actions/{containerName}
 /api/schedules
 /api/stack-stats
 /api/stack-tags
