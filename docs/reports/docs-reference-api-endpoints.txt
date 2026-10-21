@@ -46,6 +46,7 @@
 /api/jobs/{jobId}
 /api/labels
 /api/networks
+/api/preferences/language
 /api/registries
 /api/registries/test
 /api/registry/catalog
