@@ -100,6 +100,7 @@
 /api/preferences/favorite-groups
 /api/preferences/favorites
 /api/preferences/grid
+/api/preferences/language
 /api/preferences/sidebar
 /api/preferences/tag-order
 /api/profile
@@ -122,6 +123,7 @@
 /api/registry/tags
 /api/roles
 /api/roles/
+/api/scheduled-actions/
 /api/schedules
 /api/schedules/
 /api/schedules/executions
@@ -139,6 +141,7 @@
 /api/settings/general
 /api/settings/minimum-release-age
 /api/settings/navigation
+/api/settings/pinned-digest-report
 /api/settings/scanner
 /api/settings/scanner/cache
 /api/settings/semver
