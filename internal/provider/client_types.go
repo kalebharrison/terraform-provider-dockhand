@@ -19,8 +19,10 @@ type Client struct {
 }
 
 type stackPayload struct {
-	Name    string `json:"name"`
-	Compose string `json:"compose"`
+	Name             string             `json:"name"`
+	Compose          string             `json:"compose"`
+	SecretProviderID secretProviderID   `json:"secretProviderId,omitzero"`
+	EnvVars          []stackEnvVariable `json:"envVars,omitempty"`
 }
 
 type stackBasePathResponse struct {
@@ -406,6 +408,10 @@ type gitStackPayload struct {
 	RepullImages      bool                    `json:"repullImages"`
 	ForceRedeploy     bool                    `json:"forceRedeploy"`
 	EnvVars           []gitStackEnvVarPayload `json:"envVars,omitempty"`
+	SecretProviderID  secretProviderID        `json:"secretProviderId,omitzero"`
+	// ForceEmptyEnvVars sends `"envVars": []` when clearing the selector leaves no vars.
+	// An empty slice is otherwise omitted, and Dockhand would keep the old selector.
+	ForceEmptyEnvVars bool `json:"-"`
 }
 
 type gitStackRepositoryResponse struct {
@@ -888,9 +894,10 @@ type stackSourceRepositoryResponse struct {
 }
 
 type stackSourceResponse struct {
-	SourceType  string                         `json:"sourceType"`
-	ComposePath *string                        `json:"composePath"`
-	Repository  *stackSourceRepositoryResponse `json:"repository"`
+	SourceType       string                         `json:"sourceType"`
+	ComposePath      *string                        `json:"composePath"`
+	SecretProviderID *int64                         `json:"secretProviderId"`
+	Repository       *stackSourceRepositoryResponse `json:"repository"`
 }
 
 type stackAdoptResponse struct {

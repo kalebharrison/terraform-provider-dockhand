@@ -35,6 +35,7 @@ type stackSourceItemModel struct {
 	RepositoryComposePath   types.String `tfsdk:"repository_compose_path"`
 	RepositoryEnvironmentID types.String `tfsdk:"repository_environment_id"`
 	RepositorySyncStatus    types.String `tfsdk:"repository_sync_status"`
+	SecretProviderID        types.Int64  `tfsdk:"secret_provider_id"`
 }
 
 type stackSourcesDataSourceModel struct {
@@ -64,6 +65,7 @@ func (d *stackSourcesDataSource) Schema(_ context.Context, _ datasource.SchemaRe
 					"repository_compose_path":   schema.StringAttribute{Computed: true},
 					"repository_environment_id": schema.StringAttribute{Computed: true},
 					"repository_sync_status":    schema.StringAttribute{Computed: true},
+					"secret_provider_id":        schema.Int64Attribute{Computed: true, MarkdownDescription: "Bound Dockhand secret provider id, when the stack has one."},
 				}},
 			},
 		},
@@ -104,6 +106,11 @@ func (d *stackSourcesDataSource) Read(ctx context.Context, req datasource.ReadRe
 	for _, name := range names {
 		s := out[name]
 		item := stackSourceItemModel{StackName: types.StringValue(name), SourceType: types.StringValue(s.SourceType)}
+		if s.SecretProviderID != nil {
+			item.SecretProviderID = types.Int64Value(*s.SecretProviderID)
+		} else {
+			item.SecretProviderID = types.Int64Null()
+		}
 		if s.ComposePath != nil {
 			item.ComposePath = types.StringValue(*s.ComposePath)
 		} else {

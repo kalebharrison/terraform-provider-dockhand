@@ -52,6 +52,8 @@ type gitStackModel struct {
 	ComposePath               types.String `tfsdk:"compose_path"`
 	ContextDir                types.String `tfsdk:"context_dir"`
 	EnvFilePath               types.String `tfsdk:"env_file_path"`
+	SecretProviderID          types.Int64  `tfsdk:"secret_provider_id"`
+	SecretProviderPath        types.String `tfsdk:"secret_provider_path"`
 	AutoUpdateEnabled         types.Bool   `tfsdk:"auto_update_enabled"`
 	AutoUpdateCron            types.String `tfsdk:"auto_update_cron"`
 	WebhookEnabled            types.Bool   `tfsdk:"webhook_enabled"`
@@ -143,6 +145,14 @@ func (r *gitStackResource) Schema(_ context.Context, _ resource.SchemaRequest, r
 			"env_file_path": schema.StringAttribute{
 				Optional: true,
 				Computed: true,
+			},
+			"secret_provider_id": schema.Int64Attribute{
+				MarkdownDescription: "Dockhand secret provider id (`secretProviderId`). Omit it to leave an existing binding unchanged. Remove a previously set value to clear the binding. Binding a provider requires the Dockhand `secrets:view` permission.",
+				Optional:            true,
+			},
+			"secret_provider_path": schema.StringAttribute{
+				MarkdownDescription: "Bulk secret selector. Sent as the `DOCKHAND_SECRET_SELECTOR` env var and kept in step with `env_vars_json`. A legacy `OP_ENVIRONMENT_ID` row is replaced. Omit it to leave env vars unchanged.",
+				Optional:            true,
 			},
 			"auto_update_enabled": schema.BoolAttribute{
 				Optional: true,
@@ -259,6 +269,7 @@ func (r *gitStackResource) Create(ctx context.Context, req resource.CreateReques
 		resp.Diagnostics.AddError("Invalid environment", err.Error())
 		return
 	}
+	applyGitStackSecretProvider(&payload, plan, gitStackModel{}, false)
 
 	created, _, err := r.client.CreateGitStack(ctx, env, payload)
 	if err != nil {
@@ -296,6 +307,18 @@ func (r *gitStackResource) Read(ctx context.Context, req resource.ReadRequest, r
 
 	newState := mergeGitStackState(state, modelFromGitStackResponse(item))
 	newState.Env = types.StringValue(env)
+	if !state.SecretProviderID.IsNull() && !state.SecretProviderID.IsUnknown() {
+		id, err := r.client.GetStackSecretProviderID(ctx, env, state.StackName.ValueString())
+		if err != nil {
+			resp.Diagnostics.AddError("Error reading Dockhand stack secret provider", err.Error())
+			return
+		}
+		if id == nil {
+			newState.SecretProviderID = types.Int64Null()
+		} else {
+			newState.SecretProviderID = types.Int64Value(*id)
+		}
+	}
 	resp.Diagnostics.Append(resp.State.Set(ctx, &newState)...)
 }
 
@@ -331,6 +354,10 @@ func (r *gitStackResource) Update(ctx context.Context, req resource.UpdateReques
 	}
 	if err := setGitStackPayloadEnvironment(&payload, env); err != nil {
 		resp.Diagnostics.AddError("Invalid environment", err.Error())
+		return
+	}
+	if err := r.prepareGitStackSecretProvider(ctx, env, state.StackName.ValueString(), &payload, plan, state, true); err != nil {
+		resp.Diagnostics.AddError("Error reading Dockhand stack env vars", err.Error())
 		return
 	}
 
@@ -439,6 +466,24 @@ func prepareGitStackWebhookSecret(plan *gitStackModel, state *gitStackModel) err
 		return err
 	}
 	plan.WebhookSecret = types.StringValue(secret)
+	return nil
+}
+
+func (r *gitStackResource) prepareGitStackSecretProvider(ctx context.Context, env string, stackName string, payload *gitStackPayload, plan gitStackModel, previous gitStackModel, updating bool) error {
+	set := !plan.SecretProviderPath.IsNull() && !plan.SecretProviderPath.IsUnknown()
+	clear := updating && !set && !previous.SecretProviderPath.IsNull() && !previous.SecretProviderPath.IsUnknown()
+	// env_vars_json "[]" omits envVars so Dockhand keeps the current list. A path
+	// change has to send a list, so start from the current vars instead of wiping them.
+	if (set || clear) && len(payload.EnvVars) == 0 && r.client != nil {
+		vars, _, err := r.client.GetStackEnvVars(ctx, env, stackName)
+		if err != nil {
+			return err
+		}
+		for _, item := range vars {
+			payload.EnvVars = append(payload.EnvVars, gitStackEnvVarPayload(item))
+		}
+	}
+	applyGitStackSecretProvider(payload, plan, previous, updating)
 	return nil
 }
 
@@ -763,6 +808,12 @@ func mergeGitStackState(preferred gitStackModel, remote gitStackModel) gitStackM
 	}
 	if !preferred.EnvVarsJSON.IsNull() && !preferred.EnvVarsJSON.IsUnknown() {
 		out.EnvVarsJSON = preferred.EnvVarsJSON
+	}
+	if !preferred.SecretProviderID.IsNull() && !preferred.SecretProviderID.IsUnknown() {
+		out.SecretProviderID = preferred.SecretProviderID
+	}
+	if !preferred.SecretProviderPath.IsNull() && !preferred.SecretProviderPath.IsUnknown() {
+		out.SecretProviderPath = preferred.SecretProviderPath
 	}
 
 	if !preferred.DeployNow.IsNull() && !preferred.DeployNow.IsUnknown() {

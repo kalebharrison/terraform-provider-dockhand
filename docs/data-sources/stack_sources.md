@@ -24,3 +24,4 @@ data "dockhand_stack_sources" "this" {}
   - `repository_compose_path` (String)
   - `repository_environment_id` (String)
   - `repository_sync_status` (String)
+  - `secret_provider_id` (Number) Bound secret provider id, when the stack has one.

@@ -151,8 +151,12 @@ func (c *Client) CreateGitStack(ctx context.Context, env string, payload gitStac
 		query["env"] = resolvedEnv
 	}
 
+	body, err := marshalGitStackPayload(payload)
+	if err != nil {
+		return nil, 0, err
+	}
 	var out gitStackResponse
-	status, err := c.doJSONWithStatus(ctx, http.MethodPost, "/api/git/stacks", query, payload, &out)
+	status, err := c.doJSONWithStatus(ctx, http.MethodPost, "/api/git/stacks", query, body, &out)
 	if err != nil {
 		return nil, status, err
 	}
@@ -165,8 +169,12 @@ func (c *Client) UpdateGitStack(ctx context.Context, env string, id string, payl
 		query["env"] = resolvedEnv
 	}
 
+	body, err := marshalGitStackPayload(payload)
+	if err != nil {
+		return nil, 0, err
+	}
 	var out gitStackResponse
-	status, err := c.doJSONWithStatus(ctx, http.MethodPut, "/api/git/stacks/"+url.PathEscape(id), query, payload, &out)
+	status, err := c.doJSONWithStatus(ctx, http.MethodPut, "/api/git/stacks/"+url.PathEscape(id), query, body, &out)
 	if err != nil {
 		return nil, status, err
 	}

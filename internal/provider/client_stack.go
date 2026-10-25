@@ -195,6 +195,60 @@ func (c *Client) AdoptStacks(ctx context.Context, payload stackAdoptPayload) (*s
 	return &out, status, nil
 }
 
+func (c *Client) GetStackSecretProviderID(ctx context.Context, env string, name string) (*int64, error) {
+	query := map[string]string{}
+	if resolvedEnv := c.resolveEnv(env); resolvedEnv != "" {
+		query["env"] = resolvedEnv
+	}
+	var out map[string]stackSourceResponse
+	if _, err := c.doJSONWithStatus(ctx, http.MethodGet, "/api/stacks/sources", query, nil, &out); err != nil {
+		return nil, err
+	}
+	source, ok := out[name]
+	if !ok {
+		return nil, nil
+	}
+	return source.SecretProviderID, nil
+}
+
+func (c *Client) UpdateStackSecretProvider(ctx context.Context, env string, name string, compose string, id secretProviderID) error {
+	body := map[string]any{
+		"content": compose,
+		"restart": false,
+	}
+	if id.Include {
+		if id.Value == nil {
+			body["secretProviderId"] = nil
+		} else {
+			body["secretProviderId"] = *id.Value
+		}
+	}
+	query := map[string]string{}
+	if resolvedEnv := c.resolveEnv(env); resolvedEnv != "" {
+		query["env"] = resolvedEnv
+	}
+	_, err := c.doJSONWithStatus(ctx, http.MethodPut, "/api/stacks/"+url.PathEscape(name)+"/compose", query, body, nil)
+	return err
+}
+
+func (c *Client) SetStackSecretSelector(ctx context.Context, env string, name string, path string, clear bool) error {
+	vars, _, err := c.GetStackEnvVars(ctx, env, name)
+	if err != nil {
+		return err
+	}
+	current := make([]selectorVar, 0, len(vars))
+	for _, item := range vars {
+		current = append(current, selectorVar(item))
+	}
+	merged := mergeSelectorVars(current, path, clear)
+	out := make([]stackEnvVariable, 0, len(merged))
+	for _, item := range merged {
+		out = append(out, stackEnvVariable(item))
+	}
+	_, err = c.UpdateStackEnvVars(ctx, env, name, out)
+	return err
+}
+
 func (c *Client) GetStackSources(ctx context.Context) (map[string]stackSourceResponse, int, error) {
 	var out map[string]stackSourceResponse
 	status, err := c.doJSONWithStatus(ctx, http.MethodGet, "/api/stacks/sources", nil, nil, &out)
