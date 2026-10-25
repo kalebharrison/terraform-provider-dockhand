@@ -5,6 +5,9 @@ on:
     branches:
       - main
   workflow_dispatch:
+  workflow_run:
+    workflows: ["Go CI", "Security"]
+    types: [completed]
 
 permissions:
   contents: write
@@ -26,9 +29,66 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
+  release-decision:
+    name: Decide whether to publish
+    if: github.event_name == 'workflow_dispatch' || github.event_name == 'workflow_run'
+    runs-on: ubuntu-latest
+    outputs:
+      go: ${{ steps.decide.outputs.go }}
+    steps:
+      - name: Checkout the candidate commit
+        if: github.event_name == 'workflow_run'
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+
+      - name: Publish after CI and Security, or on manual dispatch
+        id: decide
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "go=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          if [ "${{ github.event.workflow_run.conclusion }}" != "success" ]; then
+            echo "go=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          if [ "${{ github.event.workflow_run.head_branch }}" != "main" ]; then
+            echo "go=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          if [ "${{ github.event.workflow_run.event }}" != "push" ]; then
+            echo "go=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          sha="${{ github.event.workflow_run.head_sha }}"
+          msg="$(git log -1 --format=%s "$sha")"
+          case "$msg" in
+            "chore(release):"*|"chore: refresh compatibility reports"*)
+              echo "skip: $msg"
+              echo "go=false" >> "$GITHUB_OUTPUT"
+              exit 0
+              ;;
+          esac
+          for wf in "Go CI" "Security"; do
+            conclusion="$(gh run list --repo "$GITHUB_REPOSITORY" --commit "$sha" --workflow "$wf" --json conclusion,event \
+              --jq '[.[] | select(.event=="push")][0].conclusion // ""')"
+            if [ "$conclusion" != "success" ]; then
+              echo "waiting: $wf is ${conclusion:-missing}"
+              echo "go=false" >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
+          done
+          echo "go=true" >> "$GITHUB_OUTPUT"
+
   prepare-compat:
     name: Ensure Dockhand Compat green on main
-    if: github.event_name == 'workflow_dispatch'
+    needs: release-decision
+    if: needs.release-decision.outputs.go == 'true'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -44,8 +104,8 @@ jobs:
 
   evaluate-release:
     name: Evaluate release gate
-    needs: prepare-compat
-    if: github.event_name == 'workflow_dispatch'
+    needs: [release-decision, prepare-compat]
+    if: needs.release-decision.outputs.go == 'true' && needs.prepare-compat.result == 'success'
     runs-on: ubuntu-latest
     outputs:
       ready: ${{ steps.gate.outputs.ready }}
@@ -75,8 +135,8 @@ jobs:
 
   publish-artifacts:
     name: Build and publish release artifacts
-    needs: evaluate-release
-    if: github.event_name == 'workflow_dispatch' && needs.evaluate-release.outputs.ready == 'true'
+    needs: [release-decision, evaluate-release]
+    if: needs.release-decision.outputs.go == 'true' && needs.evaluate-release.outputs.ready == 'true'
     permissions:
       contents: write
       id-token: write
@@ -88,8 +148,8 @@ jobs:
 
   housekeeping:
     name: Label released issues and cut CHANGELOG
-    needs: [evaluate-release, publish-artifacts]
-    if: github.event_name == 'workflow_dispatch' && needs.evaluate-release.outputs.ready == 'true'
+    needs: [release-decision, evaluate-release, publish-artifacts]
+    if: needs.release-decision.outputs.go == 'true' && needs.evaluate-release.outputs.ready == 'true'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout

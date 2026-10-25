@@ -11,6 +11,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - _Nothing yet._
 
+## [0.1.93] - 2026-10-25
+
+### Added
+
+- `dockhand_stack` and `dockhand_git_stack` accept `secret_provider_id` and `secret_provider_path`. The path is Dockhand's `DOCKHAND_SECRET_SELECTOR` env var. `dockhand_stack_sources` reports the bound provider id (#284).
+
 ## [0.1.92] - 2026-09-06
 
 ### Changed

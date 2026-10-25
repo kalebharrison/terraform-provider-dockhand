@@ -16,11 +16,12 @@ Two loops. No Cloud Agent factory.
 2. Implement in a PR with `Fixes #N` (enforced by **PR Policy**).
 3. **Go CI** + **Acceptance CI** + **Security** must pass.
 4. Merge labels linked issues `awaiting-release`.
+5. After **Go CI** and **Security** both succeed on that `main` push, **Release** publishes. Changelog cuts and compatibility-report refreshes do not publish again.
 
 ## Release
 
 1. **Release** workflow updates the Release Drafter draft on every `main` push.
-2. When you want to ship: **Actions → Release → Run workflow**.
+2. A user-fix or dependency merge publishes itself once Go CI and Security are green. **Actions → Release → Run workflow** still publishes on demand.
 3. Gate (`scripts/release_gate_check.py --mode tag`) requires:
    - Go CI, Security, Dockhand Compat green
    - No blocking open compatibility issues (merged `Fixes #` counts as resolved)

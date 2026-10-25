@@ -132,7 +132,7 @@ def commit_changelog(version: str) -> dict[str, object]:
 
     subprocess.run(["git", "checkout", "-B", CHANGELOG_BRANCH], cwd=ROOT, check=True)
     subprocess.run(
-        ["git", "push", "origin", f"HEAD:{CHANGELOG_BRANCH}", "--force"],
+        ["git", "push", "--no-thin", "origin", f"HEAD:{CHANGELOG_BRANCH}", "--force"],
         cwd=ROOT,
         check=True,
     )
