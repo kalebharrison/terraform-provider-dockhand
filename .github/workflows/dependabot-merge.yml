@@ -2,7 +2,7 @@ name: Merge dependency update
 
 on:
   workflow_run:
-    workflows: ["Go CI"]
+    workflows: ["Go CI", "Security"]
     types: [completed]
 
 permissions:
@@ -30,4 +30,12 @@ jobs:
             echo "No open Dependabot pull request for $HEAD_SHA"
             exit 0
           fi
+          for wf in "Go CI" Security; do
+            conclusion="$(gh run list --repo "$GITHUB_REPOSITORY" --commit "$HEAD_SHA" --workflow "$wf" --json conclusion,event \
+              --jq '[.[] | select(.event=="pull_request")][0].conclusion // ""')"
+            if [ "$conclusion" != "success" ]; then
+              echo "Not merging yet: $wf is ${conclusion:-missing}"
+              exit 0
+            fi
+          done
           gh pr merge "$number" --repo "$GITHUB_REPOSITORY" --squash --auto --delete-branch
