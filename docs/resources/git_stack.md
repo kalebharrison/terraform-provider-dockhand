@@ -51,6 +51,8 @@ Set `context_dir` to widen Dockhand's compose working directory (relative to the
 - `credential_id` (String)
 - `context_dir` (String) Repository-relative working directory for Docker Compose. Use `.` for the repo root when shared files live outside the compose file directory.
 - `env_file_path` (String)
+- `secret_provider_id` (Number) Dockhand secret provider id. Omit it to leave an existing binding unchanged. Remove a previously set value to clear the binding.
+- `secret_provider_path` (String) Bulk selector sent as `DOCKHAND_SECRET_SELECTOR` alongside `env_vars_json`. A legacy `OP_ENVIRONMENT_ID` row is replaced. Omit it to leave env vars unchanged.
 - `auto_update_enabled` (Boolean, default: `false`)
 - `auto_update_cron` (String, default: `0 3 * * *`)
 - `webhook_enabled` (Boolean, default: `false`)

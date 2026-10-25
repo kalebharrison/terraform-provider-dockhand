@@ -31,14 +31,16 @@ type stackResource struct {
 }
 
 type stackResourceModel struct {
-	ID             types.String `tfsdk:"id"`
-	Name           types.String `tfsdk:"name"`
-	Env            types.String `tfsdk:"env"`
-	Compose        types.String `tfsdk:"compose"`
-	Enabled        types.Bool   `tfsdk:"enabled"`
-	Status         types.String `tfsdk:"status"`
-	ContainerIDs   types.List   `tfsdk:"container_ids"`
-	ContainerCount types.Int64  `tfsdk:"container_count"`
+	ID                 types.String `tfsdk:"id"`
+	Name               types.String `tfsdk:"name"`
+	Env                types.String `tfsdk:"env"`
+	Compose            types.String `tfsdk:"compose"`
+	Enabled            types.Bool   `tfsdk:"enabled"`
+	SecretProviderID   types.Int64  `tfsdk:"secret_provider_id"`
+	SecretProviderPath types.String `tfsdk:"secret_provider_path"`
+	Status             types.String `tfsdk:"status"`
+	ContainerIDs       types.List   `tfsdk:"container_ids"`
+	ContainerCount     types.Int64  `tfsdk:"container_count"`
 }
 
 func (r *stackResource) Metadata(_ context.Context, req resource.MetadataRequest, resp *resource.MetadataResponse) {
@@ -80,6 +82,14 @@ func (r *stackResource) Schema(_ context.Context, _ resource.SchemaRequest, resp
 				Optional:            true,
 				Computed:            true,
 				Default:             booldefault.StaticBool(true),
+			},
+			"secret_provider_id": schema.Int64Attribute{
+				MarkdownDescription: "Dockhand secret provider id (`secretProviderId`). Omit it to leave an existing binding unchanged. Remove a previously set value to clear the binding. Binding a provider requires the Dockhand `secrets:view` permission.",
+				Optional:            true,
+			},
+			"secret_provider_path": schema.StringAttribute{
+				MarkdownDescription: "Bulk secret selector written as the `DOCKHAND_SECRET_SELECTOR` env var (the path field next to the provider dropdown). A legacy `OP_ENVIRONMENT_ID` row is replaced. Omit it to leave stack env vars unchanged.",
+				Optional:            true,
 			},
 			"status": schema.StringAttribute{
 				MarkdownDescription: "Current stack runtime status as reported by Dockhand.",
@@ -135,10 +145,18 @@ func (r *stackResource) Create(ctx context.Context, req resource.CreateRequest, 
 	plan.Env = r.client.persistEnvAttr(plan.Env)
 	name := plan.Name.ValueString()
 
-	if err := r.client.CreateStack(ctx, env, stackPayload{
-		Name:    name,
-		Compose: plan.Compose.ValueString(),
-	}); err != nil {
+	payload := stackPayload{
+		Name:             name,
+		Compose:          plan.Compose.ValueString(),
+		SecretProviderID: secretProviderIDFromAttrs(plan.SecretProviderID, types.Int64Null(), false),
+	}
+	if !plan.SecretProviderPath.IsNull() && !plan.SecretProviderPath.IsUnknown() {
+		payload.EnvVars = []stackEnvVariable{{
+			Key:   dockhandSecretSelectorVar,
+			Value: plan.SecretProviderPath.ValueString(),
+		}}
+	}
+	if err := r.client.CreateStack(ctx, env, payload); err != nil {
 		resp.Diagnostics.AddError("Error creating Dockhand stack", err.Error())
 		return
 	}
@@ -155,6 +173,10 @@ func (r *stackResource) Create(ctx context.Context, req resource.CreateRequest, 
 	plan.ID = types.StringValue(formatStackID(env, name))
 	if err := r.refreshStackObservedFields(ctx, env, name, &plan, nil); err != nil {
 		resp.Diagnostics.AddError("Error reading Dockhand stack after create", err.Error())
+		return
+	}
+	if err := r.refreshManagedSecretProvider(ctx, env, name, &plan); err != nil {
+		resp.Diagnostics.AddError("Error reading Dockhand stack secret provider", err.Error())
 		return
 	}
 	resp.Diagnostics.Append(resp.State.Set(ctx, &plan)...)
@@ -197,6 +219,10 @@ func (r *stackResource) Read(ctx context.Context, req resource.ReadRequest, resp
 	if enabled, ok := runtimeEnabledFromStatus(stack.Status); ok {
 		state.Enabled = types.BoolValue(enabled)
 	}
+	if err := r.refreshManagedSecretProvider(ctx, state.Env.ValueString(), state.Name.ValueString(), &state); err != nil {
+		resp.Diagnostics.AddError("Error reading Dockhand stack secret provider", err.Error())
+		return
+	}
 
 	resp.Diagnostics.Append(resp.State.Set(ctx, &state)...)
 }
@@ -215,31 +241,33 @@ func (r *stackResource) Update(ctx context.Context, req resource.UpdateRequest, 
 		return
 	}
 
-	if plan.Enabled.ValueBool() == state.Enabled.ValueBool() {
-		if err := r.refreshStackObservedFields(ctx, state.Env.ValueString(), state.Name.ValueString(), &plan, &state); err != nil {
-			resp.Diagnostics.AddError("Error refreshing Dockhand stack", err.Error())
-			return
-		}
-		resp.Diagnostics.Append(resp.State.Set(ctx, &plan)...)
-		return
-	}
-
 	env := plan.Env.ValueString()
 	name := plan.Name.ValueString()
 
-	var err error
-	if plan.Enabled.ValueBool() {
-		err = r.client.StartStack(ctx, env, name)
-	} else {
-		err = r.client.StopStack(ctx, env, name)
-	}
-	if err != nil {
-		resp.Diagnostics.AddError("Error updating Dockhand stack runtime state", err.Error())
+	if err := r.syncStackSecretProvider(ctx, env, name, plan, state); err != nil {
+		resp.Diagnostics.AddError("Error updating Dockhand stack secret provider", err.Error())
 		return
+	}
+
+	if plan.Enabled.ValueBool() != state.Enabled.ValueBool() {
+		var err error
+		if plan.Enabled.ValueBool() {
+			err = r.client.StartStack(ctx, env, name)
+		} else {
+			err = r.client.StopStack(ctx, env, name)
+		}
+		if err != nil {
+			resp.Diagnostics.AddError("Error updating Dockhand stack runtime state", err.Error())
+			return
+		}
 	}
 
 	if err := r.refreshStackObservedFields(ctx, env, name, &plan, &state); err != nil {
 		resp.Diagnostics.AddError("Error reading Dockhand stack after update", err.Error())
+		return
+	}
+	if err := r.refreshManagedSecretProvider(ctx, env, name, &plan); err != nil {
+		resp.Diagnostics.AddError("Error reading Dockhand stack secret provider", err.Error())
 		return
 	}
 
@@ -300,6 +328,57 @@ func formatStackID(env string, name string) string {
 		return name
 	}
 	return env + ":" + name
+}
+
+func (r *stackResource) syncStackSecretProvider(ctx context.Context, env string, name string, plan stackResourceModel, state stackResourceModel) error {
+	if !plan.SecretProviderID.Equal(state.SecretProviderID) {
+		if err := r.client.UpdateStackSecretProvider(ctx, env, name, plan.Compose.ValueString(), secretProviderIDFromAttrs(plan.SecretProviderID, state.SecretProviderID, true)); err != nil {
+			return err
+		}
+	}
+	if plan.SecretProviderPath.Equal(state.SecretProviderPath) {
+		return nil
+	}
+	clear := plan.SecretProviderPath.IsNull() || plan.SecretProviderPath.IsUnknown()
+	path := ""
+	if !clear {
+		path = plan.SecretProviderPath.ValueString()
+	}
+	return r.client.SetStackSecretSelector(ctx, env, name, path, clear)
+}
+
+func (r *stackResource) refreshManagedSecretProvider(ctx context.Context, env string, name string, target *stackResourceModel) error {
+	if target == nil {
+		return nil
+	}
+	if !target.SecretProviderID.IsNull() && !target.SecretProviderID.IsUnknown() {
+		id, err := r.client.GetStackSecretProviderID(ctx, env, name)
+		if err != nil {
+			return err
+		}
+		if id == nil {
+			target.SecretProviderID = types.Int64Null()
+		} else {
+			target.SecretProviderID = types.Int64Value(*id)
+		}
+	}
+	if target.SecretProviderPath.IsNull() || target.SecretProviderPath.IsUnknown() {
+		return nil
+	}
+	vars, _, err := r.client.GetStackEnvVars(ctx, env, name)
+	if err != nil {
+		return err
+	}
+	current := make([]selectorVar, 0, len(vars))
+	for _, item := range vars {
+		current = append(current, selectorVar(item))
+	}
+	if value, ok := selectorValue(current); ok {
+		target.SecretProviderPath = types.StringValue(value)
+		return nil
+	}
+	target.SecretProviderPath = types.StringNull()
+	return nil
 }
 
 func (r *stackResource) refreshStackObservedFields(ctx context.Context, env string, name string, target *stackResourceModel, fallback *stackResourceModel) error {

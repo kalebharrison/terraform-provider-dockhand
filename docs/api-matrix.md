@@ -37,9 +37,10 @@ Live verification artifacts:
 
 | Terraform Resource | CRUD Step | API Endpoint | Notes | Status |
 | --- | --- | --- | --- | --- |
-| `dockhand_stack` | Create | `POST /api/stacks?env={env_id}` | Payload uses `name` and `compose`. | implemented |
-| `dockhand_stack` | Read | `GET /api/stacks?env={env_id}` | Reads full list and filters by `name`. | partial |
+| `dockhand_stack` | Create | `POST /api/stacks?env={env_id}` | Payload uses `name` and `compose`. Optional `secretProviderId` and `envVars` (`DOCKHAND_SECRET_SELECTOR` for `secret_provider_path`). | implemented |
+| `dockhand_stack` | Read | `GET /api/stacks?env={env_id}` | Reads full list and filters by `name`. A managed secret provider is read from `GET /api/stacks/sources` and `GET /api/stacks/{name}/env`. | partial |
 | `dockhand_stack` | Update runtime | `POST /api/stacks/{name}/start` or `POST /api/stacks/{name}/stop` | `enabled` toggles running state. | implemented |
+| `dockhand_stack` | Update secret provider | `PUT /api/stacks/{name}/compose` and `PUT /api/stacks/{name}/env` | `secret_provider_id` updates the binding with `restart: false`. `secret_provider_path` updates `DOCKHAND_SECRET_SELECTOR` without replacing other env vars. | implemented |
 | `dockhand_stack` | Replace | `DELETE /api/stacks/{name}?force=true` + create | `name`, `env`, `compose` are `ForceNew`. | implemented |
 | `dockhand_stack` | Import | `GET /api/stacks` | Import formats: `<name>` or `<env>:<name>`. | implemented |
 | `dockhand_user` | Create | `POST /api/users` | Requires `username` + `password`. | implemented |
@@ -68,7 +69,7 @@ Live verification artifacts:
 | `dockhand_git_repository` | Update | `PUT /api/git/repositories/{id}` | Updates repo integration settings. | partial |
 | `dockhand_git_repository` | Delete | `DELETE /api/git/repositories/{id}` | `404` treated as already deleted. | implemented |
 | `dockhand_git_repository_test_action` | Test connectivity | `POST /api/git/repositories/test` | One-shot repository connectivity test. Supports inline URL payloads or existing `repository_id` resolution. | implemented |
-| `dockhand_git_stack` | Create/Read/Update/Delete | `GET/POST/PUT/DELETE /api/git/stacks?env={env_id}` | Manages deployed Git-backed stacks (stack name + repo + compose path + optional context directory) in a target environment. Supports `context_dir` (`contextDir`) for shared env files and volume paths outside the compose folder. | implemented |
+| `dockhand_git_stack` | Create/Read/Update/Delete | `GET/POST/PUT/DELETE /api/git/stacks?env={env_id}` | Manages deployed Git-backed stacks (stack name + repo + compose path + optional context directory) in a target environment. Supports `context_dir` (`contextDir`) for shared env files and volume paths outside the compose folder. Optional `secretProviderId` and `DOCKHAND_SECRET_SELECTOR` in `envVars`. | implemented |
 | `dockhand_git_stack_webhook_action` | Trigger webhook | `POST /api/git/stacks/{id}/webhook` | One-shot trigger for git stack deploy/sync webhook flow. | implemented |
 | `dockhand_git_stack_deploy_action` | Trigger deploy | `POST /api/git/stacks/{id}/deploy-stream` | One-shot deploy request for git-managed stacks. | implemented |
 | `dockhand_git_stack_env_file` | Read available env-file paths | `GET /api/git/stacks/{id}/env-files` | Reads env-file path inventory for a git-managed stack. | implemented |
