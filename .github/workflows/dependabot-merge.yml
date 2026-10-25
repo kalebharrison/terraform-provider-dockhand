@@ -1,0 +1,33 @@
+name: Merge dependency update
+
+on:
+  workflow_run:
+    workflows: ["Go CI"]
+    types: [completed]
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  merge:
+    if: >
+      github.event.workflow_run.event == 'pull_request' &&
+      github.event.workflow_run.conclusion == 'success' &&
+      (github.event.workflow_run.actor.login == 'dependabot[bot]' || github.event.workflow_run.actor.login == 'app/dependabot')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Squash-merge the dependency pull request
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
+        run: |
+          number=$(gh pr list --repo "$GITHUB_REPOSITORY" --state open --limit 50 \
+            --json number,headRefOid,author \
+            --jq ".[] | select(.headRefOid==\"$HEAD_SHA\" and (.author.login==\"dependabot[bot]\" or .author.login==\"app/dependabot\")) | .number" \
+            | head -n 1)
+          if [ -z "$number" ]; then
+            echo "No open Dependabot pull request for $HEAD_SHA"
+            exit 0
+          fi
+          gh pr merge "$number" --repo "$GITHUB_REPOSITORY" --squash --auto --delete-branch
