@@ -64,6 +64,7 @@
 /api/environments/report
 /api/environments/test
 /api/events
+/api/exposure-status
 /api/git/branches
 /api/git/credentials
 /api/git/credentials/
