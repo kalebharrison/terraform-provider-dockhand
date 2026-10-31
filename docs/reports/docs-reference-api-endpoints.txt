@@ -1,4 +1,5 @@
 /api/activity
+/api/auth/oidc/backchannel-logout
 /api/auth/oidc/callback
 /api/backup/configs
 /api/backup/configs/1719/run
