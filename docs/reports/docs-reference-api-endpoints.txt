@@ -57,6 +57,12 @@
 /api/registry/tags
 /api/scheduled-actions/{containerName}
 /api/schedules
+/api/secret-providers
+/api/secret-providers/default
+/api/secret-providers/test
+/api/secret-providers/{id}
+/api/secret-providers/{id}/probe
+/api/secret-providers/{id}/test
 /api/stack-stats
 /api/stack-tags
 /api/stacks
