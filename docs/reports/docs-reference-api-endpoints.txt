@@ -48,6 +48,7 @@
 /api/labels
 /api/networks
 /api/preferences/language
+/api/prune/build-cache
 /api/registries
 /api/registries/test
 /api/registry/catalog
