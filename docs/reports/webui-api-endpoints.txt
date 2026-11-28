@@ -110,6 +110,7 @@
 /api/profile/passkeys/
 /api/profile/preferences
 /api/prune/all
+/api/prune/build-cache
 /api/prune/containers
 /api/prune/images
 /api/prune/networks
